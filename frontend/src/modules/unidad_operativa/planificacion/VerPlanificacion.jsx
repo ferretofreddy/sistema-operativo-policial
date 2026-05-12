@@ -1,6 +1,9 @@
-import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useEffect, useState, useContext } from "react";
+
+import { useParams, useNavigate } from "react-router-dom";
+
 import { db } from "../../../services/firebase";
+
 import {
   doc,
   getDoc,
@@ -9,162 +12,170 @@ import {
   getDocs,
 } from "firebase/firestore";
 
-import jsPDF from "jspdf";
-import html2canvas from "html2canvas";
+import { AuthContext } from "../../../context/AuthContext";
+
+import MainLayout from "../../../layouts/MainLayout";
+
 import * as XLSX from "xlsx";
+
 import { saveAs } from "file-saver";
 
 function VerPlanificacion() {
   const { id } = useParams();
 
+  const navigate = useNavigate();
+
+  const { user } = useContext(AuthContext);
+
+  // 🔥 USER DATA
+  const [userData, setUserData] = useState(null);
+
+  // 🔥 DATA
   const [plan, setPlan] = useState(null);
+
   const [ordenes, setOrdenes] = useState([]);
 
+  // 🔥 FORM
   const [form, setForm] = useState({
     orden_id: "",
+
     accion_id: "",
+
     hora_inicio: "",
+
     hora_fin: "",
+
     sector: "",
+
     detalle: "",
   });
 
+  // 🔥 EDIT
   const [editando, setEditando] = useState(null);
+
   const [formEdit, setFormEdit] = useState({});
 
-  // Generar Documento PDF
-  const generarPDF = async () => {
-    const elemento = document.getElementById("contenido-plan");
+  // 🔥 CARGAR USERDATA
+  useEffect(() => {
+    const cargarUsuario = async () => {
+      try {
+        if (!user?.uid) return;
 
-    const canvas = await html2canvas(elemento);
-    const imgData = canvas.toDataURL("image/png");
+        const ref = doc(db, "usuarios", user.uid);
 
-    const pdf = new jsPDF("p", "mm", "a4");
+        const snap = await getDoc(ref);
 
-    const width = pdf.internal.pageSize.getWidth();
-    const height = (canvas.height * width) / canvas.width;
-
-    pdf.addImage(imgData, "PNG", 0, 0, width, height);
-
-    pdf.save("planificacion.pdf");
-  };
-
-  // Generar Excel
-
-  const exportarExcel = (plan, ordenes, usuarioNombre = "Usuario") => {
-    const obtenerOrden = (id) => {
-      return ordenes.find((o) => o.id === id);
-    };
-
-    const obtenerAccion = (ordenId, accionId) => {
-      const orden = ordenes.find((o) => o.id === ordenId);
-      return orden?.acciones?.find((a) => a.id === accionId);
-    };
-
-    const ws = XLSX.utils.aoa_to_sheet([]);
-
-    // 🔹 ENCABEZADO
-    XLSX.utils.sheet_add_aoa(
-      ws,
-      [
-        ["MINISTERIO DE SEGURIDAD PÚBLICA"],
-        ["DIRECCIÓN REGIONAL DÉCIMA BRUNCA SUR"],
-        ["DELEGACIÓN POLICIAL DE PUERTO JIMÉNEZ"],
-        [`PLANIFICACIÓN: ${plan.fecha_inicio} - ${plan.fecha_fin}`],
-        [`Elaborado por: ${usuarioNombre}`],
-        [], // espacio
-      ],
-      { origin: "A1" },
-    );
-
-    // 🔹 FILA DONDE INICIA TABLA
-    const startRow = 7;
-
-    // 🔹 ENCABEZADOS DE TABLA
-    const headers = [
-      [
-        "Día",
-        "Fecha",
-        "Turno",
-        "Orden",
-        "Código",
-        "Acción",
-        "Detalle",
-        "Hora Inicio",
-        "Hora Fin",
-        "Sector",
-        "Responsable",
-      ],
-    ];
-
-    XLSX.utils.sheet_add_aoa(ws, headers, { origin: `A${startRow}` });
-
-    // 🔹 DATOS
-    const data = [];
-
-    plan.dias.forEach((dia, index) => {
-      const actividadesOrdenadas = [...dia.actividades].sort((a, b) =>
-        a.hora_inicio.localeCompare(b.hora_inicio),
-      );
-
-      if (actividadesOrdenadas.length === 0) {
-        data.push([
-          index + 1,
-          dia.fecha,
-          dia.turno,
-          "Sin actividades",
-          "",
-          "",
-          "",
-          "",
-          "",
-          "",
-          plan.supervisor,
-        ]);
-      } else {
-        actividadesOrdenadas.forEach((act) => {
-          const orden = obtenerOrden(act.orden_id);
-          const accion = obtenerAccion(act.orden_id, act.accion_id);
-
-          data.push([
-            index + 1,
-            dia.fecha,
-            dia.turno,
-            orden?.consecutivo || "",
-            orden?.codigo || "",
-            accion?.nombre || "",
-            act.detalle || "",
-            act.hora_inicio || "",
-            act.hora_fin || "",
-            act.sector || "",
-            plan.supervisor,
-          ]);
-        });
+        if (snap.exists()) {
+          setUserData(snap.data());
+        }
+      } catch (error) {
+        console.error(error);
       }
+    };
+
+    cargarUsuario();
+  }, [user]);
+
+  // 🔥 EXCEL
+  const exportarExcel = (plan, ordenes) => {
+    const datos = [];
+
+    // 🔥 ENCABEZADO
+    datos.push(["MINISTERIO DE SEGURIDAD PÚBLICA"]);
+
+    datos.push([(plan.region_nombre || "").toUpperCase()]);
+
+    datos.push([(plan.delegacion_nombre || "").toUpperCase()]);
+
+    datos.push([`PLANIFICACIÓN OPERATIVA`]);
+
+    datos.push([`PERIODO: ${plan.fecha_inicio} - ${plan.fecha_fin}`]);
+
+    datos.push([`ESCUADRA: ${(plan.escuadra_nombre || "").toUpperCase()}`]);
+
+    datos.push([`SUPERVISOR: ${(plan.supervisor_nombre || "").toUpperCase()}`]);
+
+    datos.push([`CREADO POR: ${(plan.creado_por_nombre || "").toUpperCase()}`]);
+
+    datos.push([]);
+
+    // 🔥 DIAS
+    plan.dias.forEach((dia, index) => {
+      datos.push([`DÍA ${index + 1}`]);
+
+      datos.push([`FECHA: ${dia.fecha}`]);
+
+      datos.push([`TURNO: ${dia.turno.toUpperCase()}`]);
+
+      datos.push([]);
+
+      // 🔥 CABECERA TABLA
+      datos.push([
+        "ORDEN",
+
+        "ACCIÓN",
+
+        "HORA INICIO",
+
+        "HORA FIN",
+
+        "SECTOR",
+
+        "DETALLE",
+      ]);
+
+      // 🔥 ACTIVIDADES
+      dia.actividades.forEach((act) => {
+        const orden = ordenes.find((o) => o.id === act.orden_id);
+
+        const accion = orden?.acciones?.find((a) => a.id === act.accion_id);
+
+        datos.push([
+          orden?.consecutivo || "",
+
+          accion?.nombre || "",
+
+          act.hora_inicio,
+
+          act.hora_fin,
+
+          act.sector,
+
+          act.detalle,
+        ]);
+      });
+
+      datos.push([]);
+      datos.push([]);
     });
 
-    XLSX.utils.sheet_add_aoa(ws, data, { origin: `A${startRow + 1}` });
+    // 🔥 CREAR SHEET
+    const ws = XLSX.utils.aoa_to_sheet(datos);
 
-    // 🔹 ANCHO DE COLUMNAS
+    // 🔥 ANCHO COLUMNAS
     ws["!cols"] = [
-      { wch: 5 },
-      { wch: 12 },
-      { wch: 10 },
-      { wch: 20 },
-      { wch: 12 },
-      { wch: 25 },
       { wch: 30 },
-      { wch: 12 },
-      { wch: 12 },
-      { wch: 20 },
-      { wch: 20 },
+
+      { wch: 40 },
+
+      { wch: 15 },
+
+      { wch: 15 },
+
+      { wch: 25 },
+
+      { wch: 50 },
     ];
 
+    // 🔥 WORKBOOK
     const wb = XLSX.utils.book_new();
+
     XLSX.utils.book_append_sheet(wb, ws, "Planificación");
 
+    // 🔥 EXPORTAR
     const excelBuffer = XLSX.write(wb, {
       bookType: "xlsx",
+
       type: "array",
     });
 
@@ -172,163 +183,169 @@ function VerPlanificacion() {
       type: "application/octet-stream",
     });
 
-    saveAs(file, "planificacion.xlsx");
+    saveAs(file, `PLANIFICACION_${plan.escuadra_nombre}.xlsx`);
   };
 
+  // 🔥 CARGAR PLAN
   useEffect(() => {
     const obtenerDatos = async () => {
-      const ref = doc(db, "planificaciones", id);
-      const snap = await getDoc(ref);
+      try {
+        const ref = doc(db, "planificaciones", id);
 
-      if (!snap.exists()) return;
+        const snap = await getDoc(ref);
 
-      const planData = { id: snap.id, ...snap.data() };
-      setPlan(planData);
+        if (!snap.exists()) {
+          return;
+        }
 
-      const snapOrdenes = await getDocs(collection(db, "ordenes"));
+        const planData = {
+          id: snap.id,
 
-      const todas = snapOrdenes.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
+          ...snap.data(),
+        };
 
-      const filtradas = todas.filter((orden) => {
-        return (
-          orden.fecha_fin >= planData.fecha_inicio &&
-          orden.fecha_inicio <= planData.fecha_fin
-        );
-      });
+        // 🔥 VALIDAR ACCESO
+        if (
+          userData &&
+          (planData.region_id !== userData.region_id ||
+            planData.delegacion_id !== userData.delegacion_id)
+        ) {
+          alert("No tiene acceso a esta planificación");
 
-      setOrdenes(filtradas);
+          navigate("/unidad_operativa");
+
+          return;
+        }
+
+        setPlan(planData);
+
+        // 🔥 ORDENES
+        const snapOrdenes = await getDocs(collection(db, "ordenes"));
+
+        const todas = snapOrdenes.docs.map((d) => ({
+          id: d.id,
+
+          ...d.data(),
+        }));
+
+        // 🔥 FILTRAR
+        const filtradas = todas.filter((orden) => {
+          const mismaRegion = orden.region_id === planData.region_id;
+
+          const mismaDelegacion =
+            orden.delegacion_id === planData.delegacion_id;
+
+          const dentroPeriodo =
+            orden.fecha_fin >= planData.fecha_inicio &&
+            orden.fecha_inicio <= planData.fecha_fin;
+
+          const activa = orden.estado === "activa";
+
+          return mismaRegion && mismaDelegacion && dentroPeriodo && activa;
+        });
+
+        setOrdenes(filtradas);
+      } catch (error) {
+        console.error(error);
+      }
     };
 
-    obtenerDatos();
-  }, [id]);
+    if (userData) {
+      obtenerDatos();
+    }
+  }, [id, userData]);
 
+  // 🔥 ACCIONES
+  const accionesDeOrden = () => {
+    const orden = ordenes.find((o) => o.id === form.orden_id);
+
+    return orden?.acciones || [];
+  };
+
+  // 🔥 OBTENER ORDEN
+  const obtenerOrden = (id) => {
+    return ordenes.find((o) => o.id === id);
+  };
+
+  // 🔥 OBTENER ACCION
+  const obtenerAccion = (ordenId, accionId) => {
+    const orden = ordenes.find((o) => o.id === ordenId);
+
+    return orden?.acciones?.find((a) => a.id === accionId);
+  };
+
+  // 🔥 VALIDAR HORARIO
+  const hayTraslape = (actividades, nueva) => {
+    return actividades.some((act) => {
+      return (
+        nueva.hora_inicio < act.hora_fin && nueva.hora_fin > act.hora_inicio
+      );
+    });
+  };
+
+  // 🔥 AGREGAR ACTIVIDAD
   const agregarActividad = async (indexDia) => {
     if (
       !form.orden_id ||
       !form.accion_id ||
       !form.hora_inicio ||
       !form.hora_fin ||
-      !form.detalle ||
-      !form.sector
+      !form.sector ||
+      !form.detalle
     ) {
       alert("Complete todos los campos");
+
       return;
     }
 
-    // validar orden de horas
     if (form.hora_inicio >= form.hora_fin) {
-      alert("La hora de inicio debe ser menor a la hora fin");
+      alert("Horario inválido");
+
       return;
     }
 
     const actividadesDia = plan.dias[indexDia].actividades;
 
     if (hayTraslape(actividadesDia, form)) {
-      alert("Hay un traslape de horarios en este día");
+      alert("Existe traslape de horario");
+
       return;
     }
 
-    const nuevaActividad = {
-      ...form,
-    };
-
     const nuevosDias = [...plan.dias];
-    nuevosDias[indexDia].actividades.push(nuevaActividad);
+
+    nuevosDias[indexDia].actividades.push({
+      ...form,
+    });
 
     await updateDoc(doc(db, "planificaciones", id), {
       dias: nuevosDias,
     });
 
-    setPlan({ ...plan, dias: nuevosDias });
+    setPlan({
+      ...plan,
+
+      dias: nuevosDias,
+    });
 
     setForm({
       orden_id: "",
+
       accion_id: "",
+
       hora_inicio: "",
+
       hora_fin: "",
+
       sector: "",
+
       detalle: "",
     });
   };
 
-  const accionesDeOrden = () => {
-    const orden = ordenes.find((o) => o.id === form.orden_id);
-    return orden?.acciones || [];
-  };
-
-  const obtenerOrden = (id) => {
-    return ordenes.find((o) => o.id === id);
-  };
-
-  const obtenerAccion = (ordenId, accionId) => {
-    const orden = ordenes.find((o) => o.id === ordenId);
-    return orden?.acciones?.find((a) => a.id === accionId);
-  };
-
-  const hayTraslape = (actividades, nueva) => {
-    const inicioNuevo = nueva.hora_inicio;
-    const finNuevo = nueva.hora_fin;
-
-    return actividades.some((act) => {
-      return inicioNuevo < act.hora_fin && finNuevo > act.hora_inicio;
-    });
-  };
-
-  const iniciarEdicion = (act, indexDia, indexAct) => {
-    setEditando({ indexDia, indexAct });
-
-    setFormEdit({
-      ...act,
-    });
-  };
-
-  const guardarEdicion = async () => {
-    const { indexDia, indexAct } = editando;
-
-    if (
-      !formEdit.orden_id ||
-      !formEdit.accion_id ||
-      !formEdit.hora_inicio ||
-      !formEdit.hora_fin ||
-      !formEdit.detalle ||
-      !formEdit.sector
-    ) {
-      alert("Complete todos los campos");
-      return;
-    }
-
-    if (formEdit.hora_inicio >= formEdit.hora_fin) {
-      alert("Horario inválido");
-      return;
-    }
-
-    const nuevas = [...plan.dias];
-
-    const actividades = nuevas[indexDia].actividades.filter(
-      (_, i) => i !== indexAct,
-    );
-
-    // validar traslape sin incluir la actividad actual
-    if (hayTraslape(actividades, formEdit)) {
-      alert("Traslape de horario");
-      return;
-    }
-
-    nuevas[indexDia].actividades[indexAct] = formEdit;
-
-    await updateDoc(doc(db, "planificaciones", id), {
-      dias: nuevas,
-    });
-
-    setPlan({ ...plan, dias: nuevas });
-    setEditando(null);
-  };
-
+  // 🔥 ELIMINAR
   const eliminarActividad = async (indexDia, indexAct) => {
-    const confirmar = confirm("¿Eliminar esta actividad?");
+    const confirmar = confirm("¿Eliminar actividad?");
 
     if (!confirmar) return;
 
@@ -338,52 +355,139 @@ function VerPlanificacion() {
       (_, i) => i !== indexAct,
     );
 
-    try {
-      await updateDoc(doc(db, "planificaciones", id), {
-        dias: nuevosDias,
-      });
+    await updateDoc(doc(db, "planificaciones", id), {
+      dias: nuevosDias,
+    });
 
-      setPlan({ ...plan, dias: nuevosDias });
-    } catch (error) {
-      console.error("Error al eliminar actividad:", error);
-    }
+    setPlan({
+      ...plan,
+
+      dias: nuevosDias,
+    });
   };
 
-  if (!plan) return <p>Cargando...</p>;
+  // 🔥 MENU
+  const menuItems = [
+    {
+      label: "Dashboard",
+
+      onClick: () => navigate("/unidad_operativa"),
+    },
+
+    {
+      label: "Planificaciones",
+
+      onClick: () => navigate("/unidad_operativa/planificacion/crear"),
+    },
+  ];
+
+  // 🔥 LOADING
+  if (!plan) {
+    return (
+      <MainLayout title="Planificación" menuItems={menuItems}>
+        <p>Cargando...</p>
+      </MainLayout>
+    );
+  }
 
   return (
-    <div id="contenido-plan">
-      <div>
-        <h2>Planificación</h2>
-        <button onClick={generarPDF}>Descargar PDF</button>
-        <button onClick={() => exportarExcel(plan, ordenes)}>
-          Exportar a Excel
-        </button>
+    <MainLayout title="Planificación" menuItems={menuItems}>
+      <div id="contenido-plan">
+        {/* 🔥 HEADER */}
+        <div
+          style={{
+            background: "white",
 
+            padding: "20px",
+
+            borderRadius: "10px",
+
+            marginBottom: "20px",
+
+            boxShadow: "0 2px 5px rgba(0,0,0,0.1)",
+          }}
+        >
+          <h1>Planificación</h1>
+
+          <p>
+            <strong>Escuadra:</strong> {plan.escuadra_nombre}
+          </p>
+
+          <p>
+            <strong>Supervisor:</strong> {plan.supervisor_nombre}
+          </p>
+
+          <p>
+            <strong>Periodo:</strong> {plan.fecha_inicio} - {plan.fecha_fin}
+          </p>
+
+          <div
+            style={{
+              display: "flex",
+
+              gap: "10px",
+
+              flexWrap: "wrap",
+
+              marginTop: "15px",
+            }}
+          >
+            <button onClick={() => exportarExcel(plan, ordenes)}>
+              Exportar Excel
+            </button>
+          </div>
+        </div>
+
+        {/* 🔥 DIAS */}
         {plan.dias.map((dia, index) => (
           <div
             key={index}
             style={{
-              border: "1px solid #ccc",
-              padding: "10px",
-              marginBottom: "15px",
+              background: "white",
+
+              padding: "20px",
+
+              borderRadius: "10px",
+
+              marginBottom: "20px",
+
+              boxShadow: "0 2px 5px rgba(0,0,0,0.1)",
             }}
           >
+            <h2>Día {index + 1}</h2>
+
             <p>
-              <strong>
-                Día {index + 1} - {dia.fecha} ({dia.turno})
-              </strong>
+              {dia.fecha} - {dia.turno}
             </p>
 
-            {/* FORMULARIO */}
-            <div>
+            <hr />
+
+            {/* 🔥 FORM */}
+            <div
+              style={{
+                display: "grid",
+
+                gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+
+                gap: "10px",
+
+                marginBottom: "20px",
+              }}
+            >
               <select
                 value={form.orden_id}
                 onChange={(e) =>
-                  setForm({ ...form, orden_id: e.target.value, accion_id: "" })
+                  setForm({
+                    ...form,
+
+                    orden_id: e.target.value,
+
+                    accion_id: "",
+                  })
                 }
               >
-                <option value="">Seleccione orden</option>
+                <option value="">Orden</option>
+
                 {ordenes.map((o) => (
                   <option key={o.id} value={o.id}>
                     {o.consecutivo}
@@ -394,10 +498,15 @@ function VerPlanificacion() {
               <select
                 value={form.accion_id}
                 onChange={(e) =>
-                  setForm({ ...form, accion_id: e.target.value })
+                  setForm({
+                    ...form,
+
+                    accion_id: e.target.value,
+                  })
                 }
               >
-                <option value="">Seleccione acción</option>
+                <option value="">Acción</option>
+
                 {accionesDeOrden().map((a) => (
                   <option key={a.id} value={a.id}>
                     {a.nombre}
@@ -409,201 +518,127 @@ function VerPlanificacion() {
                 type="time"
                 value={form.hora_inicio}
                 onChange={(e) =>
-                  setForm({ ...form, hora_inicio: e.target.value })
+                  setForm({
+                    ...form,
+
+                    hora_inicio: e.target.value,
+                  })
                 }
               />
 
               <input
                 type="time"
                 value={form.hora_fin}
-                onChange={(e) => setForm({ ...form, hora_fin: e.target.value })}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+
+                    hora_fin: e.target.value,
+                  })
+                }
               />
 
               <input
                 placeholder="Sector"
                 value={form.sector}
-                onChange={(e) => setForm({ ...form, sector: e.target.value })}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+
+                    sector: e.target.value,
+                  })
+                }
               />
 
               <input
-                placeholder="Detalle (cómo)"
+                placeholder="Detalle"
                 value={form.detalle}
-                onChange={(e) => setForm({ ...form, detalle: e.target.value })}
-              />
+                onChange={(e) =>
+                  setForm({
+                    ...form,
 
-              <button onClick={() => agregarActividad(index)}>Agregar</button>
+                    detalle: e.target.value,
+                  })
+                }
+              />
             </div>
+
+            <button onClick={() => agregarActividad(index)}>
+              Agregar Actividad
+            </button>
 
             <hr />
 
-            {/* LISTA */}
-            {dia.actividades.map((act, i) => {
-              const orden = obtenerOrden(act.orden_id);
-              const accion = obtenerAccion(act.orden_id, act.accion_id);
+            {/* 🔥 ACTIVIDADES */}
+            <div
+              style={{
+                display: "grid",
 
-              return (
-                <div
-                  key={i}
-                  style={{
-                    marginBottom: "12px",
-                    padding: "10px",
-                    border: "1px solid #ccc",
-                    borderRadius: "6px",
-                    background: "#f9f9f9",
-                  }}
-                >
-                  <p>
-                    <strong>ORECPO:</strong>{" "}
-                    {orden?.consecutivo || "Orden no encontrada"} -{" "}
-                    {orden?.nombre}
-                  </p>
-                  <p>
-                    <strong>Acción policial:</strong>{" "}
-                    {accion?.nombre || "Acción no encontrada"}
-                  </p>
-                  <p>
-                    <strong>Detalle:</strong> {act.detalle || "Sin detalle"}
-                  </p>
-                  <p>
-                    <strong>Horario:</strong> {act.hora_inicio} - {act.hora_fin}{" "}
-                    | <strong>Sector:</strong> {act.sector || "N/A"}
-                  </p>
-                  <p>
-                    <strong>Responsable:</strong> {plan.supervisor}
-                  </p>
-                  <p>
-                    <strong>Código:</strong> {orden?.codigo || "N/A"}
-                  </p>
-                  <button onClick={() => iniciarEdicion(act, index, i)}>
-                    Editar
-                  </button>
+                gap: "15px",
+              }}
+            >
+              {dia.actividades.map((act, i) => {
+                const orden = obtenerOrden(act.orden_id);
 
-                  <button onClick={() => eliminarActividad(index, i)}>
-                    Eliminar
-                  </button>
+                const accion = obtenerAccion(act.orden_id, act.accion_id);
 
-                  {editando &&
-                    editando.indexDia === index &&
-                    editando.indexAct === i && (
-                      <div
-                        style={{
-                          marginTop: "10px",
-                          padding: "12px",
-                          background: "#eef",
-                          borderRadius: "6px",
-                        }}
-                      >
-                        <p>
-                          <strong>ORECPO: </strong>
+                return (
+                  <div
+                    key={i}
+                    style={{
+                      background: "#f8fafc",
 
-                          <select
-                            value={formEdit.orden_id}
-                            onChange={(e) =>
-                              setFormEdit({
-                                ...formEdit,
-                                orden_id: e.target.value,
-                                accion_id: "", // 🔥 reset obligatorio
-                              })
-                            }
-                          >
-                            <option value="">Orden</option>
-                            {ordenes.map((o) => (
-                              <option key={o.id} value={o.id}>
-                                {o.consecutivo}
-                              </option>
-                            ))}
-                          </select>
-                        </p>
+                      padding: "15px",
 
-                        <p>
-                          <strong>Accion policial: </strong>
-                          <select
-                            value={formEdit.accion_id}
-                            onChange={(e) =>
-                              setFormEdit({
-                                ...formEdit,
-                                accion_id: e.target.value,
-                              })
-                            }
-                          >
-                            <option value="">Acción</option>
-                            {(
-                              ordenes.find((o) => o.id === formEdit.orden_id)
-                                ?.acciones || []
-                            ).map((a) => (
-                              <option key={a.id} value={a.id}>
-                                {a.nombre}
-                              </option>
-                            ))}
-                          </select>
-                        </p>
+                      borderRadius: "10px",
 
-                        <p>
-                          <strong>Horario: </strong>
-                          <input
-                            type="time"
-                            value={formEdit.hora_inicio}
-                            onChange={(e) =>
-                              setFormEdit({
-                                ...formEdit,
-                                hora_inicio: e.target.value,
-                              })
-                            }
-                          />
+                      border: "1px solid #ddd",
+                    }}
+                  >
+                    <p>
+                      <strong>Orden:</strong> {orden?.consecutivo}
+                    </p>
 
-                          <input
-                            type="time"
-                            value={formEdit.hora_fin}
-                            onChange={(e) =>
-                              setFormEdit({
-                                ...formEdit,
-                                hora_fin: e.target.value,
-                              })
-                            }
-                          />
-                        </p>
+                    <p>
+                      <strong>Acción:</strong> {accion?.nombre}
+                    </p>
 
-                        <p>
-                          <strong>Sector: </strong>
-                          <input
-                            placeholder="Sector"
-                            value={formEdit.sector}
-                            onChange={(e) =>
-                              setFormEdit({
-                                ...formEdit,
-                                sector: e.target.value,
-                              })
-                            }
-                          />
-                          <strong> Detalle: </strong>
-                          <input
-                            placeholder="Detalle"
-                            value={formEdit.detalle}
-                            onChange={(e) =>
-                              setFormEdit({
-                                ...formEdit,
-                                detalle: e.target.value,
-                              })
-                            }
-                          />
-                        </p>
+                    <p>
+                      <strong>Horario:</strong> {act.hora_inicio} -{" "}
+                      {act.hora_fin}
+                    </p>
 
-                        <button onClick={guardarEdicion}>
-                          Guardar cambios
-                        </button>
+                    <p>
+                      <strong>Sector:</strong> {act.sector}
+                    </p>
 
-                        <button onClick={() => setEditando(null)}>
-                          Cancelar
-                        </button>
-                      </div>
-                    )}
-                </div>
-              );
-            })}
+                    <p>
+                      <strong>Detalle:</strong> {act.detalle}
+                    </p>
+
+                    <div
+                      style={{
+                        display: "flex",
+
+                        gap: "10px",
+
+                        marginTop: "10px",
+                      }}
+                    >
+                      <button>Editar</button>
+
+                      <button onClick={() => eliminarActividad(index, i)}>
+                        Eliminar
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         ))}
       </div>
-    </div>
+    </MainLayout>
   );
 }
 

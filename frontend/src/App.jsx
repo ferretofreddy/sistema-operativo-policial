@@ -9,11 +9,21 @@ import DashboardUnidadOperativa from "./modules/unidad_operativa/DashboardUnidad
 import DashboardJefatura from "./modules/jefatura/DashboardJefatura";
 import ProtectedRoute from "./components/ProtectedRoute";
 import DetalleOrden from "./modules/unidad_operativa/ordenes/DetalleOrden";
+import CrearOrden from "./modules/unidad_operativa/ordenes/CrearOrden";
+import ListaOrdenes from "./modules/unidad_operativa/ordenes/ListaOrdenes";
 import CrearPlanificacion from "./modules/unidad_operativa/planificacion/CrearPlanificacion";
 import VerPlanificacion from "./modules/unidad_operativa/planificacion/VerPlanificacion";
 import CrearHojaServicio from "./modules/supervisor/hoja_servicio/CrearHojaServicio";
 import ListaHojasHoy from "./modules/supervisor/hoja_servicio/ListaHojasHoy";
 import VerHojaServicio from "./modules/supervisor/hoja_servicio/VerHojaServicio";
+import CrearRegion from "./modules/administracion/regiones/CrearRegion";
+import CrearDelegacion from "./modules/administracion/delegaciones/CrearDelegacion";
+import CrearEscuadra from "./modules/administracion/escuadras/CrearEscuadra";
+import CrearUsuario from "./modules/administracion/usuarios/CrearUsuario";
+import GestionEscuadra from "./modules/administracion/escuadras/GestionEscuadra";
+import CrearRecurso from "./modules/supervisor/recursos/CrearRecurso";
+import GestionRecurso from "./modules/supervisor/recursos/GestionRecurso";
+import GestionUsuarios from "./modules/administracion/usuarios/GestionUsuarios";
 
 function App() {
   const { user, userData } = useContext(AuthContext);
@@ -79,6 +89,8 @@ function App() {
           </ProtectedRoute>
         }
       />
+      <Route path="/supervisor/recursos" element={<CrearRecurso />} />
+      <Route path="/supervisor/gestion-recursos" element={<GestionRecurso />} />
       // Rutas para admin
       <Route
         path="/admin"
@@ -88,12 +100,41 @@ function App() {
           </ProtectedRoute>
         }
       />
+      <Route path="/admin" element={<DashboardAdmin />} />
+      <Route path="/admin/regiones" element={<CrearRegion />} />
+      <Route path="/admin/delegaciones" element={<CrearDelegacion />} />
+      <Route path="/admin/escuadras" element={<CrearEscuadra />} />
+      <Route path="/admin/usuarios" element={<CrearUsuario />} />
+      <Route path="/admin/gestion-usuarios" element={<GestionUsuarios />} />
+      <Route path="/admin/gestion-escuadras" element={<GestionEscuadra />} />
       // Rutas para unidad operativa
       <Route
         path="/unidad_operativa"
         element={
           <ProtectedRoute userData={userData} allowedRoles="unidad_operativa">
             <DashboardUnidadOperativa />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/unidad_operativa/ordenes/crear"
+        element={
+          <ProtectedRoute
+            userData={userData}
+            allowedRoles={["unidad_operativa"]}
+          >
+            <CrearOrden />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/unidad_operativa/ordenes"
+        element={
+          <ProtectedRoute
+            userData={userData}
+            allowedRoles={["unidad_operativa"]}
+          >
+            <ListaOrdenes />
           </ProtectedRoute>
         }
       />

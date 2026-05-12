@@ -20,6 +20,12 @@ function DashboardSupervisor() {
       <button onClick={() => navigate("/supervisor/hojas-hoy")}>
         Ver Hojas del Día
       </button>
+      <button onClick={() => navigate("/supervisor/recursos")}>
+        Recursos Operativos
+      </button>
+      <button onClick={() => navigate("/supervisor/gestion-recursos")}>
+        Gestión Recursos
+      </button>
 
       <br />
       <br />

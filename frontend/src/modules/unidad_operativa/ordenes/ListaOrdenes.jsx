@@ -1,26 +1,48 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useContext } from "react";
+
 import { useNavigate } from "react-router-dom";
-import { db } from "../../../services/firebase";
+
 import { collection, getDocs } from "firebase/firestore";
 
-// 🔹 Calcular estado automáticamente
+import { db } from "../../../services/firebase";
+
+import { AuthContext } from "../../../context/AuthContext";
+
+import MainLayout from "../../../layouts/MainLayout";
+
+// 🔥 CALCULAR ESTADO
 const calcularEstado = (inicio, fin) => {
   const hoy = new Date();
 
   const fechaInicio = new Date(inicio);
+
   const fechaFin = new Date(fin);
 
-  if (hoy < fechaInicio) return "programada";
-  if (hoy > fechaFin) return "finalizada";
+  if (hoy < fechaInicio) {
+    return "programada";
+  }
+
+  if (hoy > fechaFin) {
+    return "finalizada";
+  }
+
   return "activa";
 };
 
 function ListaOrdenes() {
-  const [ordenes, setOrdenes] = useState([]);
-  const [filtro, setFiltro] = useState("todas");
+  const { user } = useContext(AuthContext);
 
   const navigate = useNavigate();
 
+  const [ordenes, setOrdenes] = useState([]);
+
+  const [loading, setLoading] = useState(true);
+
+  const [filtro, setFiltro] = useState("todas");
+
+  const [busqueda, setBusqueda] = useState("");
+
+  // 🔥 CARGAR ORDENES
   useEffect(() => {
     const obtenerOrdenes = async () => {
       try {
@@ -31,83 +53,228 @@ function ListaOrdenes() {
 
           return {
             id: docSnap.id,
+
             ...data,
+
             estado: calcularEstado(data.fecha_inicio, data.fecha_fin),
           };
         });
 
-        const ordenPrioridad = {
+        // 🔥 FILTRAR POR DELEGACION
+        const filtradas = lista.filter(
+          (o) =>
+            o.region_id === user.region_id &&
+            o.delegacion_id === user.delegacion_id,
+        );
+
+        // 🔥 ORDEN PRIORIDAD
+        const prioridad = {
           activa: 1,
+
           programada: 2,
+
           finalizada: 3,
         };
 
-        const listaOrdenada = [...lista].sort(
-          (a, b) => ordenPrioridad[a.estado] - ordenPrioridad[b.estado],
+        const ordenadas = [...filtradas].sort(
+          (a, b) => prioridad[a.estado] - prioridad[b.estado],
         );
 
-        setOrdenes(listaOrdenada);
+        setOrdenes(ordenadas);
       } catch (error) {
-        console.error("Error al obtener órdenes:", error);
+        console.error(error);
+      } finally {
+        setLoading(false);
       }
     };
 
-    obtenerOrdenes();
-  }, []);
+    if (user) {
+      obtenerOrdenes();
+    }
+  }, [user]);
 
-  // 🔹 Filtrado
-  const ordenesFiltradas =
-    filtro === "todas" ? ordenes : ordenes.filter((o) => o.estado === filtro);
+  // 🔥 FILTRAR
+  const ordenesFiltradas = ordenes.filter((o) => {
+    // ESTADO
+    const coincideEstado = filtro === "todas" || o.estado === filtro;
+
+    // BUSQUEDA
+    const texto = `
+          ${o.consecutivo || ""}
+          ${o.nombre || ""}
+          ${o.codigo || ""}
+        `.toLowerCase();
+
+    const coincideBusqueda = texto.includes(busqueda.toLowerCase());
+
+    return coincideEstado && coincideBusqueda;
+  });
+
+  // 🔥 MENU
+  const menuItems = [
+    {
+      label: "Nueva Orden",
+
+      onClick: () => navigate("/unidad_operativa/ordenes/crear"),
+    },
+
+    {
+      label: "Dashboard",
+
+      onClick: () => navigate("/unidad_operativa"),
+    },
+  ];
 
   return (
-    <div>
-      <h2>Lista de Órdenes</h2>
-
-      {/* 🔹 BOTONES DE FILTRO */}
+    <MainLayout title="Órdenes" menuItems={menuItems}>
       <div>
-        <button onClick={() => setFiltro("todas")}>Todas</button>
-        <button onClick={() => setFiltro("activa")}>Activas</button>
-        <button onClick={() => setFiltro("programada")}>Programadas</button>
-        <button onClick={() => setFiltro("finalizada")}>Finalizadas</button>
-      </div>
+        <h1>Órdenes de Ejecución</h1>
 
-      <hr />
+        <p>Gestión operativa institucional.</p>
 
-      {/* 🔹 LISTA */}
-      {ordenesFiltradas.map((orden) => (
-        <div
-          key={orden.id}
-          onClick={() => navigate(`/unidad_operativa/orden/${orden.id}`)}
+        <hr />
+
+        {/* 🔥 BUSCADOR */}
+        <input
+          placeholder="Buscar orden..."
+          value={busqueda}
+          onChange={(e) => setBusqueda(e.target.value)}
           style={{
-            cursor: "pointer",
+            width: "100%",
+
+            maxWidth: "400px",
+
             padding: "10px",
+
+            marginBottom: "15px",
+
+            borderRadius: "8px",
+
             border: "1px solid #ccc",
-            marginBottom: "10px",
+          }}
+        />
+
+        {/* 🔥 FILTROS */}
+        <div
+          style={{
+            display: "flex",
+
+            flexWrap: "wrap",
+
+            gap: "10px",
+
+            marginBottom: "20px",
           }}
         >
-          <p>
-            <strong>{orden.consecutivo}</strong>
-          </p>
-          <p>{orden.nombre}</p>
-
-          <p>
-            Periodo: {orden.fecha_inicio} - {orden.fecha_fin} | Estado:{" "}
-            <strong
+          {["todas", "activa", "programada", "finalizada"].map((estado) => (
+            <button
+              key={estado}
+              onClick={() => setFiltro(estado)}
               style={{
-                color:
-                  orden.estado === "activa"
-                    ? "green"
-                    : orden.estado === "programada"
-                      ? "orange"
-                      : "red",
+                padding: "10px 15px",
+
+                border: "none",
+
+                borderRadius: "8px",
+
+                cursor: "pointer",
+
+                background: filtro === estado ? "#1e293b" : "#cbd5e1",
+
+                color: filtro === estado ? "white" : "black",
               }}
             >
-              {orden.estado}
-            </strong>
-          </p>
+              {estado}
+            </button>
+          ))}
         </div>
-      ))}
-    </div>
+
+        {/* 🔥 LOADING */}
+        {loading && <p>Cargando órdenes...</p>}
+
+        {/* 🔥 VACIO */}
+        {!loading && ordenesFiltradas.length === 0 && (
+          <p>No existen órdenes registradas.</p>
+        )}
+
+        {/* 🔥 LISTA */}
+        <div
+          style={{
+            display: "grid",
+
+            gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
+
+            gap: "15px",
+          }}
+        >
+          {ordenesFiltradas.map((orden) => (
+            <div
+              key={orden.id}
+              onClick={() => navigate(`/unidad_operativa/orden/${orden.id}`)}
+              style={{
+                background: "white",
+
+                borderRadius: "10px",
+
+                padding: "20px",
+
+                cursor: "pointer",
+
+                boxShadow: "0 2px 5px rgba(0,0,0,0.1)",
+              }}
+            >
+              <h3>{orden.consecutivo}</h3>
+
+              <p>{orden.nombre}</p>
+
+              <p>
+                <strong>Código:</strong> {orden.codigo || "N/A"}
+              </p>
+
+              <p>
+                <strong>Periodo:</strong>
+
+                <br />
+
+                {orden.fecha_inicio}
+
+                {" - "}
+
+                {orden.fecha_fin}
+              </p>
+
+              <p>
+                <strong>Estado:</strong>{" "}
+                <span
+                  style={{
+                    color:
+                      orden.estado === "activa"
+                        ? "green"
+                        : orden.estado === "programada"
+                          ? "orange"
+                          : "red",
+                  }}
+                >
+                  {orden.estado}
+                </span>
+              </p>
+
+              <hr />
+
+              <p
+                style={{
+                  fontSize: "13px",
+
+                  color: "#555",
+                }}
+              >
+                {orden.delegacion_nombre}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </MainLayout>
   );
 }
 
