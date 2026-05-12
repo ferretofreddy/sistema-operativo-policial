@@ -274,15 +274,6 @@ function VerPlanificacion() {
     return orden?.acciones?.find((a) => a.id === accionId);
   };
 
-  // 🔥 VALIDAR HORARIO
-  const hayTraslape = (actividades, nueva) => {
-    return actividades.some((act) => {
-      return (
-        nueva.hora_inicio < act.hora_fin && nueva.hora_fin > act.hora_inicio
-      );
-    });
-  };
-
   // 🔥 AGREGAR ACTIVIDAD
   const agregarActividad = async (indexDia) => {
     if (
@@ -300,14 +291,6 @@ function VerPlanificacion() {
 
     if (form.hora_inicio >= form.hora_fin) {
       alert("Horario inválido");
-
-      return;
-    }
-
-    const actividadesDia = plan.dias[indexDia].actividades;
-
-    if (hayTraslape(actividadesDia, form)) {
-      alert("Existe traslape de horario");
 
       return;
     }

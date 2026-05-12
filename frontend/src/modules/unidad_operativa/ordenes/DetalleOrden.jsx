@@ -15,8 +15,13 @@ function DetalleOrden() {
 
   const navigate = useNavigate();
 
+  // 🔥 AUTH
   const { user } = useContext(AuthContext);
 
+  // 🔥 USER DATA
+  const [userData, setUserData] = useState(null);
+
+  // 🔥 STATES
   const [orden, setOrden] = useState(null);
 
   const [loading, setLoading] = useState(true);
@@ -27,7 +32,28 @@ function DetalleOrden() {
 
   const [textoEditado, setTextoEditado] = useState("");
 
-  // 🔥 CARGAR
+  // 🔥 CARGAR USERDATA
+  useEffect(() => {
+    const cargarUsuario = async () => {
+      try {
+        if (!user?.uid) return;
+
+        const ref = doc(db, "usuarios", user.uid);
+
+        const snap = await getDoc(ref);
+
+        if (snap.exists()) {
+          setUserData(snap.data());
+        }
+      } catch (error) {
+        console.error("Error cargando usuario:", error);
+      }
+    };
+
+    cargarUsuario();
+  }, [user]);
+
+  // 🔥 CARGAR ORDEN
   useEffect(() => {
     const obtenerOrden = async () => {
       try {
@@ -40,8 +66,9 @@ function DetalleOrden() {
 
           // 🔥 VALIDAR ACCESO
           if (
-            data.region_id !== user.region_id ||
-            data.delegacion_id !== user.delegacion_id
+            userData &&
+            (data.region_id !== userData.region_id ||
+              data.delegacion_id !== userData.delegacion_id)
           ) {
             alert("No tiene acceso a esta orden");
 
@@ -65,10 +92,10 @@ function DetalleOrden() {
       }
     };
 
-    if (user) {
+    if (userData) {
       obtenerOrden();
     }
-  }, [id, user]);
+  }, [id, userData]);
 
   // 🔥 AGREGAR
   const agregarAccion = async () => {
@@ -94,7 +121,7 @@ function DetalleOrden() {
     const nueva = {
       id: Date.now().toString(),
 
-      nombre: texto,
+      nombre: texto.toUpperCase(),
     };
 
     const nuevasAcciones = [...orden.acciones, nueva];
@@ -157,7 +184,8 @@ function DetalleOrden() {
       a.id === accionId
         ? {
             ...a,
-            nombre: texto,
+
+            nombre: texto.toUpperCase(),
           }
         : a,
     );

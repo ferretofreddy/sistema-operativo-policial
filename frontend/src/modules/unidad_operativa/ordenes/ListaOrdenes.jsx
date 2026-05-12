@@ -2,7 +2,7 @@ import { useEffect, useState, useContext } from "react";
 
 import { useNavigate } from "react-router-dom";
 
-import { collection, getDocs } from "firebase/firestore";
+import { collection, getDocs, doc, getDoc } from "firebase/firestore";
 
 import { db } from "../../../services/firebase";
 
@@ -30,10 +30,15 @@ const calcularEstado = (inicio, fin) => {
 };
 
 function ListaOrdenes() {
+  // 🔥 AUTH
   const { user } = useContext(AuthContext);
+
+  // 🔥 USER DATA
+  const [userData, setUserData] = useState(null);
 
   const navigate = useNavigate();
 
+  // 🔥 STATES
   const [ordenes, setOrdenes] = useState([]);
 
   const [loading, setLoading] = useState(true);
@@ -41,6 +46,27 @@ function ListaOrdenes() {
   const [filtro, setFiltro] = useState("todas");
 
   const [busqueda, setBusqueda] = useState("");
+
+  // 🔥 CARGAR USERDATA
+  useEffect(() => {
+    const cargarUsuario = async () => {
+      try {
+        if (!user?.uid) return;
+
+        const ref = doc(db, "usuarios", user.uid);
+
+        const snap = await getDoc(ref);
+
+        if (snap.exists()) {
+          setUserData(snap.data());
+        }
+      } catch (error) {
+        console.error("Error cargando usuario:", error);
+      }
+    };
+
+    cargarUsuario();
+  }, [user]);
 
   // 🔥 CARGAR ORDENES
   useEffect(() => {
@@ -60,14 +86,14 @@ function ListaOrdenes() {
           };
         });
 
-        // 🔥 FILTRAR POR DELEGACION
+        // 🔥 FILTRAR
         const filtradas = lista.filter(
           (o) =>
-            o.region_id === user.region_id &&
-            o.delegacion_id === user.delegacion_id,
+            o.region_id === userData?.region_id &&
+            o.delegacion_id === userData?.delegacion_id,
         );
 
-        // 🔥 ORDEN PRIORIDAD
+        // 🔥 PRIORIDAD
         const prioridad = {
           activa: 1,
 
@@ -88,17 +114,17 @@ function ListaOrdenes() {
       }
     };
 
-    if (user) {
+    if (userData) {
       obtenerOrdenes();
     }
-  }, [user]);
+  }, [userData]);
 
   // 🔥 FILTRAR
   const ordenesFiltradas = ordenes.filter((o) => {
-    // ESTADO
+    // 🔥 ESTADO
     const coincideEstado = filtro === "todas" || o.estado === filtro;
 
-    // BUSQUEDA
+    // 🔥 BUSQUEDA
     const texto = `
           ${o.consecutivo || ""}
           ${o.nombre || ""}

@@ -1,375 +1,523 @@
 import { useEffect, useState } from "react";
+
 import { useParams } from "react-router-dom";
+
 import { db } from "../../../services/firebase";
+
 import { doc, getDoc } from "firebase/firestore";
+
 import { generarPDFHojaServicio } from "../../../utils/generarPDFHojaServicio";
 
 function VerHojaServicio() {
   const { id } = useParams();
+
   const [hoja, setHoja] = useState(null);
+
+  const [loading, setLoading] = useState(true);
+
+  // ====================================
+  // 🔥 CARGAR
+  // ====================================
 
   useEffect(() => {
     const cargar = async () => {
-      const ref = doc(db, "hojas_servicio", id);
-      const snap = await getDoc(ref);
+      try {
+        const ref = doc(db, "hojas_servicio", id);
 
-      if (snap.exists()) {
-        setHoja({
-          id: snap.id,
-          ...snap.data(),
-        });
+        const snap = await getDoc(ref);
+
+        if (snap.exists()) {
+          setHoja({
+            id: snap.id,
+
+            ...snap.data(),
+          });
+        }
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setLoading(false);
       }
     };
 
     cargar();
   }, [id]);
 
-  if (!hoja) return <p>Cargando...</p>;
+  // ====================================
+  // 🔥 LOADING
+  // ====================================
+
+  if (loading) {
+    return <p>Cargando hoja...</p>;
+  }
+
+  if (!hoja) {
+    return <p>Hoja no encontrada</p>;
+  }
+
+  // ====================================
+  // 🔥 DATOS
+  // ====================================
 
   const ordenes = [
-    ...new Set(hoja.actividades.map((a) => a.orden_consecutivo)),
+    ...new Set(hoja.actividades?.map((a) => a.orden_consecutivo)),
   ];
 
-  const sectores = [...new Set(hoja.actividades.map((a) => a.sector))];
+  const sectores = [...new Set(hoja.actividades?.map((a) => a.sector))];
+
+  // ====================================
+  // 🔥 PERSONAL
+  // ====================================
 
   return (
     <div
       style={{
         padding: "20px",
-        background: "#f4f4f4",
+
+        background: "#f1f5f9",
+
         minHeight: "100vh",
       }}
     >
-      {/* 🔥 BOTÓN PDF */}
-      <div style={{ marginBottom: "15px" }}>
+      {/* ==================================== */}
+      {/* 🔥 BOTON PDF */}
+      {/* ==================================== */}
+
+      <div
+        style={{
+          marginBottom: "20px",
+        }}
+      >
         <button
           onClick={() => generarPDFHojaServicio(hoja)}
-          style={{
-            padding: "10px 20px",
-            cursor: "pointer",
-          }}
+          style={buttonStyle}
         >
           Generar PDF
         </button>
       </div>
 
+      {/* ==================================== */}
       {/* 🔥 DOCUMENTO */}
-      <div
-        style={{
-          background: "white",
-          width: "816px",
-          margin: "0 auto",
-          padding: "20px",
-          boxShadow: "0px 0px 10px rgba(0,0,0,0.2)",
-        }}
-      >
-        <table
-          border="1"
-          cellPadding="4"
+      {/* ==================================== */}
+
+      <div style={documentStyle}>
+        {/* ==================================== */}
+        {/* 🔥 ENCABEZADO */}
+        {/* ==================================== */}
+
+        <div
           style={{
-            width: "100%",
-            borderCollapse: "collapse",
-            fontSize: "11px",
-            fontFamily: "Arial",
+            textAlign: "center",
+
+            marginBottom: "25px",
           }}
         >
-          <tbody>
-            {/* 🔹 ENCABEZADO */}
-            <tr>
-              <td
-                colSpan="6"
+          <p
+            style={{
+              margin: "5px 0",
+
+              fontWeight: "bold",
+
+              textTransform: "uppercase",
+            }}
+          >
+            Dirección Regional {hoja.region_nombre}
+          </p>
+
+          <p
+            style={{
+              margin: "5px 0",
+
+              fontWeight: "bold",
+
+              textTransform: "uppercase",
+            }}
+          >
+            Delegación Policial de {hoja.delegacion_nombre}
+          </p>
+          <h2
+            style={{
+              marginBottom: "10px",
+
+              textTransform: "uppercase",
+            }}
+          >
+            Hoja de Servicio
+          </h2>
+        </div>
+
+        {/* ==================================== */}
+        {/* 🔥 INFORMACION GENERAL */}
+        {/* ==================================== */}
+
+        <SectionTitle title="INFORMACION GENERAL" />
+
+        <div style={cardBlockStyle}>
+          <div style={responsiveGridStyle}>
+            <InfoItem label="Número Hoja" value={hoja.numero_hoja} />
+
+            <InfoItem label="Fecha" value={hoja.fecha} />
+
+            <InfoItem label="Turno" value={hoja.turno_operativo} />
+
+            <InfoItem label="Escuadra" value={hoja.escuadra_nombre} />
+
+            <InfoItem label="Supervisor" value={hoja.supervisor_nombre} />
+
+            <InfoItem label="Estado" value={hoja.estado_operativo} />
+          </div>
+        </div>
+
+        {/* ==================================== */}
+        {/* 🔥 ORDENES */}
+        {/* ==================================== */}
+
+        <SectionTitle title="ORDENES DE EJECUCION" />
+
+        <div style={blockStyle}>
+          {ordenes.map((o, i) => (
+            <div key={i}>
+              {i + 1}. {o}
+            </div>
+          ))}
+        </div>
+
+        {/* ==================================== */}
+        {/* 🔥 PERSONAL */}
+        {/* ==================================== */}
+
+        <SectionTitle title="PERSONAL Y RECURSO" />
+
+        <div
+          style={{
+            display: "grid",
+
+            gap: "15px",
+
+            marginBottom: "20px",
+          }}
+        >
+          {hoja.recursos?.map((r, i) => (
+            <div
+              key={i}
+              style={{
+                border: "1px solid #cbd5e1",
+
+                borderRadius: "12px",
+
+                padding: "15px",
+
+                background: "#f8fafc",
+              }}
+            >
+              <div
                 style={{
-                  textAlign: "center",
-                  padding: "10px",
-                  fontSize: "12px",
+                  marginBottom: "10px",
                 }}
               >
-                <strong>MINISTERIO SEGURIDAD PUBLICA</strong>
-                <br />
-                FUERZA PUBLICA DE COSTA RICA
-                <br />
-                DIRECCION REGIONAL DÉCIMA BRUNCA SUR
-                <br />
-                DELEGACION CANTONAL PUERTO JIMENEZ
-                <br />
-                <br />
-                <strong
+                <strong>{r.tipo_recurso}</strong>
+              </div>
+
+              <div
+                style={{
+                  display: "grid",
+
+                  gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+
+                  gap: "10px",
+
+                  marginBottom: "15px",
+                }}
+              >
+                <InfoItem label="Unidad" value={r.unidad} />
+
+                <InfoItem label="Indicativo" value={r.indicativo} />
+              </div>
+
+              <div>
+                <strong>Oficiales</strong>
+
+                <div
                   style={{
-                    fontSize: "18px",
+                    marginTop: "10px",
+
+                    display: "grid",
+
+                    gap: "8px",
                   }}
                 >
-                  HOJA DE SERVICIO
-                </strong>
-              </td>
-            </tr>
+                  {r.oficiales?.map((o, index) => (
+                    <div
+                      key={index}
+                      style={{
+                        padding: "10px",
 
-            {/* 🔹 NUMERO HOJA */}
+                        borderRadius: "8px",
+
+                        background: "white",
+
+                        border: "1px solid #e2e8f0",
+                      }}
+                    >
+                      {o.nombre}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* ==================================== */}
+        {/* 🔥 HORARIO */}
+        {/* ==================================== */}
+
+        <SectionTitle title="HORARIO ALIMENTACION" />
+
+        <div style={cardBlockStyle}>
+          <div style={responsiveGridStyle}>
+            <InfoItem label="Inicio" value={hoja.horario?.inicio} />
+
+            <InfoItem label="Final" value={hoja.horario?.fin} />
+
+            <InfoItem label="Alimentación" value={hoja.horario?.comida} />
+          </div>
+        </div>
+
+        {/* ==================================== */}
+        {/* 🔥 MISION */}
+        {/* ==================================== */}
+
+        <SectionTitle
+          title="MISIONES DEL SERVICIO POLICIAL
+"
+        />
+
+        <div style={blockStyle}>{hoja.mision}</div>
+
+        {/* ==================================== */}
+        {/* 🔥 SECTORES */}
+        {/* ==================================== */}
+
+        <SectionTitle title="SECTOR(ES) DE TRABAJO (S)" />
+
+        <div style={blockStyle}>
+          {sectores.map((s, i) => (
+            <div key={i}>
+              {i + 1}. {s}
+            </div>
+          ))}
+        </div>
+
+        {/* ==================================== */}
+        {/* 🔥 ACTIVIDADES */}
+        {/* ==================================== */}
+
+        <SectionTitle title="TAREAS A DESARROLLAR" />
+
+        <table style={tableStyle}>
+          <thead>
             <tr>
-              <td colSpan="6">
-                <strong>HOJA DE SERVICIO N°:</strong> {hoja.numero_hoja}
-              </td>
-            </tr>
+              <th>#</th>
 
-            {/* 🔹 ORDENES */}
-            <tr>
-              <td colSpan="6">
-                <strong>ORDEN DE EJECUCIÓN:</strong>
+              <th>Inicio</th>
 
-                <br />
+              <th>Fin</th>
 
-                {ordenes.map((o, i) => (
-                  <div key={i}>{o}</div>
-                ))}
-              </td>
-            </tr>
+              <th>Orden</th>
 
-            {/* 🔹 FECHA / TURNO */}
-            <tr>
-              <td>
-                <strong>FECHA</strong>
-              </td>
+              <th>Acción</th>
 
-              <td>{hoja.fecha}</td>
-
-              <td>
-                <strong>TURNO</strong>
-              </td>
-
-              <td colSpan="3">{hoja.turno_operativo}</td>
-            </tr>
-
-            {/* 🔹 ESCUADRA / SUPERVISOR */}
-            <tr>
-              <td>
-                <strong>ESCUADRA</strong>
-              </td>
-
-              <td>{hoja.escuadra}</td>
-
-              <td>
-                <strong>SUPERVISOR</strong>
-              </td>
-
-              <td colSpan="3">{hoja.supervisor}</td>
-            </tr>
-
-            {/* 🔹 PERSONAL */}
-            <tr>
-              <td
-                colSpan="6"
-                style={{
-                  background: "#eaeaea",
-                }}
-              >
-                <strong>PERSONAL</strong>
-              </td>
-            </tr>
-
-            <tr>
-              <th>Grado</th>
-              <th>Nombre</th>
-              <th>Unidad</th>
-              <th>Indicativo</th>
-              <th>Alimentación</th>
-              <th>Hora</th>
-            </tr>
-
-            {hoja.recursos.map((r, i) => (
-              <tr key={i}>
-                <td>{r.rango}</td>
-
-                <td>{r.nombre}</td>
-
-                <td>{r.unidad}</td>
-
-                <td>{r.indicativo}</td>
-
-                <td>{hoja.horario?.comida}</td>
-
-                <td>{hoja.horario?.inicio}</td>
-              </tr>
-            ))}
-
-            {/* 🔹 MISION */}
-            <tr>
-              <td
-                colSpan="6"
-                style={{
-                  background: "#eaeaea",
-                }}
-              >
-                <strong>MISIONES DEL SERVICIO POLICIAL</strong>
-              </td>
-            </tr>
-
-            <tr>
-              <td
-                colSpan="6"
-                style={{
-                  padding: "10px",
-                }}
-              >
-                {hoja.mision}
-              </td>
-            </tr>
-
-            {/* 🔹 SECTORES */}
-            <tr>
-              <td
-                colSpan="6"
-                style={{
-                  background: "#eaeaea",
-                }}
-              >
-                <strong>SECTORES</strong>
-              </td>
-            </tr>
-
-            <tr>
-              <td
-                colSpan="6"
-                style={{
-                  padding: "10px",
-                }}
-              >
-                {sectores.map((s, i) => (
-                  <div key={i}>
-                    {i + 1}. {s}
-                  </div>
-                ))}
-              </td>
-            </tr>
-
-            {/* 🔹 NOTICIA */}
-            <tr>
-              <td
-                colSpan="6"
-                style={{
-                  background: "#eaeaea",
-                }}
-              >
-                <strong>NOTICIA CRIMINIS</strong>
-              </td>
-            </tr>
-
-            <tr>
-              <td
-                colSpan="6"
-                style={{
-                  padding: "10px",
-                }}
-              >
-                {hoja.noticia_criminis}
-              </td>
-            </tr>
-
-            {/* 🔹 TAREAS */}
-            <tr>
-              <td
-                colSpan="6"
-                style={{
-                  background: "#eaeaea",
-                }}
-              >
-                <strong>
-                  TAREAS A DESARROLLAR DURANTE EL SERVICIO POLICIAL
-                </strong>
-              </td>
-            </tr>
-
-            <tr>
-              <th>No</th>
-              <th>Hora Inicio</th>
-              <th>Hora Fin</th>
-              <th colSpan="2">Tarea</th>
               <th>Sector</th>
             </tr>
+          </thead>
 
-            {hoja.actividades.map((act, i) => (
+          <tbody>
+            {hoja.actividades?.map((act, i) => (
               <tr key={i}>
-                <td
-                  style={{
-                    textAlign: "center",
-                  }}
-                >
-                  {i + 1}
-                </td>
+                <td>{i + 1}</td>
 
                 <td>{act.hora_inicio}</td>
 
                 <td>{act.hora_fin}</td>
 
-                <td colSpan="2">
-                  <strong>{act.orden_consecutivo}</strong>
+                <td>{act.orden_consecutivo}</td>
 
-                  {" - "}
-
-                  {act.accion_nombre}
-                </td>
+                <td>{act.accion_nombre}</td>
 
                 <td>{act.sector}</td>
               </tr>
             ))}
-
-            {/* 🔹 OBSERVACIONES */}
-            <tr>
-              <td
-                colSpan="6"
-                style={{
-                  background: "#eaeaea",
-                }}
-              >
-                <strong>OBSERVACIONES</strong>
-              </td>
-            </tr>
-
-            <tr>
-              <td
-                colSpan="6"
-                style={{
-                  height: "100px",
-                  verticalAlign: "top",
-                  padding: "10px",
-                }}
-              >
-                {hoja.observaciones}
-              </td>
-            </tr>
-
-            {/* 🔹 FIRMAS */}
-            <tr>
-              <td colSpan="2">
-                <strong>Entregado a:</strong>
-
-                <br />
-                <br />
-
-                {hoja.entregado_a}
-              </td>
-
-              <td colSpan="2">
-                <strong>Encargado:</strong>
-
-                <br />
-                <br />
-
-                {hoja.supervisor}
-              </td>
-
-              <td colSpan="2">
-                <strong>Jefatura:</strong>
-
-                <br />
-                <br />
-
-                {hoja.jefatura}
-              </td>
-            </tr>
           </tbody>
         </table>
+
+        {/* ==================================== */}
+        {/* 🔥 NOTICIA */}
+        {/* ==================================== */}
+
+        <SectionTitle title="NOTICIA CRIMINIS" />
+
+        <div style={blockStyle}>
+          {hoja.noticia_criminis || "Sin información"}
+        </div>
+
+        {/* ==================================== */}
+        {/* 🔥 OBSERVACIONES */}
+        {/* ==================================== */}
+
+        <SectionTitle title="OBSERVACIONES" />
+
+        <div style={blockStyle}>
+          {hoja.observaciones || "Sin observaciones"}
+        </div>
+
+        {/* ==================================== */}
+        {/* 🔥 FIRMAS */}
+        {/* ==================================== */}
+
+        <SectionTitle title="RESPONSABLES" />
+
+        <div style={cardBlockStyle}>
+          <div style={responsiveGridStyle}>
+            <InfoItem label="Entregado a" value={hoja.entregado_a?.nombre} />
+
+            <InfoItem label="Supervisor" value={hoja.supervisor_nombre} />
+
+            <InfoItem label="Jefatura" value={hoja.jefatura?.nombre} />
+          </div>
+        </div>
       </div>
     </div>
   );
 }
+
+// ====================================
+// 🔥 COMPONENTES
+// ====================================
+
+function SectionTitle({ title }) {
+  return <div style={sectionTitleStyle}>{title}</div>;
+}
+
+function InfoItem({ label, value }) {
+  return (
+    <div>
+      <strong
+        style={{
+          display: "block",
+          marginBottom: "5px",
+          color: "#334155",
+        }}
+      >
+        {label}
+      </strong>
+
+      <div
+        style={{
+          background: "white",
+          padding: "10px",
+          borderRadius: "8px",
+          border: "1px solid #e2e8f0",
+        }}
+      >
+        {value || "N/A"}
+      </div>
+    </div>
+  );
+}
+
+// ====================================
+// 🔥 STYLES
+// ====================================
+
+const documentStyle = {
+  background: "white",
+
+  width: "100%",
+
+  maxWidth: "816px",
+
+  margin: "0 auto",
+
+  padding: "30px",
+
+  boxShadow: "0 0 12px rgba(0,0,0,0.15)",
+
+  fontFamily: "Arial",
+};
+
+const tableStyle = {
+  width: "100%",
+
+  borderCollapse: "collapse",
+
+  marginBottom: "20px",
+
+  fontSize: "12px",
+};
+
+const sectionTitleStyle = {
+  background: "#e2e8f0",
+
+  padding: "8px",
+
+  fontWeight: "bold",
+
+  marginTop: "20px",
+
+  marginBottom: "10px",
+
+  border: "1px solid #cbd5e1",
+};
+
+const blockStyle = {
+  border: "1px solid #cbd5e1",
+
+  padding: "12px",
+
+  marginBottom: "20px",
+
+  minHeight: "50px",
+
+  fontSize: "12px",
+
+  lineHeight: "1.5",
+};
+
+const buttonStyle = {
+  padding: "12px 20px",
+
+  background: "#0f172a",
+
+  color: "white",
+
+  border: "none",
+
+  borderRadius: "10px",
+
+  cursor: "pointer",
+
+  fontWeight: "bold",
+};
+
+const cardBlockStyle = {
+  border: "1px solid #cbd5e1",
+
+  borderRadius: "12px",
+
+  padding: "15px",
+
+  background: "#f8fafc",
+
+  marginBottom: "20px",
+};
+
+const responsiveGridStyle = {
+  display: "grid",
+
+  gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+
+  gap: "15px",
+};
 
 export default VerHojaServicio;

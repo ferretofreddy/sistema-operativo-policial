@@ -1,8 +1,16 @@
-import { useState, useContext } from "react";
+import { useState, useContext, useEffect } from "react";
 
 import { db } from "../../../services/firebase";
 
-import { collection, addDoc, query, where, getDocs } from "firebase/firestore";
+import {
+  collection,
+  addDoc,
+  query,
+  where,
+  getDocs,
+  doc,
+  getDoc,
+} from "firebase/firestore";
 
 import { AuthContext } from "../../../context/AuthContext";
 
@@ -11,11 +19,15 @@ import MainLayout from "../../../layouts/MainLayout";
 import { useNavigate } from "react-router-dom";
 
 function CrearOrden() {
+  // 🔥 AUTH
   const { user } = useContext(AuthContext);
+
+  // 🔥 USER DATA
+  const [userData, setUserData] = useState(null);
 
   const navigate = useNavigate();
 
-  // 🔥 FORMULARIO
+  // 🔥 FORM
   const [consecutivo, setConsecutivo] = useState("");
 
   const [nombre, setNombre] = useState("");
@@ -28,12 +40,42 @@ function CrearOrden() {
 
   const [loading, setLoading] = useState(false);
 
+  // 🔥 CARGAR USERDATA
+  useEffect(() => {
+    const cargarUsuario = async () => {
+      try {
+        if (!user?.uid) return;
+
+        const ref = doc(db, "usuarios", user.uid);
+
+        const snap = await getDoc(ref);
+
+        if (snap.exists()) {
+          setUserData(snap.data());
+        }
+      } catch (error) {
+        console.error("Error cargando usuario:", error);
+      }
+    };
+
+    cargarUsuario();
+  }, [user]);
+
   // 🔥 CREAR
   const handleCrear = async () => {
     try {
       setLoading(true);
 
-      // 🔥 VALIDACIONES CAMPOS
+      // 🔥 VALIDAR USERDATA
+      if (!userData) {
+        alert("Cargando datos del usuario...");
+
+        setLoading(false);
+
+        return;
+      }
+
+      // 🔥 VALIDACIONES
       if (!consecutivo || !nombre || !fechaInicio || !fechaFin) {
         alert("Complete todos los campos obligatorios");
 
@@ -42,8 +84,8 @@ function CrearOrden() {
         return;
       }
 
-      // 🔥 VALIDAR USUARIO
-      if (!user?.region_id || !user?.delegacion_id) {
+      // 🔥 VALIDAR REGION/DELEGACION
+      if (!userData.region_id || !userData.delegacion_id) {
         alert("El usuario no tiene región o delegación asignada");
 
         setLoading(false);
@@ -51,7 +93,7 @@ function CrearOrden() {
         return;
       }
 
-      // 🔥 VALIDAR FECHAS
+      // 🔥 FECHAS
       if (fechaFin < fechaInicio) {
         alert("La fecha final no puede ser menor a la inicial");
 
@@ -60,23 +102,22 @@ function CrearOrden() {
         return;
       }
 
-      // 🔥 LIMPIAR TEXTO
+      // 🔥 LIMPIAR
       const consecutivoLimpio = consecutivo.trim().toUpperCase();
 
       const nombreLimpio = nombre.trim();
 
       const codigoLimpio = codigo.trim().toUpperCase();
 
-      // 🔥 VALIDAR DUPLICADO
-      // Solo dentro de la misma región/delegación
+      // 🔥 DUPLICADO
       const q = query(
         collection(db, "ordenes"),
 
         where("consecutivo", "==", consecutivoLimpio),
 
-        where("region_id", "==", user.region_id),
+        where("region_id", "==", userData.region_id),
 
-        where("delegacion_id", "==", user.delegacion_id),
+        where("delegacion_id", "==", userData.delegacion_id),
       );
 
       const snapshot = await getDocs(q);
@@ -102,23 +143,26 @@ function CrearOrden() {
         fecha_fin: fechaFin,
 
         // 🔥 ORGANIZACION
-        region_id: user.region_id,
+        region_id: userData.region_id,
 
-        region_nombre: user.region_nombre,
+        region_nombre: userData.region_nombre,
 
-        delegacion_id: user.delegacion_id,
+        delegacion_id: userData.delegacion_id,
 
-        delegacion_nombre: user.delegacion_nombre,
+        delegacion_nombre: userData.delegacion_nombre,
 
-        // 🔥 USUARIO
+        // 🔥 USER
         creado_por: user.uid,
 
         creado_por_nombre: `
-              ${user.nombre || ""}
-              ${user.apellido1 || ""}
-            `,
+              ${userData.nombre || ""}
+              ${userData.apellido1 || ""}
+              ${userData.apellido2 || ""}
+            `
+          .trim()
+          .toUpperCase(),
 
-        rol_creador: user.rol,
+        rol_creador: userData.rol,
 
         // 🔥 CONTROL
         estado: "activa",
@@ -169,6 +213,7 @@ function CrearOrden() {
       <div
         style={{
           maxWidth: "700px",
+
           margin: "0 auto",
         }}
       >
@@ -178,7 +223,7 @@ function CrearOrden() {
 
         <hr />
 
-        {/* 🔥 FORMULARIO */}
+        {/* 🔥 FORM */}
         <div
           style={{
             background: "white",
@@ -253,7 +298,7 @@ function CrearOrden() {
             </div>
           </div>
 
-          {/* BOTON */}
+          {/* BTN */}
           <button
             onClick={handleCrear}
             disabled={loading}
@@ -285,7 +330,6 @@ function CrearOrden() {
   );
 }
 
-// 🔥 INPUTS
 const inputStyle = {
   width: "100%",
 
