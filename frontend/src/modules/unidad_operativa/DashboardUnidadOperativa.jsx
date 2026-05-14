@@ -16,7 +16,7 @@ function DashboardUnidadOperativa() {
   // 🔥 MENU
   const menuItems = [
     {
-      label: "Órdenes Ejecución",
+      label: "Crear Órden Ejecución",
 
       onClick: () => navigate("/unidad_operativa/ordenes/crear"),
     },

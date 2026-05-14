@@ -13,7 +13,13 @@ import { db } from "../../../services/firebase";
 
 import CatalogoSimpleLayout from "../../../layouts/CatalogoSimpleLayout";
 
-function CrearRegion() {
+function GestionTiposRecurso() {
+  // =========================================
+  // 🔥 DATA
+  // =========================================
+
+  const [tipos, setTipos] = useState([]);
+
   // =========================================
   // 🔥 FORM
   // =========================================
@@ -21,14 +27,12 @@ function CrearRegion() {
   const [formData, setFormData] = useState({
     nombre: "",
 
-    codigo: "",
+    siglas: "",
+
+    descripcion: "",
+
+    estado: "activo",
   });
-
-  // =========================================
-  // 🔥 DATA
-  // =========================================
-
-  const [regiones, setRegiones] = useState([]);
 
   // =========================================
   // 🔥 EDITAR
@@ -46,9 +50,9 @@ function CrearRegion() {
   // 🔥 CARGAR
   // =========================================
 
-  const cargarRegiones = async () => {
+  const cargarTipos = async () => {
     try {
-      const snapshot = await getDocs(collection(db, "regiones"));
+      const snapshot = await getDocs(collection(db, "tipos_recurso"));
 
       const lista = snapshot.docs
         .map((d) => ({
@@ -57,14 +61,14 @@ function CrearRegion() {
         }))
         .sort((a, b) => a.nombre.localeCompare(b.nombre));
 
-      setRegiones(lista);
+      setTipos(lista);
     } catch (error) {
       console.error(error);
     }
   };
 
   useEffect(() => {
-    cargarRegiones();
+    cargarTipos();
   }, []);
 
   // =========================================
@@ -87,7 +91,11 @@ function CrearRegion() {
     setFormData({
       nombre: "",
 
-      codigo: "",
+      siglas: "",
+
+      descripcion: "",
+
+      estado: "activo",
     });
 
     setEditandoId(null);
@@ -97,40 +105,50 @@ function CrearRegion() {
   // 🔥 GUARDAR
   // =========================================
 
-  const guardarRegion = async () => {
+  const guardarTipo = async () => {
     try {
       setLoading(true);
 
       const nombre = formData.nombre.trim().toUpperCase();
 
-      const codigo = formData.codigo.trim().toUpperCase();
-
-      if (!nombre || !codigo) {
-        alert("Complete todos los campos");
-
-        return;
-      }
+      const siglas = formData.siglas.trim().toUpperCase();
 
       // =========================================
       // 🔥 VALIDAR
       // =========================================
 
-      const nombreExiste = regiones.find(
-        (r) => r.nombre === nombre && r.id !== editandoId,
-      );
-
-      if (nombreExiste) {
-        alert("Ya existe una región con ese nombre");
+      if (!nombre) {
+        alert("Ingrese el nombre");
 
         return;
       }
 
-      const codigoExiste = regiones.find(
-        (r) => r.codigo === codigo && r.id !== editandoId,
+      if (!siglas) {
+        alert("Ingrese las siglas");
+
+        return;
+      }
+
+      // =========================================
+      // 🔥 DUPLICADOS
+      // =========================================
+
+      const nombreExiste = tipos.find(
+        (t) => t.nombre === nombre && t.id !== editandoId,
       );
 
-      if (codigoExiste) {
-        alert("Ya existe una región con ese código");
+      if (nombreExiste) {
+        alert("Este tipo ya existe");
+
+        return;
+      }
+
+      const siglasExiste = tipos.find(
+        (t) => t.siglas === siglas && t.id !== editandoId,
+      );
+
+      if (siglasExiste) {
+        alert("Estas siglas ya existen");
 
         return;
       }
@@ -138,7 +156,11 @@ function CrearRegion() {
       const datos = {
         nombre,
 
-        codigo,
+        siglas,
+
+        descripcion: formData.descripcion.trim(),
+
+        estado: formData.estado,
 
         actualizado: Timestamp.now(),
       };
@@ -149,39 +171,37 @@ function CrearRegion() {
 
       if (!editandoId) {
         await addDoc(
-          collection(db, "regiones"),
+          collection(db, "tipos_recurso"),
 
           {
             ...datos,
-
-            estado: "activo",
 
             creado: Timestamp.now(),
           },
         );
 
-        alert("Región creada correctamente");
+        alert("Tipo creado");
       } else {
         // =========================================
-        // 🔥 UPDATE
+        // 🔥 ACTUALIZAR
         // =========================================
 
         await updateDoc(
-          doc(db, "regiones", editandoId),
+          doc(db, "tipos_recurso", editandoId),
 
           datos,
         );
 
-        alert("Región actualizada");
+        alert("Tipo actualizado");
       }
 
       limpiarFormulario();
 
-      await cargarRegiones();
+      await cargarTipos();
     } catch (error) {
       console.error(error);
 
-      alert("Error guardando región");
+      alert("Error guardando tipo");
     } finally {
       setLoading(false);
     }
@@ -191,13 +211,17 @@ function CrearRegion() {
   // 🔥 EDITAR
   // =========================================
 
-  const editarRegion = (region) => {
-    setEditandoId(region.id);
+  const editarTipo = (tipo) => {
+    setEditandoId(tipo.id);
 
     setFormData({
-      nombre: region.nombre || "",
+      nombre: tipo.nombre || "",
 
-      codigo: region.codigo || "",
+      siglas: tipo.siglas || "",
+
+      descripcion: tipo.descripcion || "",
+
+      estado: tipo.estado || "activo",
     });
   };
 
@@ -205,12 +229,12 @@ function CrearRegion() {
   // 🔥 ESTADO
   // =========================================
 
-  const cambiarEstado = async (region) => {
+  const cambiarEstado = async (tipo) => {
     try {
-      const nuevoEstado = region.estado === "activo" ? "inactivo" : "activo";
+      const nuevoEstado = tipo.estado === "activo" ? "inactivo" : "activo";
 
       await updateDoc(
-        doc(db, "regiones", region.id),
+        doc(db, "tipos_recurso", tipo.id),
 
         {
           estado: nuevoEstado,
@@ -219,7 +243,7 @@ function CrearRegion() {
         },
       );
 
-      await cargarRegiones();
+      await cargarTipos();
     } catch (error) {
       console.error(error);
 
@@ -233,18 +257,20 @@ function CrearRegion() {
       // 🔥 HEADER
       // =========================================
 
-      titulo="Gestión Regiones"
+      titulo="
+      Gestión Tipos Recurso
+      "
       subtitulo="
-      Administración de regiones operativas
+      Administración de tipos de recursos operativos
       "
       // =========================================
       // 🔥 FORM
       // =========================================
 
-      formTitle={editandoId ? "Editar Región" : "Nueva Región"}
+      formTitle={editandoId ? "Editar Tipo" : "Nuevo Tipo"}
       formData={formData}
       onChange={handleChange}
-      onSubmit={guardarRegion}
+      onSubmit={guardarTipo}
       onCancel={limpiarFormulario}
       editando={!!editandoId}
       loading={loading}
@@ -252,30 +278,64 @@ function CrearRegion() {
         {
           name: "nombre",
 
-          label: "Nombre Región",
+          label: "Nombre",
 
-          placeholder: "Ej: Pacífico Sur",
+          placeholder: "Ej: Patrulla",
         },
 
         {
-          name: "codigo",
+          name: "siglas",
 
-          label: "Código",
+          label: "Siglas",
 
-          placeholder: "Ej: PS",
+          placeholder: "Ej: PAT",
+        },
+
+        {
+          name: "descripcion",
+
+          label: "Descripción",
+
+          type: "textarea",
+
+          rows: 4,
+
+          placeholder: "Descripción opcional",
+        },
+
+        {
+          name: "estado",
+
+          label: "Estado",
+
+          type: "select",
+
+          options: [
+            {
+              label: "Activo",
+
+              value: "activo",
+            },
+
+            {
+              label: "Inactivo",
+
+              value: "inactivo",
+            },
+          ],
         },
       ]}
       // =========================================
       // 🔥 LISTA
       // =========================================
 
-      items={regiones}
-      renderItemTitle={(r) => r.nombre}
-      renderItemSubtitle={(r) => `Código: ${r.codigo}`}
-      onEdit={editarRegion}
+      items={tipos}
+      renderItemTitle={(t) => `${t.siglas} - ${t.nombre}`}
+      renderItemSubtitle={(t) => t.descripcion || "Sin descripción"}
+      onEdit={editarTipo}
       onToggleEstado={cambiarEstado}
     />
   );
 }
 
-export default CrearRegion;
+export default GestionTiposRecurso;

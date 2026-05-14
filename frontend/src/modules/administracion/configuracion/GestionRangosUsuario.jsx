@@ -13,7 +13,13 @@ import { db } from "../../../services/firebase";
 
 import CatalogoSimpleLayout from "../../../layouts/CatalogoSimpleLayout";
 
-function CrearRegion() {
+function GestionRangosUsuario() {
+  // =========================================
+  // 🔥 DATA
+  // =========================================
+
+  const [rangos, setRangos] = useState([]);
+
   // =========================================
   // 🔥 FORM
   // =========================================
@@ -21,14 +27,12 @@ function CrearRegion() {
   const [formData, setFormData] = useState({
     nombre: "",
 
-    codigo: "",
+    siglas: "",
+
+    orden_jerarquico: "",
+
+    estado: "activo",
   });
-
-  // =========================================
-  // 🔥 DATA
-  // =========================================
-
-  const [regiones, setRegiones] = useState([]);
 
   // =========================================
   // 🔥 EDITAR
@@ -46,25 +50,25 @@ function CrearRegion() {
   // 🔥 CARGAR
   // =========================================
 
-  const cargarRegiones = async () => {
+  const cargarRangos = async () => {
     try {
-      const snapshot = await getDocs(collection(db, "regiones"));
+      const snapshot = await getDocs(collection(db, "rangos_usuario"));
 
       const lista = snapshot.docs
         .map((d) => ({
           id: d.id,
           ...d.data(),
         }))
-        .sort((a, b) => a.nombre.localeCompare(b.nombre));
+        .sort((a, b) => (a.orden_jerarquico || 0) - (b.orden_jerarquico || 0));
 
-      setRegiones(lista);
+      setRangos(lista);
     } catch (error) {
       console.error(error);
     }
   };
 
   useEffect(() => {
-    cargarRegiones();
+    cargarRangos();
   }, []);
 
   // =========================================
@@ -87,7 +91,11 @@ function CrearRegion() {
     setFormData({
       nombre: "",
 
-      codigo: "",
+      siglas: "",
+
+      orden_jerarquico: "",
+
+      estado: "activo",
     });
 
     setEditandoId(null);
@@ -97,40 +105,68 @@ function CrearRegion() {
   // 🔥 GUARDAR
   // =========================================
 
-  const guardarRegion = async () => {
+  const guardarRango = async () => {
     try {
       setLoading(true);
 
       const nombre = formData.nombre.trim().toUpperCase();
 
-      const codigo = formData.codigo.trim().toUpperCase();
+      const siglas = formData.siglas.trim().toUpperCase();
 
-      if (!nombre || !codigo) {
-        alert("Complete todos los campos");
-
-        return;
-      }
+      const orden = Number(formData.orden_jerarquico);
 
       // =========================================
       // 🔥 VALIDAR
       // =========================================
 
-      const nombreExiste = regiones.find(
-        (r) => r.nombre === nombre && r.id !== editandoId,
-      );
-
-      if (nombreExiste) {
-        alert("Ya existe una región con ese nombre");
+      if (!nombre) {
+        alert("Ingrese el nombre");
 
         return;
       }
 
-      const codigoExiste = regiones.find(
-        (r) => r.codigo === codigo && r.id !== editandoId,
+      if (!siglas) {
+        alert("Ingrese las siglas");
+
+        return;
+      }
+
+      if (!orden) {
+        alert("Ingrese el orden jerárquico");
+
+        return;
+      }
+
+      // =========================================
+      // 🔥 DUPLICADOS
+      // =========================================
+
+      const nombreExiste = rangos.find(
+        (r) => r.nombre === nombre && r.id !== editandoId,
       );
 
-      if (codigoExiste) {
-        alert("Ya existe una región con ese código");
+      if (nombreExiste) {
+        alert("Este rango ya existe");
+
+        return;
+      }
+
+      const siglasExiste = rangos.find(
+        (r) => r.siglas === siglas && r.id !== editandoId,
+      );
+
+      if (siglasExiste) {
+        alert("Estas siglas ya existen");
+
+        return;
+      }
+
+      const ordenExiste = rangos.find(
+        (r) => Number(r.orden_jerarquico) === orden && r.id !== editandoId,
+      );
+
+      if (ordenExiste) {
+        alert("Ese orden ya existe");
 
         return;
       }
@@ -138,7 +174,11 @@ function CrearRegion() {
       const datos = {
         nombre,
 
-        codigo,
+        siglas,
+
+        orden_jerarquico: orden,
+
+        estado: formData.estado,
 
         actualizado: Timestamp.now(),
       };
@@ -149,39 +189,37 @@ function CrearRegion() {
 
       if (!editandoId) {
         await addDoc(
-          collection(db, "regiones"),
+          collection(db, "rangos_usuario"),
 
           {
             ...datos,
-
-            estado: "activo",
 
             creado: Timestamp.now(),
           },
         );
 
-        alert("Región creada correctamente");
+        alert("Rango creado");
       } else {
         // =========================================
-        // 🔥 UPDATE
+        // 🔥 ACTUALIZAR
         // =========================================
 
         await updateDoc(
-          doc(db, "regiones", editandoId),
+          doc(db, "rangos_usuario", editandoId),
 
           datos,
         );
 
-        alert("Región actualizada");
+        alert("Rango actualizado");
       }
 
       limpiarFormulario();
 
-      await cargarRegiones();
+      await cargarRangos();
     } catch (error) {
       console.error(error);
 
-      alert("Error guardando región");
+      alert("Error guardando rango");
     } finally {
       setLoading(false);
     }
@@ -191,13 +229,17 @@ function CrearRegion() {
   // 🔥 EDITAR
   // =========================================
 
-  const editarRegion = (region) => {
-    setEditandoId(region.id);
+  const editarRango = (rango) => {
+    setEditandoId(rango.id);
 
     setFormData({
-      nombre: region.nombre || "",
+      nombre: rango.nombre || "",
 
-      codigo: region.codigo || "",
+      siglas: rango.siglas || "",
+
+      orden_jerarquico: rango.orden_jerarquico || "",
+
+      estado: rango.estado || "activo",
     });
   };
 
@@ -205,12 +247,12 @@ function CrearRegion() {
   // 🔥 ESTADO
   // =========================================
 
-  const cambiarEstado = async (region) => {
+  const cambiarEstado = async (rango) => {
     try {
-      const nuevoEstado = region.estado === "activo" ? "inactivo" : "activo";
+      const nuevoEstado = rango.estado === "activo" ? "inactivo" : "activo";
 
       await updateDoc(
-        doc(db, "regiones", region.id),
+        doc(db, "rangos_usuario", rango.id),
 
         {
           estado: nuevoEstado,
@@ -219,7 +261,7 @@ function CrearRegion() {
         },
       );
 
-      await cargarRegiones();
+      await cargarRangos();
     } catch (error) {
       console.error(error);
 
@@ -233,18 +275,20 @@ function CrearRegion() {
       // 🔥 HEADER
       // =========================================
 
-      titulo="Gestión Regiones"
+      titulo="
+      Gestión Rangos Usuario
+      "
       subtitulo="
-      Administración de regiones operativas
+      Administración de rangos jerárquicos institucionales
       "
       // =========================================
       // 🔥 FORM
       // =========================================
 
-      formTitle={editandoId ? "Editar Región" : "Nueva Región"}
+      formTitle={editandoId ? "Editar Rango" : "Nuevo Rango"}
       formData={formData}
       onChange={handleChange}
-      onSubmit={guardarRegion}
+      onSubmit={guardarRango}
       onCancel={limpiarFormulario}
       editando={!!editandoId}
       loading={loading}
@@ -252,30 +296,62 @@ function CrearRegion() {
         {
           name: "nombre",
 
-          label: "Nombre Región",
+          label: "Nombre",
 
-          placeholder: "Ej: Pacífico Sur",
+          placeholder: "Ej: Oficial",
         },
 
         {
-          name: "codigo",
+          name: "siglas",
 
-          label: "Código",
+          label: "Siglas",
 
-          placeholder: "Ej: PS",
+          placeholder: "Ej: OF",
+        },
+
+        {
+          name: "orden_jerarquico",
+
+          label: "Orden Jerárquico",
+
+          type: "number",
+
+          placeholder: "Ej: 1",
+        },
+
+        {
+          name: "estado",
+
+          label: "Estado",
+
+          type: "select",
+
+          options: [
+            {
+              label: "Activo",
+
+              value: "activo",
+            },
+
+            {
+              label: "Inactivo",
+
+              value: "inactivo",
+            },
+          ],
         },
       ]}
       // =========================================
       // 🔥 LISTA
       // =========================================
 
-      items={regiones}
-      renderItemTitle={(r) => r.nombre}
-      renderItemSubtitle={(r) => `Código: ${r.codigo}`}
-      onEdit={editarRegion}
+      items={rangos}
+      renderItemTitle={(r) => `${r.siglas} - ${r.nombre}`}
+      renderItemSubtitle={(r) => `Orden jerárquico: ${r.orden_jerarquico}`}
+      onEdit={editarRango}
       onToggleEstado={cambiarEstado}
     />
   );
 }
 
-export default CrearRegion;
+export default GestionRangosUsuario;

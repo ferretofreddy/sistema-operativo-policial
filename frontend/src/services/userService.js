@@ -1,30 +1,77 @@
-import { doc, getDoc, setDoc } from "firebase/firestore"
-import { db } from "./firebase"
+import {
+  collection,
+  getDocs,
+  doc,
+  updateDoc,
+  getDoc,
+} from "firebase/firestore";
 
-export const createUserIfNotExists = async (user) => {
-  const userRef = doc(db, "usuarios", user.uid)
-  const userSnap = await getDoc(userRef)
+import { db } from "./firebase";
 
-  if (!userSnap.exists()) {
-    await setDoc(userRef, {
-      uid: user.uid,
-      email: user.email,
-      rol: "agente", // por defecto
-      estado: "activo",
-      creado: new Date()
-    })
-  }
+// =========================================
+// 🔥 OBTENER USUARIOS
+// =========================================
 
-  return userRef
-}
+export const getUsuarios =
+  async () => {
 
-export const getUserData = async (uid) => {
-  const userRef = doc(db, "usuarios", uid)
-  const userSnap = await getDoc(userRef)
+    const snapshot =
+      await getDocs(
+        collection(
+          db,
+          "usuarios",
+        ),
+      );
 
-  if (userSnap.exists()) {
-    return userSnap.data()
-  } else {
-    return null
-  }
-}
+    return snapshot.docs.map(
+      (d) => ({
+        id: d.id,
+        ...d.data(),
+      }),
+    );
+  };
+
+// =========================================
+// 🔥 OBTENER USUARIO
+// =========================================
+
+export const getUsuarioById =
+  async (uid) => {
+
+    const snapshot =
+      await getDoc(
+        doc(
+          db,
+          "usuarios",
+          uid,
+        ),
+      );
+
+    if (!snapshot.exists()) {
+
+      return null;
+    }
+
+    return {
+      id: snapshot.id,
+      ...snapshot.data(),
+    };
+  };
+
+// =========================================
+// 🔥 ACTUALIZAR USUARIO
+// =========================================
+
+export const updateUsuario =
+  async (uid, datos) => {
+
+    await updateDoc(
+      doc(
+        db,
+        "usuarios",
+        uid,
+      ),
+
+      datos,
+    );
+  };

@@ -1,28 +1,43 @@
 import { useEffect, useState } from "react";
 
-import {
-  collection,
-  getDocs,
-  updateDoc,
-  doc,
-  setDoc,
-} from "firebase/firestore";
+import { setDoc, doc, Timestamp } from "firebase/firestore";
 
 import { createUserWithEmailAndPassword, getAuth } from "firebase/auth";
 
 import { initializeApp } from "firebase/app";
 
-import { db, auth, app } from "../../../services/firebase";
+import { db, app } from "../../../services/firebase";
+
+import { getUsuarios } from "../../../services/userService";
+
+import {
+  getRegiones,
+  getDelegaciones,
+  getEscuadras,
+} from "../../../services/territorialService";
+
+import {
+  getRangosUsuario,
+  getCondicionesUsuario,
+} from "../../../services/catalogosService";
 
 function CrearUsuario() {
+  // =========================================
   // 🔥 SISTEMA
+  // =========================================
+
   const [email, setEmail] = useState("");
 
   const [password, setPassword] = useState("");
 
   const [rol, setRol] = useState("agente");
 
+  const [estadoUsuario, setEstadoUsuario] = useState("activo");
+
+  // =========================================
   // 🔥 PERSONALES
+  // =========================================
+
   const [nombre, setNombre] = useState("");
 
   const [apellido1, setApellido1] = useState("");
@@ -33,259 +48,424 @@ function CrearUsuario() {
 
   const [telefono, setTelefono] = useState("");
 
+  const [domicilio, setDomicilio] = useState("");
+
   const [fechaNacimiento, setFechaNacimiento] = useState("");
 
-  // 🔥 LABORALES
   const [fechaAlta, setFechaAlta] = useState("");
 
-  const [condicion, setCondicion] = useState("En servicio");
+  // =========================================
+  // 🔥 RELACIONES
+  // =========================================
+
+  const [rangoId, setRangoId] = useState("");
+
+  const [condicionId, setCondicionId] = useState("");
 
   const [regionId, setRegionId] = useState("");
 
   const [delegacionId, setDelegacionId] = useState("");
 
+  const [escuadraId, setEscuadraId] = useState("");
+
+  // =========================================
   // 🔥 LISTAS
+  // =========================================
+
   const [usuarios, setUsuarios] = useState([]);
 
   const [regiones, setRegiones] = useState([]);
 
   const [delegaciones, setDelegaciones] = useState([]);
 
+  const [escuadras, setEscuadras] = useState([]);
+
+  const [rangos, setRangos] = useState([]);
+
+  const [condiciones, setCondiciones] = useState([]);
+
+  // =========================================
+  // 🔥 LOADING
+  // =========================================
+
+  const [loading, setLoading] = useState(false);
+
+  // =========================================
   // 🔥 AUTH SECUNDARIO
+  // =========================================
+
   const secondaryApp = initializeApp(app.options, "Secondary");
 
   const secondaryAuth = getAuth(secondaryApp);
 
-  // 🔥 CARGAR REGIONES
-  const cargarRegiones = async () => {
+  // =========================================
+  // 🔥 CARGAR DATOS
+  // =========================================
+
+  const cargarDatos = async () => {
     try {
-      const snapshot = await getDocs(collection(db, "regiones"));
+      const [
+        usuariosData,
+        regionesData,
+        delegacionesData,
+        escuadrasData,
+        rangosData,
+        condicionesData,
+      ] = await Promise.all([
+        getUsuarios(),
 
-      const lista = snapshot.docs.map((d) => ({
-        id: d.id,
-        ...d.data(),
-      }));
+        getRegiones(),
 
-      setRegiones(lista.filter((r) => r.estado === "activo"));
-    } catch (error) {
-      console.error(error);
-    }
-  };
+        getDelegaciones(),
 
-  // 🔥 CARGAR DELEGACIONES
-  const cargarDelegaciones = async () => {
-    try {
-      const snapshot = await getDocs(collection(db, "delegaciones"));
+        getEscuadras(),
 
-      const lista = snapshot.docs.map((d) => ({
-        id: d.id,
-        ...d.data(),
-      }));
+        getRangosUsuario(),
 
-      setDelegaciones(lista.filter((d) => d.estado === "activo"));
-    } catch (error) {
-      console.error(error);
-    }
-  };
+        getCondicionesUsuario(),
+      ]);
 
-  // 🔥 CARGAR USUARIOS
-  const cargarUsuarios = async () => {
-    try {
-      const snapshot = await getDocs(collection(db, "usuarios"));
+      setUsuarios(usuariosData);
 
-      const lista = snapshot.docs.map((d) => ({
-        id: d.id,
-        ...d.data(),
-      }));
+      setRegiones(regionesData);
 
-      setUsuarios(lista);
+      setDelegaciones(delegacionesData);
+
+      setEscuadras(escuadrasData);
+
+      setRangos(rangosData);
+
+      setCondiciones(condicionesData);
     } catch (error) {
       console.error(error);
     }
   };
 
   useEffect(() => {
-    cargarRegiones();
-
-    cargarDelegaciones();
-
-    cargarUsuarios();
+    cargarDatos();
   }, []);
 
-  // 🔥 FILTRAR DELEGACIONES
+  // =========================================
+  // 🔥 FILTROS
+  // =========================================
+
   const delegacionesFiltradas = delegaciones.filter(
     (d) => d.region_id === regionId,
   );
 
-  // 🔥 CREAR USUARIO REAL
+  const escuadrasFiltradas = escuadras.filter(
+    (e) => e.region_id === regionId && e.delegacion_id === delegacionId,
+  );
+
+  // =========================================
+  // 🔥 VALIDAR ESTRUCTURA
+  // =========================================
+
+  const requiereTerritorial = [
+    "unidad_operativa",
+    "jefatura",
+    "supervisor",
+    "agente",
+  ].includes(rol);
+
+  const requiereEscuadra = ["supervisor", "agente"].includes(rol);
+
+  // =========================================
+  // 🔥 LIMPIAR
+  // =========================================
+
+  const limpiarFormulario = () => {
+    setEmail("");
+
+    setPassword("");
+
+    setRol("agente");
+
+    setEstadoUsuario("activo");
+
+    setNombre("");
+
+    setApellido1("");
+
+    setApellido2("");
+
+    setCedula("");
+
+    setTelefono("");
+
+    setDomicilio("");
+
+    setFechaNacimiento("");
+
+    setFechaAlta("");
+
+    setRangoId("");
+
+    setCondicionId("");
+
+    setRegionId("");
+
+    setDelegacionId("");
+
+    setEscuadraId("");
+  };
+
+  // =========================================
+  // 🔥 CREAR USUARIO
+  // =========================================
+
   const crearUsuario = async () => {
-    if (
-      !nombre ||
-      !apellido1 ||
-      !cedula ||
-      !email ||
-      !password ||
-      !regionId ||
-      !delegacionId
-    ) {
-      alert("Complete campos obligatorios");
-
-      return;
-    }
-
     try {
+      setLoading(true);
+
+      // =========================================
+      // 🔥 VALIDACIONES
+      // =========================================
+
+      if (!email || !password || !nombre || !apellido1 || !cedula) {
+        alert("Complete los campos obligatorios");
+
+        return;
+      }
+
+      if (!rangoId) {
+        alert("Seleccione un rango");
+
+        return;
+      }
+
+      if (!condicionId) {
+        alert("Seleccione una condición");
+
+        return;
+      }
+
+      if (requiereTerritorial && (!regionId || !delegacionId)) {
+        alert("Seleccione región y delegación");
+
+        return;
+      }
+
+      if (requiereEscuadra && !escuadraId) {
+        alert("Seleccione escuadra");
+
+        return;
+      }
+
+      // =========================================
+      // 🔥 DUPLICADOS
+      // =========================================
+
+      const cedulaExiste = usuarios.find((u) => u.cedula === cedula);
+
+      if (cedulaExiste) {
+        alert("La cédula ya existe");
+
+        return;
+      }
+
+      const emailExiste = usuarios.find((u) => u.email === email);
+
+      if (emailExiste) {
+        alert("El email ya existe");
+
+        return;
+      }
+
+      // =========================================
+      // 🔥 RELACIONES
+      // =========================================
+
       const region = regiones.find((r) => r.id === regionId);
 
       const delegacion = delegaciones.find((d) => d.id === delegacionId);
 
-      // 🔥 AUTH REAL
+      const escuadra = escuadras.find((e) => e.id === escuadraId);
+
+      const rango = rangos.find((r) => r.id === rangoId);
+
+      const condicion = condiciones.find((c) => c.id === condicionId);
+
+      // =========================================
+      // 🔥 AUTH
+      // =========================================
+
       const userCredential = await createUserWithEmailAndPassword(
         secondaryAuth,
-        email,
+        email.trim(),
         password,
       );
 
       const uid = userCredential.user.uid;
 
-      // 🔥 FIRESTORE
-      await setDoc(doc(db, "usuarios", uid), {
-        uid,
+      // =========================================
+      // 🔥 GUARDAR FIRESTORE
+      // =========================================
 
-        // 🔹 SISTEMA
-        email,
+      await setDoc(
+        doc(db, "usuarios", uid),
 
-        rol,
+        {
+          // =========================================
+          // 🔥 IDENTIDAD
+          // =========================================
 
-        estado_usuario: "activo",
+          uid,
 
-        ultimo_login: null,
+          email: email.trim(),
 
-        // 🔹 PERSONALES
-        nombre,
+          cedula: cedula.trim(),
 
-        apellido1,
+          // =========================================
+          // 🔥 PERSONALES
+          // =========================================
 
-        apellido2,
+          nombre: nombre.trim().toUpperCase(),
 
-        cedula,
+          apellido1: apellido1.trim().toUpperCase(),
 
-        telefono,
+          apellido2: apellido2.trim().toUpperCase(),
 
-        fecha_nacimiento: fechaNacimiento,
+          telefono: telefono.trim(),
 
-        // 🔹 LABORALES
-        fecha_alta: fechaAlta,
+          domicilio: domicilio.trim(),
 
-        condicion,
+          fecha_nacimiento: fechaNacimiento
+            ? Timestamp.fromDate(new Date(fechaNacimiento))
+            : null,
 
-        region_id: region.id,
+          fecha_alta: fechaAlta
+            ? Timestamp.fromDate(new Date(fechaAlta))
+            : null,
 
-        region_nombre: region.nombre,
+          // =========================================
+          // 🔥 SISTEMA
+          // =========================================
 
-        delegacion_id: delegacion.id,
+          rol,
 
-        delegacion_nombre: delegacion.nombre,
+          estado_usuario: estadoUsuario,
 
-        escuadra_id: "",
+          creado: Timestamp.now(),
 
-        escuadra_nombre: "",
+          actualizado: Timestamp.now(),
 
-        recurso_id: "",
+          ultimo_login: null,
 
-        recurso_nombre: "",
+          // =========================================
+          // 🔥 REGION
+          // =========================================
 
-        creado: new Date(),
-      });
+          region_id: region?.id || "",
+
+          region_nombre: region?.nombre || "",
+
+          // =========================================
+          // 🔥 DELEGACION
+          // =========================================
+
+          delegacion_id: delegacion?.id || "",
+
+          delegacion_nombre: delegacion?.nombre || "",
+
+          // =========================================
+          // 🔥 ESCUADRA
+          // =========================================
+
+          escuadra_id: escuadra?.id || "",
+
+          escuadra_nombre: escuadra?.nombre || "",
+
+          // =========================================
+          // 🔥 RECURSO
+          // =========================================
+
+          recurso_id: "",
+
+          recurso_nombre: "",
+
+          // =========================================
+          // 🔥 RANGO
+          // =========================================
+
+          rango_id: rango?.id || "",
+
+          rango_nombre: rango?.nombre || "",
+
+          rango_siglas: rango?.siglas || "",
+
+          rango_orden: rango?.orden_jerarquico || 0,
+
+          // =========================================
+          // 🔥 CONDICION
+          // =========================================
+
+          condicion_id: condicion?.id || "",
+
+          condicion_nombre: condicion?.nombre || "",
+
+          condicion_bloquea_operaciones:
+            condicion?.bloquea_operaciones || false,
+        },
+      );
 
       alert("Usuario creado correctamente");
 
-      // 🔥 LIMPIAR
-      setEmail("");
+      limpiarFormulario();
 
-      setPassword("");
-
-      setRol("agente");
-
-      setNombre("");
-
-      setApellido1("");
-
-      setApellido2("");
-
-      setCedula("");
-
-      setTelefono("");
-
-      setFechaNacimiento("");
-
-      setFechaAlta("");
-
-      setCondicion("En servicio");
-
-      setRegionId("");
-
-      setDelegacionId("");
-
-      await cargarUsuarios();
+      await cargarDatos();
     } catch (error) {
       console.error(error);
 
       alert(error.message);
-    }
-  };
-
-  // 🔥 CAMBIAR ESTADO
-  const cambiarEstado = async (id, estadoActual) => {
-    try {
-      await updateDoc(doc(db, "usuarios", id), {
-        estado_usuario: estadoActual === "activo" ? "inactivo" : "activo",
-      });
-
-      cargarUsuarios();
-    } catch (error) {
-      console.error(error);
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div style={{ padding: "20px" }}>
-      <h2>Usuarios</h2>
+    <div
+      style={{
+        padding: "20px",
+      }}
+    >
+      <h1>Crear Usuario</h1>
 
-      {/* FORMULARIO */}
-      <div
-        style={{
-          border: "1px solid #ccc",
-          padding: "15px",
-          marginBottom: "20px",
-        }}
-      >
-        <h3>Crear Usuario</h3>
+      <div style={cardStyle}>
+        {/* ========================================= */}
+        {/* 🔥 SISTEMA */}
+        {/* ========================================= */}
 
-        {/* EMAIL */}
+        <h2>Datos Sistema</h2>
+
+        <label>Email</label>
+
         <input
-          placeholder="Email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
+          style={inputStyle}
         />
 
-        <br />
-        <br />
+        <label>Contraseña Temporal</label>
 
-        {/* PASSWORD */}
         <input
           type="password"
-          placeholder="Contraseña temporal"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
+          style={inputStyle}
         />
 
-        <br />
-        <br />
+        <label>Rol</label>
 
-        {/* RESTO DEL FORMULARIO */}
+        <select
+          value={rol}
+          onChange={(e) => {
+            setRol(e.target.value);
 
-        {/* ROL */}
-        <select value={rol} onChange={(e) => setRol(e.target.value)}>
+            setEscuadraId("");
+          }}
+          style={inputStyle}
+        >
           <option value="admin">Admin</option>
 
           <option value="unidad_operativa">Unidad Operativa</option>
@@ -297,188 +477,276 @@ function CrearUsuario() {
           <option value="agente">Agente</option>
         </select>
 
-        <br />
-        <br />
+        <label>Estado Usuario</label>
 
-        {/* NOMBRE */}
+        <select
+          value={estadoUsuario}
+          onChange={(e) => setEstadoUsuario(e.target.value)}
+          style={inputStyle}
+        >
+          <option value="activo">Activo</option>
+
+          <option value="inactivo">Inactivo</option>
+        </select>
+
+        {/* ========================================= */}
+        {/* 🔥 PERSONALES */}
+        {/* ========================================= */}
+
+        <h2>Datos Personales</h2>
+
+        <label>Nombre</label>
+
         <input
-          placeholder="Nombre"
           value={nombre}
           onChange={(e) => setNombre(e.target.value)}
+          style={inputStyle}
         />
 
-        <br />
-        <br />
+        <label>Primer Apellido</label>
 
-        {/* APELLIDO1 */}
         <input
-          placeholder="Primer apellido"
           value={apellido1}
           onChange={(e) => setApellido1(e.target.value)}
+          style={inputStyle}
         />
 
-        <br />
-        <br />
+        <label>Segundo Apellido</label>
 
-        {/* APELLIDO2 */}
         <input
-          placeholder="Segundo apellido"
           value={apellido2}
           onChange={(e) => setApellido2(e.target.value)}
+          style={inputStyle}
         />
 
-        <br />
-        <br />
+        <label>Cédula</label>
 
-        {/* CEDULA */}
         <input
-          placeholder="Cédula"
           value={cedula}
           onChange={(e) => setCedula(e.target.value)}
+          style={inputStyle}
         />
 
-        <br />
-        <br />
+        <label>Teléfono</label>
 
-        {/* TELEFONO */}
         <input
-          placeholder="Teléfono"
           value={telefono}
           onChange={(e) => setTelefono(e.target.value)}
+          style={inputStyle}
         />
 
-        <br />
-        <br />
+        <label>Domicilio</label>
 
-        {/* FECHA NACIMIENTO */}
+        <textarea
+          value={domicilio}
+          onChange={(e) => setDomicilio(e.target.value)}
+          rows="3"
+          style={{
+            ...inputStyle,
+            resize: "vertical",
+          }}
+        />
+
+        <label>Fecha Nacimiento</label>
+
         <input
           type="date"
           value={fechaNacimiento}
           onChange={(e) => setFechaNacimiento(e.target.value)}
+          style={inputStyle}
         />
 
-        <br />
-        <br />
+        <label>Fecha Alta</label>
 
-        {/* FECHA ALTA */}
         <input
           type="date"
           value={fechaAlta}
           onChange={(e) => setFechaAlta(e.target.value)}
+          style={inputStyle}
         />
 
-        <br />
-        <br />
+        {/* ========================================= */}
+        {/* 🔥 RELACIONES */}
+        {/* ========================================= */}
 
-        {/* CONDICION */}
+        <h2>Relaciones</h2>
+
+        {/* RANGO */}
+
+        <label>Rango</label>
+
         <select
-          value={condicion}
-          onChange={(e) => setCondicion(e.target.value)}
+          value={rangoId}
+          onChange={(e) => setRangoId(e.target.value)}
+          style={inputStyle}
         >
-          <option>En servicio</option>
+          <option value="">Seleccione rango</option>
 
-          <option>Vacaciones</option>
-
-          <option>Incapacitado</option>
-
-          <option>Licencia</option>
-
-          <option>Suspendido</option>
-
-          <option>Comisión</option>
-        </select>
-
-        <br />
-        <br />
-
-        {/* REGION */}
-        <select
-          value={regionId}
-          onChange={(e) => {
-            setRegionId(e.target.value);
-
-            setDelegacionId("");
-          }}
-        >
-          <option value="">Seleccione región</option>
-
-          {regiones.map((r) => (
+          {rangos.map((r) => (
             <option key={r.id} value={r.id}>
-              {r.codigo} - {r.nombre}
+              {r.siglas} - {r.nombre}
             </option>
           ))}
         </select>
 
-        <br />
-        <br />
+        {/* CONDICIÓN */}
 
-        {/* DELEGACION */}
+        <label>Condición</label>
+
         <select
-          value={delegacionId}
-          onChange={(e) => setDelegacionId(e.target.value)}
+          value={condicionId}
+          onChange={(e) => setCondicionId(e.target.value)}
+          style={inputStyle}
         >
-          <option value="">Seleccione delegación</option>
+          <option value="">Seleccione condición</option>
 
-          {delegacionesFiltradas.map((d) => (
-            <option key={d.id} value={d.id}>
-              {d.codigo} - {d.nombre}
+          {condiciones.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.nombre}
             </option>
           ))}
         </select>
 
-        <br />
-        <br />
+        {/* ========================================= */}
+        {/* 🔥 TERRITORIAL */}
+        {/* ========================================= */}
 
-        <button onClick={crearUsuario}>Crear Usuario</button>
-      </div>
+        {requiereTerritorial && (
+          <>
+            <h2>Territorial</h2>
 
-      {/* LISTA */}
-      <div>
-        <h3>Lista Usuarios</h3>
+            {/* REGIÓN */}
 
-        {usuarios.length === 0 && <p>No hay usuarios registrados</p>}
+            <label>Región</label>
 
-        {usuarios.map((u) => (
-          <div
-            key={u.id}
-            style={{
-              border: "1px solid #ccc",
-              padding: "10px",
-              marginBottom: "10px",
-            }}
-          >
-            <p>
-              <strong>Nombre:</strong> {u.nombre} {u.apellido1}
-            </p>
+            <select
+              value={regionId}
+              onChange={(e) => {
+                setRegionId(e.target.value);
 
-            <p>
-              <strong>Email:</strong> {u.email}
-            </p>
+                setDelegacionId("");
 
-            <p>
-              <strong>Rol:</strong> {u.rol}
-            </p>
+                setEscuadraId("");
+              }}
+              style={inputStyle}
+            >
+              <option value="">Seleccione región</option>
 
-            <p>
-              <strong>Delegación:</strong> {u.delegacion_nombre}
-            </p>
+              {regiones.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.nombre}
+                </option>
+              ))}
+            </select>
 
-            <p>
-              <strong>Condición:</strong> {u.condicion}
-            </p>
+            {/* DELEGACIÓN */}
 
-            <p>
-              <strong>Estado:</strong> {u.estado_usuario}
-            </p>
+            <label>Delegación</label>
 
-            <button onClick={() => cambiarEstado(u.id, u.estado_usuario)}>
-              {u.estado_usuario === "activo" ? "Inactivar" : "Activar"}
-            </button>
-          </div>
-        ))}
+            <select
+              value={delegacionId}
+              onChange={(e) => {
+                setDelegacionId(e.target.value);
+
+                setEscuadraId("");
+              }}
+              style={inputStyle}
+            >
+              <option value="">Seleccione delegación</option>
+
+              {delegacionesFiltradas.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.nombre}
+                </option>
+              ))}
+            </select>
+
+            {/* ESCUADRA */}
+
+            {requiereEscuadra && (
+              <>
+                <label>Escuadra</label>
+
+                <select
+                  value={escuadraId}
+                  onChange={(e) => setEscuadraId(e.target.value)}
+                  style={inputStyle}
+                >
+                  <option value="">Seleccione escuadra</option>
+
+                  {escuadrasFiltradas.map((e) => (
+                    <option key={e.id} value={e.id}>
+                      {e.nombre}
+                    </option>
+                  ))}
+                </select>
+              </>
+            )}
+          </>
+        )}
+
+        {/* ========================================= */}
+        {/* 🔥 BOTÓN */}
+        {/* ========================================= */}
+
+        <button
+          onClick={crearUsuario}
+          disabled={loading}
+          style={primaryButtonStyle}
+        >
+          {loading ? "Creando..." : "Crear Usuario"}
+        </button>
       </div>
     </div>
   );
 }
+
+// =========================================
+// 🔥 STYLES
+// =========================================
+
+const cardStyle = {
+  background: "white",
+
+  padding: "20px",
+
+  borderRadius: "14px",
+
+  boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
+
+  display: "grid",
+
+  gap: "12px",
+};
+
+const inputStyle = {
+  width: "100%",
+
+  padding: "10px",
+
+  borderRadius: "8px",
+
+  border: "1px solid #ccc",
+
+  boxSizing: "border-box",
+};
+
+const primaryButtonStyle = {
+  background: "#0f172a",
+
+  color: "white",
+
+  border: "none",
+
+  borderRadius: "10px",
+
+  padding: "14px",
+
+  cursor: "pointer",
+
+  fontWeight: "bold",
+
+  marginTop: "20px",
+};
 
 export default CrearUsuario;

@@ -24,6 +24,9 @@ import GestionEscuadra from "./modules/administracion/escuadras/GestionEscuadra"
 import CrearRecurso from "./modules/supervisor/recursos/CrearRecurso";
 import GestionRecurso from "./modules/supervisor/recursos/GestionRecurso";
 import GestionUsuarios from "./modules/administracion/usuarios/GestionUsuarios";
+import GestionTiposRecurso from "./modules/administracion/configuracion/GestionTiposRecurso";
+import GestionRangosUsuario from "./modules/administracion/configuracion/GestionRangosUsuario";
+import GestionCondicionesUsuario from "./modules/administracion/configuracion/GestionCondicionesUsuario";
 
 function App() {
   const { user, userData } = useContext(AuthContext);
@@ -107,6 +110,12 @@ function App() {
       <Route path="/admin/usuarios" element={<CrearUsuario />} />
       <Route path="/admin/gestion-usuarios" element={<GestionUsuarios />} />
       <Route path="/admin/gestion-escuadras" element={<GestionEscuadra />} />
+      <Route path="/admin/tipos-recurso" element={<GestionTiposRecurso />} />
+      <Route path="/admin/rangos-usuario" element={<GestionRangosUsuario />} />
+      <Route
+        path="/admin/condiciones-usuario"
+        element={<GestionCondicionesUsuario />}
+      />
       // Rutas para unidad operativa
       <Route
         path="/unidad_operativa"

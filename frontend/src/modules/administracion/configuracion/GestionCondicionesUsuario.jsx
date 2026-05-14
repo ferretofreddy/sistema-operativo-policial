@@ -13,7 +13,13 @@ import { db } from "../../../services/firebase";
 
 import CatalogoSimpleLayout from "../../../layouts/CatalogoSimpleLayout";
 
-function CrearRegion() {
+function GestionCondicionesUsuario() {
+  // =========================================
+  // 🔥 DATA
+  // =========================================
+
+  const [condiciones, setCondiciones] = useState([]);
+
   // =========================================
   // 🔥 FORM
   // =========================================
@@ -21,14 +27,12 @@ function CrearRegion() {
   const [formData, setFormData] = useState({
     nombre: "",
 
-    codigo: "",
+    descripcion: "",
+
+    bloquea_operaciones: false,
+
+    estado: "activo",
   });
-
-  // =========================================
-  // 🔥 DATA
-  // =========================================
-
-  const [regiones, setRegiones] = useState([]);
 
   // =========================================
   // 🔥 EDITAR
@@ -46,9 +50,9 @@ function CrearRegion() {
   // 🔥 CARGAR
   // =========================================
 
-  const cargarRegiones = async () => {
+  const cargarCondiciones = async () => {
     try {
-      const snapshot = await getDocs(collection(db, "regiones"));
+      const snapshot = await getDocs(collection(db, "condiciones_usuario"));
 
       const lista = snapshot.docs
         .map((d) => ({
@@ -57,14 +61,14 @@ function CrearRegion() {
         }))
         .sort((a, b) => a.nombre.localeCompare(b.nombre));
 
-      setRegiones(lista);
+      setCondiciones(lista);
     } catch (error) {
       console.error(error);
     }
   };
 
   useEffect(() => {
-    cargarRegiones();
+    cargarCondiciones();
   }, []);
 
   // =========================================
@@ -75,7 +79,7 @@ function CrearRegion() {
     setFormData({
       ...formData,
 
-      [field]: value,
+      [field]: field === "bloquea_operaciones" ? value === "true" : value,
     });
   };
 
@@ -87,7 +91,11 @@ function CrearRegion() {
     setFormData({
       nombre: "",
 
-      codigo: "",
+      descripcion: "",
+
+      bloquea_operaciones: false,
+
+      estado: "activo",
     });
 
     setEditandoId(null);
@@ -97,16 +105,14 @@ function CrearRegion() {
   // 🔥 GUARDAR
   // =========================================
 
-  const guardarRegion = async () => {
+  const guardarCondicion = async () => {
     try {
       setLoading(true);
 
       const nombre = formData.nombre.trim().toUpperCase();
 
-      const codigo = formData.codigo.trim().toUpperCase();
-
-      if (!nombre || !codigo) {
-        alert("Complete todos los campos");
+      if (!nombre) {
+        alert("Ingrese el nombre");
 
         return;
       }
@@ -115,22 +121,12 @@ function CrearRegion() {
       // 🔥 VALIDAR
       // =========================================
 
-      const nombreExiste = regiones.find(
-        (r) => r.nombre === nombre && r.id !== editandoId,
+      const existe = condiciones.find(
+        (c) => c.nombre === nombre && c.id !== editandoId,
       );
 
-      if (nombreExiste) {
-        alert("Ya existe una región con ese nombre");
-
-        return;
-      }
-
-      const codigoExiste = regiones.find(
-        (r) => r.codigo === codigo && r.id !== editandoId,
-      );
-
-      if (codigoExiste) {
-        alert("Ya existe una región con ese código");
+      if (existe) {
+        alert("Esta condición ya existe");
 
         return;
       }
@@ -138,7 +134,11 @@ function CrearRegion() {
       const datos = {
         nombre,
 
-        codigo,
+        descripcion: formData.descripcion.trim(),
+
+        bloquea_operaciones: formData.bloquea_operaciones,
+
+        estado: formData.estado,
 
         actualizado: Timestamp.now(),
       };
@@ -149,39 +149,37 @@ function CrearRegion() {
 
       if (!editandoId) {
         await addDoc(
-          collection(db, "regiones"),
+          collection(db, "condiciones_usuario"),
 
           {
             ...datos,
-
-            estado: "activo",
 
             creado: Timestamp.now(),
           },
         );
 
-        alert("Región creada correctamente");
+        alert("Condición creada");
       } else {
         // =========================================
-        // 🔥 UPDATE
+        // 🔥 ACTUALIZAR
         // =========================================
 
         await updateDoc(
-          doc(db, "regiones", editandoId),
+          doc(db, "condiciones_usuario", editandoId),
 
           datos,
         );
 
-        alert("Región actualizada");
+        alert("Condición actualizada");
       }
 
       limpiarFormulario();
 
-      await cargarRegiones();
+      await cargarCondiciones();
     } catch (error) {
       console.error(error);
 
-      alert("Error guardando región");
+      alert("Error guardando condición");
     } finally {
       setLoading(false);
     }
@@ -191,13 +189,17 @@ function CrearRegion() {
   // 🔥 EDITAR
   // =========================================
 
-  const editarRegion = (region) => {
-    setEditandoId(region.id);
+  const editarCondicion = (condicion) => {
+    setEditandoId(condicion.id);
 
     setFormData({
-      nombre: region.nombre || "",
+      nombre: condicion.nombre || "",
 
-      codigo: region.codigo || "",
+      descripcion: condicion.descripcion || "",
+
+      bloquea_operaciones: condicion.bloquea_operaciones || false,
+
+      estado: condicion.estado || "activo",
     });
   };
 
@@ -205,12 +207,12 @@ function CrearRegion() {
   // 🔥 ESTADO
   // =========================================
 
-  const cambiarEstado = async (region) => {
+  const cambiarEstado = async (condicion) => {
     try {
-      const nuevoEstado = region.estado === "activo" ? "inactivo" : "activo";
+      const nuevoEstado = condicion.estado === "activo" ? "inactivo" : "activo";
 
       await updateDoc(
-        doc(db, "regiones", region.id),
+        doc(db, "condiciones_usuario", condicion.id),
 
         {
           estado: nuevoEstado,
@@ -219,7 +221,7 @@ function CrearRegion() {
         },
       );
 
-      await cargarRegiones();
+      await cargarCondiciones();
     } catch (error) {
       console.error(error);
 
@@ -233,18 +235,20 @@ function CrearRegion() {
       // 🔥 HEADER
       // =========================================
 
-      titulo="Gestión Regiones"
+      titulo="
+      Gestión Condiciones Usuario
+      "
       subtitulo="
-      Administración de regiones operativas
+      Administración de condiciones operativas del personal
       "
       // =========================================
       // 🔥 FORM
       // =========================================
 
-      formTitle={editandoId ? "Editar Región" : "Nueva Región"}
+      formTitle={editandoId ? "Editar Condición" : "Nueva Condición"}
       formData={formData}
       onChange={handleChange}
-      onSubmit={guardarRegion}
+      onSubmit={guardarCondicion}
       onCancel={limpiarFormulario}
       editando={!!editandoId}
       loading={loading}
@@ -252,30 +256,82 @@ function CrearRegion() {
         {
           name: "nombre",
 
-          label: "Nombre Región",
+          label: "Nombre",
 
-          placeholder: "Ej: Pacífico Sur",
+          placeholder: "Ej: Vacaciones",
         },
 
         {
-          name: "codigo",
+          name: "descripcion",
 
-          label: "Código",
+          label: "Descripción",
 
-          placeholder: "Ej: PS",
+          placeholder: "Descripción opcional",
+        },
+
+        {
+          name: "bloquea_operaciones",
+
+          label: "Bloquea Operaciones",
+
+          type: "select",
+
+          options: [
+            {
+              label: "No",
+
+              value: "false",
+            },
+
+            {
+              label: "Sí",
+
+              value: "true",
+            },
+          ],
+        },
+
+        {
+          name: "estado",
+
+          label: "Estado",
+
+          type: "select",
+
+          options: [
+            {
+              label: "Activo",
+
+              value: "activo",
+            },
+
+            {
+              label: "Inactivo",
+
+              value: "inactivo",
+            },
+          ],
         },
       ]}
       // =========================================
       // 🔥 LISTA
       // =========================================
 
-      items={regiones}
-      renderItemTitle={(r) => r.nombre}
-      renderItemSubtitle={(r) => `Código: ${r.codigo}`}
-      onEdit={editarRegion}
+      items={condiciones}
+      renderItemTitle={(c) => c.nombre}
+      renderItemSubtitle={(c) =>
+        `
+        ${
+          c.bloquea_operaciones
+            ? "Bloquea operaciones"
+            : "No bloquea operaciones"
+        }
+        `
+      }
+      onEdit={editarCondicion}
       onToggleEstado={cambiarEstado}
     />
   );
 }
 
-export default CrearRegion;
+export default GestionCondicionesUsuario;

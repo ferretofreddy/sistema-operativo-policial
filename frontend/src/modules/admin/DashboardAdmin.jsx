@@ -40,10 +40,6 @@ function DashboardAdmin() {
           Gestión Usuarios
         </button>
 
-        <button onClick={() => navigate("/admin/recursos")}>
-          Recursos Operativos
-        </button>
-
         <button onClick={() => navigate("/admin/gestion-escuadras")}>
           Gestionar Escuadras
         </button>
@@ -52,6 +48,28 @@ function DashboardAdmin() {
         </button>
         <button onClick={() => navigate("/supervisor/gestion-recursos")}>
           Gestión Recursos
+        </button>
+      </div>
+
+      <hr />
+      <h2>Configuración Sistema</h2>
+
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: "10px",
+          marginBottom: "30px",
+        }}
+      >
+        <button onClick={() => navigate("/admin/tipos-recurso")}>
+          Tipos Recurso
+        </button>
+        <button onClick={() => navigate("/admin/rangos-usuario")}>
+          Rangos Usuario
+        </button>
+        <button onClick={() => navigate("/admin/condiciones-usuario")}>
+          Condiciones Usuario
         </button>
       </div>
 
