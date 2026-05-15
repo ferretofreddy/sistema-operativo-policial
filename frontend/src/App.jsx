@@ -41,7 +41,7 @@ function App() {
 
   return (
     <Routes>
-      // Rutas para agente
+      {/* Rutas para agente */}
       <Route
         path="/agente"
         element={
@@ -50,7 +50,7 @@ function App() {
           </ProtectedRoute>
         }
       />
-      // Rutas para supervisor
+      {/* Rutas para supervisor */}
       <Route
         path="/supervisor"
         element={
@@ -94,7 +94,7 @@ function App() {
       />
       <Route path="/supervisor/recursos" element={<CrearRecurso />} />
       <Route path="/supervisor/gestion-recursos" element={<GestionRecurso />} />
-      // Rutas para admin
+      {/* Rutas para admin */}
       <Route
         path="/admin"
         element={
@@ -116,7 +116,7 @@ function App() {
         path="/admin/condiciones-usuario"
         element={<GestionCondicionesUsuario />}
       />
-      // Rutas para unidad operativa
+      {/* Rutas para unidad operativa */}
       <Route
         path="/unidad_operativa"
         element={
@@ -156,7 +156,7 @@ function App() {
         path="/unidad_operativa/planificacion/:id"
         element={<VerPlanificacion />}
       />
-      // Rutas para jefatura
+      {/* Rutas para jefatura */}
       <Route
         path="/jefatura"
         element={

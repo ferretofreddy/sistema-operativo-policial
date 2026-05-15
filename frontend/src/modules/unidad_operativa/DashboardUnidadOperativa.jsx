@@ -112,6 +112,12 @@ function DashboardUnidadOperativa() {
             <h3>Recursos</h3>
 
             <p>Administración de recursos operativos.</p>
+            <button onClick={() => navigate("/supervisor/recursos")}>
+              Crear Recurso
+            </button>
+            <button onClick={() => navigate("/supervisor/gestion-recursos")}>
+              Gestión Recursos
+            </button>
           </div>
 
           {/* CARD */}
@@ -129,6 +135,12 @@ function DashboardUnidadOperativa() {
             <h3>Supervisión</h3>
 
             <p>Gestión de escuadras y supervisores.</p>
+            <button onClick={() => navigate("/admin/escuadras")}>
+              Escuadras
+            </button>
+            <button onClick={() => navigate("/admin/gestion-escuadras")}>
+              Gestionar Escuadras
+            </button>
           </div>
 
           {/* CARD */}

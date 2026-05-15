@@ -2,190 +2,143 @@
 
 function GestionLayout({
   // =========================================
-  // 🔥 HEADER
+  // HEADER
   // =========================================
 
   titulo,
   subtitulo,
 
   // =========================================
-  // 🔥 FILTROS
+  // FILTROS
   // =========================================
 
   filtros = [],
-
   filtrosData = {},
-
   onFiltroChange,
 
   // =========================================
-  // 🔥 TABLA
+  // TABLA
   // =========================================
 
   columnas = [],
-
   items = [],
-
   renderCelda,
 
   // =========================================
-  // 🔥 ACCIONES
+  // ACTIONS
   // =========================================
 
   onEditar,
-
   onCambiarEstado,
 
   // =========================================
-  // 🔥 FORMULARIO
+  // FORM
   // =========================================
 
   formTitle,
-
   formFields = [],
-
   formData = {},
-
   onFormChange,
-
   onSubmit,
-
   onCancel,
 
-  editando,
+  // =========================================
+  // CONFIG
+  // =========================================
 
-  loading,
+  editando = false,
+  loading = false,
+
+  panelWidth = 420,
 }) {
   return (
-    <div
-      style={{
-        padding: "20px",
-      }}
-    >
+    <div style={containerStyle}>
       {/* ========================================= */}
-      {/* 🔥 HEADER */}
+      {/* HEADER */}
       {/* ========================================= */}
 
-      <div
-        style={{
-          marginBottom: "25px",
-        }}
-      >
-        <h1
-          style={{
-            margin: 0,
-          }}
-        >
-          {titulo}
-        </h1>
+      <div style={headerStyle}>
+        <h1 style={titleStyle}>{titulo}</h1>
 
-        {subtitulo && (
-          <p
-            style={{
-              marginTop: "5px",
-
-              color: "#64748b",
-            }}
-          >
-            {subtitulo}
-          </p>
-        )}
+        {subtitulo && <p style={subtitleStyle}>{subtitulo}</p>}
       </div>
 
       {/* ========================================= */}
-      {/* 🔥 GRID */}
+      {/* GRID */}
       {/* ========================================= */}
 
       <div
         style={{
-          display: "grid",
+          ...gridStyle,
 
-          gridTemplateColumns: "1fr 380px",
+          ...responsiveStyle,
 
-          gap: "20px",
-
-          alignItems: "start",
+          gridTemplateColumns:
+            responsiveStyle.gridTemplateColumns ||
+            `minmax(0, 1fr) clamp(320px, 32vw, ${panelWidth}px)`,
         }}
       >
         {/* ========================================= */}
-        {/* 🔥 IZQUIERDA */}
+        {/* IZQUIERDA */}
         {/* ========================================= */}
 
-        <div
-          style={{
-            display: "grid",
-
-            gap: "20px",
-          }}
-        >
+        <div style={leftColumnStyle}>
           {/* ========================================= */}
-          {/* 🔥 FILTROS */}
+          {/* FILTROS */}
           {/* ========================================= */}
 
           {filtros.length > 0 && (
             <div style={cardStyle}>
-              <h2
-                style={{
-                  marginTop: 0,
-                }}
-              >
-                Filtros
-              </h2>
+              <h2 style={sectionTitleStyle}>Filtros</h2>
 
-              <div
-                style={{
-                  display: "grid",
+              <div style={filtersGridStyle}>
+                {filtros
+                  .filter((filtro) => !filtro.hidden)
+                  .map((filtro) => (
+                    <div key={filtro.name}>
+                      <label style={labelStyle}>{filtro.label}</label>
 
-                  gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+                      {/* SELECT */}
 
-                  gap: "12px",
-                }}
-              >
-                {filtros.map((filtro) => (
-                  <div key={filtro.name}>
-                    <label>{filtro.label}</label>
-
-                    {filtro.type === "select" ? (
-                      <select
-                        value={filtrosData[filtro.name] || ""}
-                        onChange={(e) =>
-                          onFiltroChange(filtro.name, e.target.value)
-                        }
-                        style={inputStyle}
-                      >
-                        {filtro.options?.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                    ) : (
-                      <input
-                        type={filtro.type || "text"}
-                        value={filtrosData[filtro.name] || ""}
-                        onChange={(e) =>
-                          onFiltroChange(filtro.name, e.target.value)
-                        }
-                        placeholder={filtro.placeholder || ""}
-                        style={inputStyle}
-                      />
-                    )}
-                  </div>
-                ))}
+                      {filtro.type === "select" ? (
+                        <select
+                          value={filtrosData[filtro.name] || ""}
+                          onChange={(e) =>
+                            onFiltroChange?.(filtro.name, e.target.value)
+                          }
+                          disabled={filtro.disabled}
+                          style={inputStyle}
+                        >
+                          {filtro.options?.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input
+                          type={filtro.type || "text"}
+                          value={filtrosData[filtro.name] || ""}
+                          onChange={(e) =>
+                            onFiltroChange?.(filtro.name, e.target.value)
+                          }
+                          placeholder={filtro.placeholder || ""}
+                          disabled={filtro.disabled}
+                          style={inputStyle}
+                        />
+                      )}
+                    </div>
+                  ))}
               </div>
             </div>
           )}
 
           {/* ========================================= */}
-          {/* 🔥 TABLA */}
+          {/* TABLA */}
           {/* ========================================= */}
 
           <div style={cardStyle}>
-            <div
-              style={{
-                overflowX: "auto",
-              }}
-            >
+            <div style={tableWrapperStyle}>
               <table style={tableStyle}>
                 {/* HEAD */}
 
@@ -195,7 +148,7 @@ function GestionLayout({
                       <th key={columna}>{columna}</th>
                     ))}
 
-                    <th>Acciones</th>
+                    {(onEditar || onCambiarEstado) && <th>Acciones</th>}
                   </tr>
                 </thead>
 
@@ -204,56 +157,47 @@ function GestionLayout({
                 <tbody>
                   {items.length === 0 && (
                     <tr>
-                      <td
-                        colSpan={columnas.length + 1}
-                        style={{
-                          textAlign: "center",
-
-                          padding: "25px",
-                        }}
-                      >
-                        No hay registros.
+                      <td colSpan={columnas.length + 1} style={emptyStyle}>
+                        No hay registros
                       </td>
                     </tr>
                   )}
 
                   {items.map((item) => (
-                    <tr key={item.id}>
+                    <tr key={item.id} style={rowStyle}>
                       {columnas.map((columna) => (
-                        <td key={columna}>{renderCelda(item, columna)}</td>
+                        <td key={columna}>{renderCelda?.(item, columna)}</td>
                       ))}
 
-                      {/* ACTIONS */}
+                      {(onEditar || onCambiarEstado) && (
+                        <td>
+                          <div style={actionsStyle}>
+                            {/* EDIT */}
 
-                      <td>
-                        <div
-                          style={{
-                            display: "flex",
+                            {onEditar && (
+                              <button
+                                onClick={() => onEditar(item)}
+                                style={secondaryButton}
+                              >
+                                Editar
+                              </button>
+                            )}
 
-                            gap: "8px",
+                            {/* ESTADO */}
 
-                            flexWrap: "wrap",
-                          }}
-                        >
-                          <button
-                            onClick={() => onEditar(item)}
-                            style={secondaryButton}
-                          >
-                            Editar
-                          </button>
-
-                          {onCambiarEstado && (
-                            <button
-                              onClick={() => onCambiarEstado(item)}
-                              style={warningButton}
-                            >
-                              {item.estado === "activo"
-                                ? "Inactivar"
-                                : "Activar"}
-                            </button>
-                          )}
-                        </div>
-                      </td>
+                            {onCambiarEstado && (
+                              <button
+                                onClick={() => onCambiarEstado(item)}
+                                style={warningButton}
+                              >
+                                {item.estado === "activo"
+                                  ? "Inactivar"
+                                  : "Activar"}
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -263,96 +207,88 @@ function GestionLayout({
         </div>
 
         {/* ========================================= */}
-        {/* 🔥 FORMULARIO */}
+        {/* PANEL DERECHO */}
         {/* ========================================= */}
 
-        <div style={cardStyle}>
-          <h2
-            style={{
-              marginTop: 0,
-            }}
-          >
-            {formTitle}
-          </h2>
+        <div style={rightPanelStyle}>
+          <div style={cardStyle}>
+            <h2 style={sectionTitleStyle}>{formTitle}</h2>
 
-          {/* CAMPOS */}
+            {/* FORM */}
 
-          <div
-            style={{
-              display: "grid",
+            <div style={formGridStyle}>
+              {formFields
+                .filter((field) => !field.hidden)
+                .map((field) => (
+                  <div key={field.name}>
+                    <label style={labelStyle}>{field.label}</label>
 
-              gap: "15px",
-            }}
-          >
-            {formFields.map((field) => (
-              <div key={field.name}>
-                <label>{field.label}</label>
+                    {/* SELECT */}
 
-                {/* SELECT */}
+                    {field.type === "select" ? (
+                      <select
+                        value={formData[field.name] || ""}
+                        onChange={(e) =>
+                          onFormChange?.(field.name, e.target.value)
+                        }
+                        disabled={field.disabled}
+                        style={inputStyle}
+                      >
+                        {field.options?.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    ) : field.type === "textarea" ? (
+                      <textarea
+                        rows={field.rows || 3}
+                        value={formData[field.name] || ""}
+                        onChange={(e) =>
+                          onFormChange?.(field.name, e.target.value)
+                        }
+                        placeholder={field.placeholder || ""}
+                        disabled={field.disabled}
+                        style={{
+                          ...inputStyle,
 
-                {field.type === "select" ? (
-                  <select
-                    value={formData[field.name] || ""}
-                    onChange={(e) => onFormChange(field.name, e.target.value)}
-                    style={inputStyle}
-                  >
-                    {field.options?.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                ) : field.type === "textarea" ? (
-                  // TEXTAREA
+                          resize: "vertical",
+                        }}
+                      />
+                    ) : (
+                      <input
+                        type={field.type || "text"}
+                        value={formData[field.name] || ""}
+                        onChange={(e) =>
+                          onFormChange?.(field.name, e.target.value)
+                        }
+                        placeholder={field.placeholder || ""}
+                        disabled={field.disabled}
+                        readOnly={field.readOnly}
+                        style={inputStyle}
+                      />
+                    )}
+                  </div>
+                ))}
+            </div>
 
-                  <textarea
-                    rows={field.rows || 3}
-                    value={formData[field.name] || ""}
-                    onChange={(e) => onFormChange(field.name, e.target.value)}
-                    placeholder={field.placeholder || ""}
-                    style={{
-                      ...inputStyle,
+            {/* ACTIONS */}
 
-                      resize: "vertical",
-                    }}
-                  />
-                ) : (
-                  // INPUT
-
-                  <input
-                    type={field.type || "text"}
-                    value={formData[field.name] || ""}
-                    onChange={(e) => onFormChange(field.name, e.target.value)}
-                    placeholder={field.placeholder || ""}
-                    style={inputStyle}
-                  />
-                )}
-              </div>
-            ))}
-          </div>
-
-          {/* BOTONES */}
-
-          <div
-            style={{
-              display: "flex",
-
-              gap: "10px",
-
-              flexWrap: "wrap",
-
-              marginTop: "25px",
-            }}
-          >
-            <button onClick={onSubmit} disabled={loading} style={primaryButton}>
-              {loading ? "Guardando..." : editando ? "Actualizar" : "Crear"}
-            </button>
-
-            {editando && (
-              <button onClick={onCancel} style={secondaryButton}>
-                Cancelar
+            <div style={buttonsContainerStyle}>
+              <button
+                onClick={onSubmit}
+                disabled={loading}
+                style={primaryButton}
+              >
+                {loading ? "Guardando..." : editando ? "Actualizar" : "Crear"}
               </button>
-            )}
+
+              {editando && (
+                <button onClick={onCancel} style={secondaryButton}>
+                  Cancelar
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -361,8 +297,75 @@ function GestionLayout({
 }
 
 // =========================================
-// 🔥 STYLES
+// STYLES
 // =========================================
+
+const containerStyle = {
+  padding: "20px",
+};
+
+const responsiveStyle =
+  typeof window !== "undefined" && window.innerWidth <= 1100
+    ? {
+        gridTemplateColumns: "1fr",
+      }
+    : {};
+
+const headerStyle = {
+  marginBottom: "25px",
+};
+
+const titleStyle = {
+  margin: 0,
+};
+
+const subtitleStyle = {
+  marginTop: "5px",
+  color: "#64748b",
+};
+
+const gridStyle = {
+  display: "grid",
+
+  gap: "20px",
+
+  alignItems: "start",
+};
+
+const leftColumnStyle = {
+  display: "grid",
+
+  gap: "20px",
+
+  minWidth: 0,
+};
+
+const rightPanelStyle =
+  typeof window !== "undefined" && window.innerWidth <= 1100
+    ? {
+        minWidth: 0,
+      }
+    : {
+        position: "sticky",
+
+        top: "20px",
+
+        minWidth: 0,
+      };
+
+const filtersGridStyle = {
+  display: "grid",
+
+  gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+
+  gap: "12px",
+};
+
+const formGridStyle = {
+  display: "grid",
+
+  gap: "15px",
+};
 
 const cardStyle = {
   background: "white",
@@ -372,6 +375,14 @@ const cardStyle = {
   borderRadius: "14px",
 
   boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
+};
+
+const sectionTitleStyle = {
+  marginTop: 0,
+};
+
+const labelStyle = {
+  fontWeight: "500",
 };
 
 const inputStyle = {
@@ -388,12 +399,50 @@ const inputStyle = {
   boxSizing: "border-box",
 };
 
+const tableWrapperStyle = {
+  width: "100%",
+
+  overflowX: "auto",
+
+  overflowY: "hidden",
+};
+
 const tableStyle = {
   width: "100%",
 
   borderCollapse: "collapse",
 
-  minWidth: "750px",
+  minWidth: "700px",
+
+  tableLayout: "auto",
+};
+
+const rowStyle = {
+  borderTop: "1px solid #e5e7eb",
+};
+
+const emptyStyle = {
+  textAlign: "center",
+
+  padding: "25px",
+};
+
+const actionsStyle = {
+  display: "flex",
+
+  gap: "8px",
+
+  flexWrap: "wrap",
+};
+
+const buttonsContainerStyle = {
+  display: "flex",
+
+  gap: "10px",
+
+  flexWrap: "wrap",
+
+  marginTop: "25px",
 };
 
 const primaryButton = {

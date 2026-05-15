@@ -144,13 +144,6 @@ function DashboardSupervisor() {
 
             <button
               style={buttonStyle}
-              onClick={() => navigate("/supervisor/recursos")}
-            >
-              Recursos Operativos
-            </button>
-
-            <button
-              style={buttonStyle}
               onClick={() => navigate("/supervisor/gestion-recursos")}
             >
               Gestión Recursos

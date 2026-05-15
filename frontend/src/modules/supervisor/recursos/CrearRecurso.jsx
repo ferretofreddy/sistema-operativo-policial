@@ -1,647 +1,898 @@
-import { useEffect, useState, useContext } from "react";
+// frontend/src/modules/supervisor/recursos/CrearRecurso.jsx
+
+import { useContext, useEffect, useMemo, useState } from "react";
 
 import {
   collection,
-  addDoc,
   getDocs,
+  addDoc,
   updateDoc,
   doc,
+  Timestamp,
+  query,
+  where,
 } from "firebase/firestore";
 
 import { db } from "../../../services/firebase";
 
 import { AuthContext } from "../../../context/AuthContext";
 
+import GestionLayout from "../../../layouts/GestionLayout";
+
 function CrearRecurso() {
+  // =========================================
+  // AUTH
+  // =========================================
+
   const { userData } = useContext(AuthContext);
 
-  const [nombreRecurso, setNombreRecurso] = useState("");
+  const esAdmin = userData?.rol === "admin";
 
-  const [unidad, setUnidad] = useState("");
+  const esUnidadOperativa = userData?.rol === "unidad_operativa";
 
-  const [indicativo, setIndicativo] = useState("");
+  // =========================================
+  // STATES
+  // =========================================
 
-  const [tipoRecurso, setTipoRecurso] = useState("Patrulla");
+  const [regiones, setRegiones] = useState([]);
 
-  const [estado, setEstado] = useState("activo");
+  const [delegaciones, setDelegaciones] = useState([]);
+
+  const [tiposRecurso, setTiposRecurso] = useState([]);
 
   const [recursos, setRecursos] = useState([]);
 
   const [loading, setLoading] = useState(false);
 
-  // ====================================
-  // 🔥 CARGAR RECURSOS
-  // ====================================
+  const [editandoId, setEditandoId] = useState(null);
+
+  // =========================================
+  // FILTROS
+  // =========================================
+
+  const [filtros, setFiltros] = useState({
+    region_id: "",
+
+    delegacion_id: "",
+
+    busqueda: "",
+  });
+
+  // =========================================
+  // FORM
+  // =========================================
+
+  const [formData, setFormData] = useState({
+    region_id: "",
+
+    delegacion_id: "",
+
+    tipo_recurso_id: "",
+
+    unidad: "",
+
+    indicativo: "",
+
+    estado: "activo",
+  });
+
+  // =========================================
+  // INIT USER FILTERS
+  // =========================================
+
+  useEffect(() => {
+    if (esUnidadOperativa && userData) {
+      setFiltros({
+        region_id: userData.region_id || "",
+
+        delegacion_id: userData.delegacion_id || "",
+
+        busqueda: "",
+      });
+
+      setFormData((prev) => ({
+        ...prev,
+
+        region_id: userData.region_id || "",
+
+        delegacion_id: userData.delegacion_id || "",
+      }));
+    }
+  }, [esUnidadOperativa, userData]);
+
+  // =========================================
+  // CARGAR REGIONES
+  // =========================================
+
+  const cargarRegiones = async () => {
+    try {
+      const snapshot = await getDocs(collection(db, "regiones"));
+
+      const lista = snapshot.docs.map((d) => ({
+        id: d.id,
+        ...d.data(),
+      }));
+
+      setRegiones(lista);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  // =========================================
+  // CARGAR DELEGACIONES
+  // =========================================
+
+  const cargarDelegaciones = async () => {
+    try {
+      const snapshot = await getDocs(collection(db, "delegaciones"));
+
+      const lista = snapshot.docs.map((d) => ({
+        id: d.id,
+        ...d.data(),
+      }));
+
+      setDelegaciones(lista);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  // =========================================
+  // CARGAR TIPOS
+  // =========================================
+
+  const cargarTipos = async () => {
+    try {
+      const snapshot = await getDocs(collection(db, "tipos_recurso"));
+
+      const lista = snapshot.docs.map((d) => ({
+        id: d.id,
+        ...d.data(),
+      }));
+
+      setTiposRecurso(lista);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  // =========================================
+  // CARGAR RECURSOS
+  // =========================================
 
   const cargarRecursos = async () => {
     try {
-      if (!userData) return;
-
       const snapshot = await getDocs(collection(db, "recursos_operativos"));
 
-      const lista = snapshot.docs
-        .map((d) => ({
-          id: d.id,
+      let lista = snapshot.docs.map((d) => ({
+        id: d.id,
+        ...d.data(),
+      }));
 
-          ...d.data(),
-        }))
-        .filter(
+      // =========================================
+      // FILTRO UO
+      // =========================================
+
+      if (esUnidadOperativa && userData) {
+        lista = lista.filter(
           (r) =>
             r.region_id === userData.region_id &&
             r.delegacion_id === userData.delegacion_id,
         );
+      }
 
       setRecursos(lista);
     } catch (error) {
-      console.error("Error al cargar recursos:", error);
+      console.error(error);
     }
   };
 
+  // =========================================
+  // INIT
+  // =========================================
+
   useEffect(() => {
-    cargarRecursos();
+    cargarRegiones();
+
+    cargarDelegaciones();
+
+    cargarTipos();
+  }, []);
+
+  useEffect(() => {
+    if (userData) {
+      cargarRecursos();
+    }
   }, [userData]);
 
-  // ====================================
-  // 🔥 CREAR RECURSO
-  // ====================================
+  // =========================================
+  // DELEGACIONES FORM
+  // =========================================
 
-  const crearRecurso = async () => {
+  const delegacionesForm = useMemo(() => {
+    if (!formData.region_id) {
+      return [];
+    }
+
+    return delegaciones.filter((d) => d.region_id === formData.region_id);
+  }, [delegaciones, formData.region_id]);
+
+  // =========================================
+  // DELEGACIONES FILTROS
+  // =========================================
+
+  const delegacionesFiltro = useMemo(() => {
+    if (!filtros.region_id) {
+      return [];
+    }
+
+    return delegaciones.filter((d) => d.region_id === filtros.region_id);
+  }, [delegaciones, filtros.region_id]);
+
+  // =========================================
+  // NOMBRE RECURSO AUTO
+  // =========================================
+
+  const nombreRecurso = useMemo(() => {
+    const tipo = tiposRecurso.find((t) => t.id === formData.tipo_recurso_id);
+
+    const delegacion = delegaciones.find(
+      (d) => d.id === formData.delegacion_id,
+    );
+
+    if (!tipo || !delegacion || !formData.unidad) {
+      return "";
+    }
+
+    return `${tipo.siglas}-${delegacion.codigo}-${formData.unidad}`
+      .toUpperCase()
+      .trim();
+  }, [
+    tiposRecurso,
+    delegaciones,
+    formData.tipo_recurso_id,
+    formData.delegacion_id,
+    formData.unidad,
+  ]);
+
+  // =========================================
+  // FILTRO RECURSOS
+  // =========================================
+
+  const recursosFiltrados = useMemo(() => {
+    return recursos.filter((r) => {
+      const region = !filtros.region_id || r.region_id === filtros.region_id;
+
+      const delegacion =
+        !filtros.delegacion_id || r.delegacion_id === filtros.delegacion_id;
+
+      const texto = filtros.busqueda.toLowerCase().trim();
+
+      const busqueda =
+        !texto ||
+        r.nombre_recurso?.toLowerCase().includes(texto) ||
+        r.indicativo?.toLowerCase().includes(texto) ||
+        r.unidad?.toLowerCase().includes(texto);
+
+      return region && delegacion && busqueda;
+    });
+  }, [recursos, filtros]);
+
+  // =========================================
+  // HANDLE FILTROS
+  // =========================================
+
+  const handleFiltroChange = (field, value) => {
+    const nuevos = {
+      ...filtros,
+
+      [field]: value,
+    };
+
+    if (field === "region_id") {
+      nuevos.delegacion_id = "";
+    }
+
+    setFiltros(nuevos);
+  };
+
+  // =========================================
+  // HANDLE FORM
+  // =========================================
+
+  const handleFormChange = (field, value) => {
+    const nuevos = {
+      ...formData,
+
+      [field]: value,
+    };
+
+    if (field === "region_id") {
+      nuevos.delegacion_id = "";
+    }
+
+    setFormData(nuevos);
+  };
+
+  // =========================================
+  // LIMPIAR
+  // =========================================
+
+  const limpiarFormulario = () => {
+    setEditandoId(null);
+
+    setFormData({
+      region_id: esUnidadOperativa ? userData.region_id : "",
+
+      delegacion_id: esUnidadOperativa ? userData.delegacion_id : "",
+
+      tipo_recurso_id: "",
+
+      unidad: "",
+
+      indicativo: "",
+
+      estado: "activo",
+    });
+  };
+
+  // =========================================
+  // GUARDAR
+  // =========================================
+
+  const guardarRecurso = async () => {
     try {
       setLoading(true);
 
-      // ====================================
-      // 🔥 VALIDACIONES
-      // ====================================
+      // =========================================
+      // VALIDACIONES
+      // =========================================
 
-      if (!nombreRecurso || !unidad || !indicativo) {
-        alert("Complete todos los campos");
+      if (!formData.region_id) {
+        alert("Seleccione región");
 
         return;
       }
 
-      // 🔥 VALIDAR UNIDAD
+      if (!formData.delegacion_id) {
+        alert("Seleccione delegación");
 
-      const existeUnidad = recursos.some(
-        (r) => r.unidad?.trim().toLowerCase() === unidad.trim().toLowerCase(),
+        return;
+      }
+
+      if (!formData.tipo_recurso_id) {
+        alert("Seleccione tipo recurso");
+
+        return;
+      }
+
+      if (!formData.unidad.trim()) {
+        alert("Ingrese unidad");
+
+        return;
+      }
+
+      if (!formData.indicativo.trim()) {
+        alert("Ingrese indicativo");
+
+        return;
+      }
+
+      // =========================================
+      // DATA RELACIONAL
+      // =========================================
+
+      const region = regiones.find((r) => r.id === formData.region_id);
+
+      const delegacion = delegaciones.find(
+        (d) => d.id === formData.delegacion_id,
       );
 
-      if (existeUnidad) {
+      const tipo = tiposRecurso.find((t) => t.id === formData.tipo_recurso_id);
+
+      // =========================================
+      // VALIDAR DUPLICADOS
+      // =========================================
+
+      const unidadExiste = recursos.find(
+        (r) =>
+          r.unidad === formData.unidad.trim().toUpperCase() &&
+          r.delegacion_id === delegacion.id &&
+          r.id !== editandoId,
+      );
+
+      if (unidadExiste) {
         alert("La unidad ya existe");
 
         return;
       }
 
-      // 🔥 VALIDAR INDICATIVO
-
-      const existeIndicativo = recursos.some(
+      const indicativoExiste = recursos.find(
         (r) =>
-          r.indicativo?.trim().toLowerCase() ===
-          indicativo.trim().toLowerCase(),
+          r.indicativo === formData.indicativo.trim().toUpperCase() &&
+          r.id !== editandoId,
       );
 
-      if (existeIndicativo) {
+      if (indicativoExiste) {
         alert("El indicativo ya existe");
 
         return;
       }
 
-      // ====================================
-      // 🔥 GUARDAR
-      // ====================================
+      // =========================================
+      // DATA
+      // =========================================
 
-      await addDoc(
-        collection(db, "recursos_operativos"),
+      const datos = {
+        estado: formData.estado,
 
-        {
-          nombre_recurso: nombreRecurso.trim().toUpperCase(),
+        region_id: region.id,
 
-          unidad: unidad.trim().toUpperCase(),
+        region_nombre: region.nombre,
 
-          indicativo: indicativo.trim().toUpperCase(),
+        delegacion_id: delegacion.id,
 
-          tipo_recurso: tipoRecurso.trim().toUpperCase(),
+        delegacion_nombre: delegacion.nombre,
 
-          estado,
+        tipo_recurso_id: tipo.id,
 
-          // ====================================
-          // 🔥 OPERATIVO
-          // ====================================
+        tipo_recurso: tipo.nombre,
 
-          escuadra_id: "",
+        tipo_recurso_siglas: tipo.siglas,
 
-          escuadra_nombre: "",
+        unidad: formData.unidad.trim().toUpperCase(),
 
-          oficiales: [],
+        indicativo: formData.indicativo.trim().toUpperCase(),
 
-          // ====================================
-          // 🔥 INSTITUCIONAL
-          // ====================================
+        nombre_recurso: nombreRecurso,
 
-          region_id: userData.region_id,
+        actualizado: Timestamp.now(),
+      };
 
-          region_nombre: userData.region_nombre,
+      // =========================================
+      // CREAR
+      // =========================================
 
-          delegacion_id: userData.delegacion_id,
+      if (!editandoId) {
+        await addDoc(
+          collection(db, "recursos_operativos"),
 
-          delegacion_nombre: userData.delegacion_nombre,
+          {
+            ...datos,
 
-          creado: new Date(),
-        },
-      );
+            creado: Timestamp.now(),
 
-      alert("Recurso creado correctamente");
+            oficiales: [],
 
-      // ====================================
-      // 🔥 LIMPIAR
-      // ====================================
+            escuadra_id: "",
 
-      setNombreRecurso("");
+            escuadra_nombre: "",
+          },
+        );
 
-      setUnidad("");
+        alert("Recurso creado");
+      } else {
+        await updateDoc(
+          doc(db, "recursos_operativos", editandoId),
 
-      setIndicativo("");
+          datos,
+        );
 
-      setTipoRecurso("Patrulla");
+        alert("Recurso actualizado");
+      }
 
-      setEstado("activo");
-
-      // ====================================
-      // 🔥 RECARGAR
-      // ====================================
+      limpiarFormulario();
 
       await cargarRecursos();
     } catch (error) {
-      console.error("Error al crear recurso:", error);
+      console.error(error);
 
-      alert("Error al crear recurso");
+      alert("Error guardando recurso");
     } finally {
       setLoading(false);
     }
   };
 
-  // ====================================
-  // 🔥 CAMBIAR ESTADO
-  // ====================================
+  // =========================================
+  // EDITAR
+  // =========================================
 
-  const cambiarEstado = async (recurso, nuevoEstado) => {
+  const editarRecurso = (recurso) => {
+    setEditandoId(recurso.id);
+
+    setFormData({
+      region_id: recurso.region_id,
+
+      delegacion_id: recurso.delegacion_id,
+
+      tipo_recurso_id: recurso.tipo_recurso_id,
+
+      unidad: recurso.unidad,
+
+      indicativo: recurso.indicativo,
+
+      estado: recurso.estado,
+    });
+  };
+
+  // =========================================
+  // CAMBIAR ESTADO
+  // =========================================
+
+  const cambiarEstado = async (recurso) => {
     try {
-      // ====================================
-      // 🔥 INACTIVAR
-      // ====================================
+      setLoading(true);
+
+      const nuevoEstado = recurso.estado === "activo" ? "inactivo" : "activo";
+
+      // =========================================
+      // INACTIVAR
+      // =========================================
 
       if (nuevoEstado === "inactivo") {
-        // 🔥 LIBERAR OFICIALES
+        const q = query(
+          collection(db, "usuarios"),
 
-        for (const oficial of recurso.oficiales || []) {
+          where("recurso_id", "==", recurso.id),
+        );
+
+        const snapshot = await getDocs(q);
+
+        // =========================================
+        // LIBERAR USERS
+        // =========================================
+
+        for (const d of snapshot.docs) {
           await updateDoc(
-            doc(db, "usuarios", oficial.uid),
+            doc(db, "usuarios", d.id),
 
             {
               recurso_id: "",
 
               recurso_nombre: "",
+
+              actualizado: Timestamp.now(),
             },
           );
         }
 
-        // 🔥 LIMPIAR RECURSO
+        // =========================================
+        // LIMPIAR RECURSO
+        // =========================================
 
         await updateDoc(
           doc(db, "recursos_operativos", recurso.id),
 
           {
+            estado: "inactivo",
+
             escuadra_id: "",
 
             escuadra_nombre: "",
 
             oficiales: [],
 
-            estado: "inactivo",
+            actualizado: Timestamp.now(),
           },
         );
       } else {
-        // ====================================
-        // 🔥 SOLO CAMBIAR ESTADO
-        // ====================================
-
         await updateDoc(
           doc(db, "recursos_operativos", recurso.id),
 
           {
-            estado: nuevoEstado,
+            estado: "activo",
+
+            actualizado: Timestamp.now(),
           },
         );
       }
-
-      alert("Estado actualizado");
 
       await cargarRecursos();
     } catch (error) {
       console.error(error);
 
-      alert("Error al actualizar estado");
+      alert("Error actualizando estado");
+    } finally {
+      setLoading(false);
     }
   };
-
-  // ====================================
-  // 🔥 BADGE ESTADO
-  // ====================================
-
-  const obtenerColorEstado = (estado) => {
-    switch (estado) {
-      case "activo":
-        return {
-          fondo: "#dcfce7",
-
-          color: "#166534",
-        };
-
-      case "asignado":
-        return {
-          fondo: "#dbeafe",
-
-          color: "#1d4ed8",
-        };
-
-      case "mantenimiento":
-        return {
-          fondo: "#fef3c7",
-
-          color: "#92400e",
-        };
-
-      case "inactivo":
-        return {
-          fondo: "#fee2e2",
-
-          color: "#991b1b",
-        };
-
-      default:
-        return {
-          fondo: "#e5e7eb",
-
-          color: "#374151",
-        };
-    }
-  };
-
-  // ====================================
-  // 🔥 RENDER
-  // ====================================
 
   return (
-    <div
-      style={{
-        padding: "20px",
+    <GestionLayout
+      // =========================================
+      // HEADER
+      // =========================================
+
+      titulo="
+      Gestión Recursos Operativos
+      "
+      subtitulo="
+      Administración estructural de recursos institucionales
+      "
+      // =========================================
+      // FILTROS
+      // =========================================
+
+      filtros={[
+        {
+          name: "region_id",
+
+          label: "Región",
+
+          type: "select",
+
+          hidden: !esAdmin,
+
+          options: [
+            {
+              label: "Todas",
+
+              value: "",
+            },
+
+            ...regiones.map((r) => ({
+              label: `${r.codigo} - ${r.nombre}`,
+
+              value: r.id,
+            })),
+          ],
+        },
+
+        {
+          name: "delegacion_id",
+
+          label: "Delegación",
+
+          type: "select",
+
+          hidden: !esAdmin,
+
+          disabled: !filtros.region_id,
+
+          options: [
+            {
+              label: "Todas",
+
+              value: "",
+            },
+
+            ...delegacionesFiltro.map((d) => ({
+              label: `${d.codigo} - ${d.nombre}`,
+
+              value: d.id,
+            })),
+          ],
+        },
+
+        {
+          name: "busqueda",
+
+          label: "Buscar",
+
+          placeholder: "Unidad, indicativo o nombre",
+        },
+      ]}
+      filtrosData={filtros}
+      onFiltroChange={handleFiltroChange}
+      // =========================================
+      // TABLA
+      // =========================================
+
+      columnas={["Recurso", "Unidad", "Indicativo", "Delegación", "Estado"]}
+      items={recursosFiltrados}
+      renderCelda={(item, columna) => {
+        switch (columna) {
+          case "Recurso":
+            return item.nombre_recurso;
+
+          case "Unidad":
+            return item.unidad;
+
+          case "Indicativo":
+            return item.indicativo;
+
+          case "Delegación":
+            return item.delegacion_nombre;
+
+          case "Estado":
+            return (
+              <span
+                style={{
+                  background: item.estado === "activo" ? "#dcfce7" : "#fee2e2",
+
+                  color: item.estado === "activo" ? "#166534" : "#991b1b",
+
+                  padding: "4px 10px",
+
+                  borderRadius: "20px",
+
+                  fontSize: "12px",
+
+                  fontWeight: "bold",
+
+                  textTransform: "uppercase",
+                }}
+              >
+                {item.estado}
+              </span>
+            );
+
+          default:
+            return "";
+        }
       }}
-    >
-      {/* ==================================== */}
-      {/* 🔥 HEADER */}
-      {/* ==================================== */}
+      // =========================================
+      // ACTIONS
+      // =========================================
 
-      <div
-        style={{
-          marginBottom: "25px",
-        }}
-      >
-        <h1>Administración de Recursos</h1>
+      onEditar={editarRecurso}
+      onCambiarEstado={cambiarEstado}
+      // =========================================
+      // FORM
+      // =========================================
 
-        <p>Gestión operativa de recursos institucionales.</p>
-      </div>
+      formTitle={editandoId ? "Editar Recurso" : "Nuevo Recurso"}
+      formFields={[
+        {
+          name: "region_id",
 
-      {/* ==================================== */}
-      {/* 🔥 FORMULARIO */}
-      {/* ==================================== */}
+          label: "Región",
 
-      <div style={cardStyle}>
-        <h2 style={sectionTitleStyle}>Crear Recurso</h2>
+          type: "select",
 
-        <div style={gridStyle}>
-          {/* 🔥 NOMBRE */}
+          hidden: !esAdmin,
 
-          <div>
-            <label>Nombre Recurso</label>
+          disabled: esUnidadOperativa,
 
-            <input
-              placeholder="Ej: Patrulla Distrital"
-              value={nombreRecurso}
-              onChange={(e) => setNombreRecurso(e.target.value)}
-              style={inputStyle}
-            />
-          </div>
+          options: [
+            {
+              label: "Seleccione región",
 
-          {/* 🔥 UNIDAD */}
+              value: "",
+            },
 
-          <div>
-            <label>Código Unidad</label>
+            ...regiones.map((r) => ({
+              label: `${r.codigo} - ${r.nombre}`,
 
-            <input
-              placeholder="Ej: 4051"
-              value={unidad}
-              onChange={(e) => setUnidad(e.target.value)}
-              style={inputStyle}
-            />
-          </div>
+              value: r.id,
+            })),
+          ],
+        },
 
-          {/* 🔥 INDICATIVO */}
+        {
+          name: "delegacion_id",
 
-          <div>
-            <label>Indicativo</label>
+          label: "Delegación",
 
-            <input
-              placeholder="Ej: Lince 1"
-              value={indicativo}
-              onChange={(e) => setIndicativo(e.target.value)}
-              style={inputStyle}
-            />
-          </div>
+          type: "select",
 
-          {/* 🔥 TIPO */}
+          hidden: !esAdmin,
 
-          <div>
-            <label>Tipo Recurso</label>
+          disabled: !formData.region_id || esUnidadOperativa,
 
-            <select
-              value={tipoRecurso}
-              onChange={(e) => setTipoRecurso(e.target.value)}
-              style={inputStyle}
-            >
-              <option>Patrulla</option>
+          options: [
+            {
+              label: "Seleccione delegación",
 
-              <option>Motocicleta</option>
+              value: "",
+            },
 
-              <option>Transporte Aprehendidos</option>
+            ...delegacionesForm.map((d) => ({
+              label: `${d.codigo} - ${d.nombre}`,
 
-              <option>Policleto</option>
+              value: d.id,
+            })),
+          ],
+        },
 
-              <option>Binomio</option>
+        {
+          name: "tipo_recurso_id",
 
-              <option>Cuadraciclo</option>
-            </select>
-          </div>
+          label: "Tipo Recurso",
 
-          {/* 🔥 ESTADO */}
+          type: "select",
 
-          <div>
-            <label>Estado</label>
+          options: [
+            {
+              label: "Seleccione tipo",
 
-            <select
-              value={estado}
-              onChange={(e) => setEstado(e.target.value)}
-              style={inputStyle}
-            >
-              <option value="activo">Activo</option>
+              value: "",
+            },
 
-              <option value="mantenimiento">Mantenimiento</option>
+            ...tiposRecurso.map((t) => ({
+              label: `${t.siglas} - ${t.nombre}`,
 
-              <option value="inactivo">Inactivo</option>
-            </select>
+              value: t.id,
+            })),
+          ],
+        },
+
+        {
+          name: "unidad",
+
+          label: "Unidad",
+
+          placeholder: "Ej: 4051",
+        },
+
+        {
+          name: "indicativo",
+
+          label: "Indicativo",
+
+          placeholder: "Ej: LINCE 1",
+        },
+
+        {
+          name: "estado",
+
+          label: "Estado",
+
+          type: "select",
+
+          options: [
+            {
+              label: "Activo",
+
+              value: "activo",
+            },
+
+            {
+              label: "Mantenimiento",
+
+              value: "mantenimiento",
+            },
+
+            {
+              label: "Inactivo",
+
+              value: "inactivo",
+            },
+          ],
+        },
+      ]}
+      formData={formData}
+      onFormChange={handleFormChange}
+      onSubmit={guardarRecurso}
+      onCancel={limpiarFormulario}
+      editando={!!editandoId}
+      loading={loading}
+      panelWidth={430}
+      // =========================================
+      // EXTRA INFO
+      // =========================================
+
+      extraContent={
+        <div
+          style={{
+            marginTop: "15px",
+
+            padding: "12px",
+
+            border: "1px solid #e5e7eb",
+
+            borderRadius: "10px",
+
+            background: "#f8fafc",
+          }}
+        >
+          <strong>Nombre Recurso:</strong>
+
+          <div
+            style={{
+              marginTop: "6px",
+
+              fontSize: "18px",
+
+              fontWeight: "bold",
+            }}
+          >
+            {nombreRecurso || "Pendiente"}
           </div>
         </div>
-
-        <button onClick={crearRecurso} disabled={loading} style={buttonStyle}>
-          {loading ? "Guardando..." : "Crear Recurso"}
-        </button>
-      </div>
-
-      {/* ==================================== */}
-      {/* 🔥 LISTA */}
-      {/* ==================================== */}
-
-      <div
-        style={{
-          display: "grid",
-
-          gap: "15px",
-        }}
-      >
-        {recursos.length === 0 && (
-          <div style={emptyStyle}>No hay recursos registrados.</div>
-        )}
-
-        {recursos.map((r) => {
-          const colores = obtenerColorEstado(r.estado);
-
-          return (
-            <div key={r.id} style={resourceCardStyle}>
-              <div
-                style={{
-                  display: "flex",
-
-                  justifyContent: "space-between",
-
-                  alignItems: "center",
-
-                  flexWrap: "wrap",
-
-                  gap: "10px",
-                }}
-              >
-                <div>
-                  <h3
-                    style={{
-                      margin: 0,
-                    }}
-                  >
-                    {r.nombre_recurso}
-                  </h3>
-
-                  <p>
-                    <strong>Unidad:</strong> {r.unidad}
-                  </p>
-
-                  <p>
-                    <strong>Indicativo:</strong> {r.indicativo}
-                  </p>
-
-                  <p>
-                    <strong>Tipo:</strong> {r.tipo_recurso}
-                  </p>
-
-                  <p>
-                    <strong>Escuadra:</strong>{" "}
-                    {r.escuadra_nombre || "Sin asignar"}
-                  </p>
-                </div>
-
-                <div
-                  style={{
-                    background: colores.fondo,
-
-                    color: colores.color,
-
-                    padding: "6px 12px",
-
-                    borderRadius: "20px",
-
-                    fontWeight: "bold",
-
-                    fontSize: "12px",
-
-                    textTransform: "uppercase",
-                  }}
-                >
-                  {r.estado}
-                </div>
-              </div>
-
-              {/* ==================================== */}
-              {/* 🔥 ACCIONES */}
-              {/* ==================================== */}
-
-              <div
-                style={{
-                  display: "flex",
-
-                  gap: "10px",
-
-                  flexWrap: "wrap",
-
-                  marginTop: "20px",
-                }}
-              >
-                <button
-                  onClick={() => cambiarEstado(r, "activo")}
-                  style={smallButtonStyle}
-                >
-                  Activar
-                </button>
-
-                <button
-                  onClick={() => cambiarEstado(r, "mantenimiento")}
-                  style={smallButtonStyle}
-                >
-                  Mantenimiento
-                </button>
-
-                <button
-                  onClick={() => cambiarEstado(r, "inactivo")}
-                  style={dangerButtonStyle}
-                >
-                  Inactivar
-                </button>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
+      }
+    />
   );
 }
-
-// ====================================
-// 🔥 STYLES
-// ====================================
-
-const cardStyle = {
-  background: "white",
-
-  padding: "20px",
-
-  borderRadius: "14px",
-
-  boxShadow: "0 2px 6px rgba(0,0,0,0.1)",
-
-  marginBottom: "25px",
-};
-
-const resourceCardStyle = {
-  background: "white",
-
-  padding: "18px",
-
-  borderRadius: "12px",
-
-  boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
-};
-
-const sectionTitleStyle = {
-  marginBottom: "20px",
-
-  color: "#1e293b",
-};
-
-const gridStyle = {
-  display: "grid",
-
-  gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-
-  gap: "15px",
-
-  marginBottom: "20px",
-};
-
-const inputStyle = {
-  width: "100%",
-
-  padding: "10px",
-
-  marginTop: "5px",
-
-  borderRadius: "8px",
-
-  border: "1px solid #ccc",
-
-  boxSizing: "border-box",
-};
-
-const buttonStyle = {
-  width: "100%",
-
-  padding: "12px",
-
-  background: "#0f172a",
-
-  color: "white",
-
-  border: "none",
-
-  borderRadius: "10px",
-
-  fontWeight: "bold",
-
-  cursor: "pointer",
-};
-
-const smallButtonStyle = {
-  padding: "10px 14px",
-
-  background: "#1e293b",
-
-  color: "white",
-
-  border: "none",
-
-  borderRadius: "8px",
-
-  cursor: "pointer",
-};
-
-const dangerButtonStyle = {
-  padding: "10px 14px",
-
-  background: "#991b1b",
-
-  color: "white",
-
-  border: "none",
-
-  borderRadius: "8px",
-
-  cursor: "pointer",
-};
-
-const emptyStyle = {
-  background: "white",
-
-  padding: "25px",
-
-  borderRadius: "12px",
-
-  textAlign: "center",
-
-  boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
-};
-
 export default CrearRecurso;

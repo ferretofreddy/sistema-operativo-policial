@@ -1,19 +1,47 @@
-import { useEffect, useState, useContext } from "react";
+// frontend/src/modules/supervisor/recursos/GestionRecurso.jsx
 
-import { collection, getDocs, updateDoc, doc } from "firebase/firestore";
+import { useContext, useEffect, useMemo, useState } from "react";
+
+import {
+  collection,
+  getDocs,
+  updateDoc,
+  doc,
+  Timestamp,
+} from "firebase/firestore";
 
 import { db } from "../../../services/firebase";
 
 import { AuthContext } from "../../../context/AuthContext";
 
+import OperacionLayout from "../../../layouts/OperacionLayout";
+
 function GestionRecurso() {
+  // =========================================
+  // AUTH
+  // =========================================
+
   const { userData } = useContext(AuthContext);
+
+  const esAdmin = userData?.rol === "admin";
+
+  const esUnidadOperativa = userData?.rol === "unidad_operativa";
+
+  const esSupervisor = userData?.rol === "supervisor";
+
+  // =========================================
+  // STATES
+  // =========================================
 
   const [recursos, setRecursos] = useState([]);
 
   const [usuarios, setUsuarios] = useState([]);
 
   const [escuadras, setEscuadras] = useState([]);
+
+  const [regiones, setRegiones] = useState([]);
+
+  const [delegaciones, setDelegaciones] = useState([]);
 
   const [recursoSeleccionado, setRecursoSeleccionado] = useState(null);
 
@@ -24,82 +52,226 @@ function GestionRecurso() {
   const [loading, setLoading] = useState(false);
 
   // =========================================
-  // 🔥 CARGAR RECURSOS
+  // FILTROS
   // =========================================
 
-  const cargarRecursos = async () => {
-    const snapshot = await getDocs(collection(db, "recursos_operativos"));
+  const [filtros, setFiltros] = useState({
+    region_id: "",
 
-    const lista = snapshot.docs
-      .map((d) => ({
-        id: d.id,
-        ...d.data(),
-      }))
-      .filter(
-        (r) =>
-          r.region_id === userData.region_id &&
-          r.delegacion_id === userData.delegacion_id,
-      );
+    delegacion_id: "",
+  });
 
-    setRecursos(lista);
+  // =========================================
+  // INIT FILTROS
+  // =========================================
+
+  useEffect(() => {
+    if ((esUnidadOperativa || esSupervisor) && userData) {
+      setFiltros({
+        region_id: userData.region_id,
+
+        delegacion_id: userData.delegacion_id,
+      });
+    }
+  }, [esUnidadOperativa, esSupervisor, userData]);
+
+  // =========================================
+  // REGIONES
+  // =========================================
+
+  const cargarRegiones = async () => {
+    const snapshot = await getDocs(collection(db, "regiones"));
+
+    const lista = snapshot.docs.map((d) => ({
+      id: d.id,
+      ...d.data(),
+    }));
+
+    setRegiones(lista);
   };
 
   // =========================================
-  // 🔥 CARGAR USUARIOS
+  // DELEGACIONES
   // =========================================
 
-  const cargarUsuarios = async () => {
-    const snapshot = await getDocs(collection(db, "usuarios"));
+  const cargarDelegaciones = async () => {
+    const snapshot = await getDocs(collection(db, "delegaciones"));
 
-    const lista = snapshot.docs
-      .map((d) => ({
-        id: d.id,
-        ...d.data(),
-      }))
-      .filter(
-        (u) =>
-          u.estado_usuario === "activo" &&
-          u.region_id === userData.region_id &&
-          u.delegacion_id === userData.delegacion_id,
-      );
+    const lista = snapshot.docs.map((d) => ({
+      id: d.id,
+      ...d.data(),
+    }));
 
-    setUsuarios(lista);
+    setDelegaciones(lista);
   };
 
   // =========================================
-  // 🔥 CARGAR ESCUADRAS
+  // ESCUADRAS
   // =========================================
 
   const cargarEscuadras = async () => {
     const snapshot = await getDocs(collection(db, "escuadras"));
 
-    const lista = snapshot.docs
+    let lista = snapshot.docs
       .map((d) => ({
         id: d.id,
         ...d.data(),
       }))
-      .filter(
+      .filter((e) => e.estado === "activo");
+
+    // =========================================
+    // UO
+    // =========================================
+
+    if (esUnidadOperativa && userData) {
+      lista = lista.filter(
         (e) =>
-          e.estado === "activa" &&
           e.region_id === userData.region_id &&
           e.delegacion_id === userData.delegacion_id,
       );
+    }
+
+    // =========================================
+    // SUPERVISOR
+    // =========================================
+
+    if (esSupervisor && userData) {
+      lista = lista.filter((e) => e.id === userData.escuadra_id);
+    }
 
     setEscuadras(lista);
   };
 
-  useEffect(() => {
-    if (!userData) return;
+  // =========================================
+  // RECURSOS
+  // =========================================
 
-    cargarRecursos();
+  const cargarRecursos = async () => {
+    const snapshot = await getDocs(collection(db, "recursos_operativos"));
 
-    cargarUsuarios();
+    let lista = snapshot.docs.map((d) => ({
+      id: d.id,
+      ...d.data(),
+    }));
 
-    cargarEscuadras();
-  }, [userData]);
+    // =========================================
+    // UO / SUPERVISOR
+    // =========================================
+
+    if ((esUnidadOperativa || esSupervisor) && userData) {
+      lista = lista.filter(
+        (r) =>
+          r.region_id === userData.region_id &&
+          r.delegacion_id === userData.delegacion_id,
+      );
+    }
+
+    setRecursos(lista);
+  };
 
   // =========================================
-  // 🔥 SELECCIONAR RECURSO
+  // USERS
+  // =========================================
+
+  const cargarUsuarios = async () => {
+    const snapshot = await getDocs(collection(db, "usuarios"));
+
+    let lista = snapshot.docs
+      .map((d) => ({
+        id: d.id,
+        ...d.data(),
+      }))
+      .filter((u) => u.estado_usuario === "activo");
+
+    // =========================================
+    // ADMIN
+    // =========================================
+
+    if (esAdmin && filtros.region_id && filtros.delegacion_id) {
+      lista = lista.filter(
+        (u) =>
+          u.region_id === filtros.region_id &&
+          u.delegacion_id === filtros.delegacion_id,
+      );
+    }
+
+    // =========================================
+    // UO
+    // =========================================
+
+    if (esUnidadOperativa && userData) {
+      lista = lista.filter(
+        (u) =>
+          u.region_id === userData.region_id &&
+          u.delegacion_id === userData.delegacion_id,
+      );
+    }
+
+    // =========================================
+    // SUPERVISOR
+    // =========================================
+
+    if (esSupervisor && userData) {
+      lista = lista.filter(
+        (u) =>
+          u.region_id === userData.region_id &&
+          u.delegacion_id === userData.delegacion_id &&
+          u.escuadra_id === userData.escuadra_id,
+      );
+    }
+
+    setUsuarios(lista);
+  };
+
+  // =========================================
+  // INIT
+  // =========================================
+
+  useEffect(() => {
+    cargarRegiones();
+
+    cargarDelegaciones();
+  }, []);
+
+  useEffect(() => {
+    if (userData) {
+      cargarEscuadras();
+
+      cargarRecursos();
+
+      cargarUsuarios();
+    }
+  }, [userData, filtros]);
+
+  // =========================================
+  // DELEGACIONES FILTRO
+  // =========================================
+
+  const delegacionesFiltradas = useMemo(() => {
+    if (!filtros.region_id) {
+      return [];
+    }
+
+    return delegaciones.filter((d) => d.region_id === filtros.region_id);
+  }, [delegaciones, filtros.region_id]);
+
+  // =========================================
+  // RECURSOS FILTRADOS
+  // =========================================
+
+  const recursosFiltrados = useMemo(() => {
+    return recursos.filter((r) => {
+      const region = !filtros.region_id || r.region_id === filtros.region_id;
+
+      const delegacion =
+        !filtros.delegacion_id || r.delegacion_id === filtros.delegacion_id;
+
+      return region && delegacion;
+    });
+  }, [recursos, filtros]);
+
+  // =========================================
+  // SELECCIONAR RECURSO
   // =========================================
 
   const seleccionarRecurso = (recurso) => {
@@ -111,47 +283,54 @@ function GestionRecurso() {
   };
 
   // =========================================
-  // 🔥 ESCUADRA
+  // ESCUADRA
   // =========================================
 
   const escuadraSeleccionada = escuadras.find((e) => e.id === escuadraId);
 
   // =========================================
-  // 🔥 OFICIALES DISPONIBLES
+  // OFICIALES DISPONIBLES
   // =========================================
 
-  const oficialesDisponibles = usuarios.filter((u) => {
-    if (!escuadraSeleccionada) return false;
+  const oficialesDisponibles = useMemo(() => {
+    if (!escuadraSeleccionada) {
+      return [];
+    }
 
-    const texto = [u.nombre, u.apellido1, u.apellido2]
-      .filter(Boolean)
-      .join(" ")
-      .toLowerCase();
+    return usuarios.filter((u) => {
+      const disponible = !u.recurso_id;
 
-    return (
-      u.escuadra_id === escuadraSeleccionada.id &&
-      (!u.recurso_id || u.recurso_id === "") &&
-      texto.includes(busqueda.toLowerCase())
-    );
-  });
+      const mismaEscuadra = u.escuadra_id === escuadraSeleccionada.id;
+
+      const texto = `${u.nombre} ${u.apellido1} ${u.apellido2}`.toLowerCase();
+
+      const coincide = texto.includes(busqueda.toLowerCase());
+
+      return disponible && mismaEscuadra && coincide;
+    });
+  }, [usuarios, escuadraSeleccionada, busqueda]);
 
   // =========================================
-  // 🔥 AGREGAR OFICIAL
+  // AGREGAR OFICIAL
   // =========================================
 
   const agregarOficial = async (usuario) => {
     try {
-      if (!recursoSeleccionado) return;
+      if (!recursoSeleccionado) {
+        return;
+      }
 
       const existe = recursoSeleccionado.oficiales?.find(
         (o) => o.uid === usuario.id,
       );
 
       if (existe) {
-        alert("Este oficial ya está asignado");
+        alert("El oficial ya está asignado");
 
         return;
       }
+
+      setLoading(true);
 
       const nuevos = [
         ...(recursoSeleccionado.oficiales || []),
@@ -165,11 +344,13 @@ function GestionRecurso() {
 
           rol: usuario.rol,
 
-          rango: usuario.rango || "",
+          rango: usuario.rango_siglas || "",
         },
       ];
 
-      // 🔥 USUARIO
+      // =========================================
+      // USER
+      // =========================================
 
       await updateDoc(
         doc(db, "usuarios", usuario.id),
@@ -178,10 +359,14 @@ function GestionRecurso() {
           recurso_id: recursoSeleccionado.id,
 
           recurso_nombre: recursoSeleccionado.nombre_recurso,
+
+          actualizado: Timestamp.now(),
         },
       );
 
-      // 🔥 RECURSO
+      // =========================================
+      // RECURSO
+      // =========================================
 
       await updateDoc(
         doc(db, "recursos_operativos", recursoSeleccionado.id),
@@ -189,7 +374,13 @@ function GestionRecurso() {
         {
           oficiales: nuevos,
 
+          escuadra_id: escuadraSeleccionada.id,
+
+          escuadra_nombre: escuadraSeleccionada.nombre,
+
           estado: "asignado",
+
+          actualizado: Timestamp.now(),
         },
       );
 
@@ -197,6 +388,10 @@ function GestionRecurso() {
         ...recursoSeleccionado,
 
         oficiales: nuevos,
+
+        escuadra_id: escuadraSeleccionada.id,
+
+        escuadra_nombre: escuadraSeleccionada.nombre,
 
         estado: "asignado",
       };
@@ -209,23 +404,31 @@ function GestionRecurso() {
     } catch (error) {
       console.error(error);
 
-      alert("Error al agregar oficial");
+      alert("Error agregando oficial");
+    } finally {
+      setLoading(false);
     }
   };
 
   // =========================================
-  // 🔥 ELIMINAR OFICIAL
+  // ELIMINAR OFICIAL
   // =========================================
 
   const eliminarOficial = async (uid) => {
     try {
-      if (!recursoSeleccionado) return;
+      if (!recursoSeleccionado) {
+        return;
+      }
+
+      setLoading(true);
 
       const nuevos = (recursoSeleccionado.oficiales || []).filter(
         (o) => o.uid !== uid,
       );
 
-      // 🔥 LIMPIAR USUARIO
+      // =========================================
+      // USER
+      // =========================================
 
       await updateDoc(
         doc(db, "usuarios", uid),
@@ -234,12 +437,26 @@ function GestionRecurso() {
           recurso_id: "",
 
           recurso_nombre: "",
+
+          actualizado: Timestamp.now(),
         },
       );
 
       const nuevoEstado = nuevos.length > 0 ? "asignado" : "disponible";
 
-      // 🔥 ACTUALIZAR RECURSO
+      // =========================================
+      // LIMPIAR ESCUADRA
+      // =========================================
+
+      const nuevaEscuadraId =
+        nuevos.length > 0 ? recursoSeleccionado.escuadra_id : "";
+
+      const nuevaEscuadraNombre =
+        nuevos.length > 0 ? recursoSeleccionado.escuadra_nombre : "";
+
+      // =========================================
+      // UPDATE RECURSO
+      // =========================================
 
       await updateDoc(
         doc(db, "recursos_operativos", recursoSeleccionado.id),
@@ -247,7 +464,13 @@ function GestionRecurso() {
         {
           oficiales: nuevos,
 
+          escuadra_id: nuevaEscuadraId,
+
+          escuadra_nombre: nuevaEscuadraNombre,
+
           estado: nuevoEstado,
+
+          actualizado: Timestamp.now(),
         },
       );
 
@@ -255,6 +478,10 @@ function GestionRecurso() {
         ...recursoSeleccionado,
 
         oficiales: nuevos,
+
+        escuadra_id: nuevaEscuadraId,
+
+        escuadra_nombre: nuevaEscuadraNombre,
 
         estado: nuevoEstado,
       };
@@ -267,17 +494,21 @@ function GestionRecurso() {
     } catch (error) {
       console.error(error);
 
-      alert("Error al eliminar oficial");
+      alert("Error eliminando oficial");
+    } finally {
+      setLoading(false);
     }
   };
 
   // =========================================
-  // 🔥 GUARDAR
+  // GUARDAR
   // =========================================
 
   const guardarRecurso = async () => {
     try {
-      if (!recursoSeleccionado) return;
+      if (!recursoSeleccionado) {
+        return;
+      }
 
       setLoading(true);
 
@@ -288,6 +519,8 @@ function GestionRecurso() {
           escuadra_id: escuadraSeleccionada?.id || "",
 
           escuadra_nombre: escuadraSeleccionada?.nombre || "",
+
+          actualizado: Timestamp.now(),
         },
       );
 
@@ -297,25 +530,33 @@ function GestionRecurso() {
     } catch (error) {
       console.error(error);
 
-      alert("Error al guardar");
+      alert("Error actualizando recurso");
     } finally {
       setLoading(false);
     }
   };
 
   // =========================================
-  // 🔥 LIBERAR RECURSO
+  // LIBERAR
   // =========================================
 
   const liberarRecurso = async () => {
     try {
-      if (!recursoSeleccionado) return;
+      if (!recursoSeleccionado) {
+        return;
+      }
 
       const confirmar = confirm("¿Liberar recurso?");
 
-      if (!confirmar) return;
+      if (!confirmar) {
+        return;
+      }
 
       setLoading(true);
+
+      // =========================================
+      // LIBERAR USERS
+      // =========================================
 
       for (const oficial of recursoSeleccionado.oficiales || []) {
         await updateDoc(
@@ -325,9 +566,15 @@ function GestionRecurso() {
             recurso_id: "",
 
             recurso_nombre: "",
+
+            actualizado: Timestamp.now(),
           },
         );
       }
+
+      // =========================================
+      // LIMPIAR RECURSO
+      // =========================================
 
       await updateDoc(
         doc(db, "recursos_operativos", recursoSeleccionado.id),
@@ -340,10 +587,14 @@ function GestionRecurso() {
           escuadra_nombre: "",
 
           estado: "disponible",
+
+          actualizado: Timestamp.now(),
         },
       );
 
       setRecursoSeleccionado(null);
+
+      setEscuadraId("");
 
       await cargarUsuarios();
 
@@ -351,141 +602,128 @@ function GestionRecurso() {
     } catch (error) {
       console.error(error);
 
-      alert("Error al liberar");
+      alert("Error liberando recurso");
     } finally {
       setLoading(false);
     }
   };
 
-  // =========================================
-  // 🔥 COLOR ESTADO
-  // =========================================
-
-  const obtenerColorEstado = (estado) => {
-    switch (estado) {
-      case "asignado":
-        return {
-          fondo: "#dbeafe",
-          color: "#1d4ed8",
-        };
-
-      case "mantenimiento":
-        return {
-          fondo: "#fef3c7",
-          color: "#92400e",
-        };
-
-      case "inactivo":
-        return {
-          fondo: "#fee2e2",
-          color: "#991b1b",
-        };
-
-      default:
-        return {
-          fondo: "#dcfce7",
-          color: "#166534",
-        };
-    }
-  };
-
   return (
-    <div style={{ padding: "20px" }}>
-      <h1>Gestión Recursos</h1>
+    <OperacionLayout
+      // =========================================
+      // HEADER
+      // =========================================
 
-      {/* ========================================= */}
-      {/* 🔥 RECURSOS */}
-      {/* ========================================= */}
+      titulo="
+      Gestión Operativa de Recursos
+      "
+      subtitulo="
+      Asignación operativa de personal institucional
+      "
+      // =========================================
+      // FILTROS
+      // =========================================
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit,minmax(250px,1fr))",
-          gap: "15px",
-          marginBottom: "30px",
-        }}
-      >
-        {recursos.map((r) => {
-          const colores = obtenerColorEstado(r.estado);
+      filtros={[
+        {
+          name: "region_id",
 
-          return (
-            <div
-              key={r.id}
-              onClick={() => seleccionarRecurso(r)}
-              style={{
-                background:
-                  recursoSeleccionado?.id === r.id ? "#e0f2fe" : "white",
+          label: "Región",
 
-                border:
-                  recursoSeleccionado?.id === r.id
-                    ? "2px solid #0284c7"
-                    : "1px solid #ccc",
+          type: "select",
 
-                borderRadius: "12px",
+          hidden: !esAdmin,
 
-                padding: "15px",
+          options: [
+            {
+              label: "Todas",
 
-                cursor: "pointer",
-              }}
-            >
-              <h3>{r.unidad}</h3>
+              value: "",
+            },
 
-              <p>{r.indicativo}</p>
+            ...regiones.map((r) => ({
+              label: `${r.codigo} - ${r.nombre}`,
 
-              <p>{r.tipo_recurso}</p>
+              value: r.id,
+            })),
+          ],
+        },
 
-              <div
-                style={{
-                  background: colores.fondo,
+        {
+          name: "delegacion_id",
 
-                  color: colores.color,
+          label: "Delegación",
 
-                  padding: "4px 10px",
+          type: "select",
 
-                  borderRadius: "20px",
+          hidden: !esAdmin,
 
-                  display: "inline-block",
+          disabled: !filtros.region_id,
 
-                  fontSize: "12px",
+          options: [
+            {
+              label: "Todas",
 
-                  fontWeight: "bold",
-                }}
-              >
-                {r.estado}
-              </div>
-            </div>
-          );
-        })}
-      </div>
+              value: "",
+            },
 
-      {/* ========================================= */}
-      {/* 🔥 GESTIÓN */}
-      {/* ========================================= */}
+            ...delegacionesFiltradas.map((d) => ({
+              label: `${d.codigo} - ${d.nombre}`,
 
-      {recursoSeleccionado && (
-        <div
-          style={{
-            background: "white",
-            borderRadius: "14px",
-            padding: "20px",
-            boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
-          }}
-        >
-          <h2>{recursoSeleccionado.nombre_recurso}</h2>
+              value: d.id,
+            })),
+          ],
+        },
+      ]}
+      filtrosData={filtros}
+      onFiltroChange={(field, value) => {
+        const nuevos = {
+          ...filtros,
 
-          <p>
-            <strong>Estado:</strong> {recursoSeleccionado.estado}
-          </p>
+          [field]: value,
+        };
 
-          {/* 🔥 ESCUADRA */}
+        if (field === "region_id") {
+          nuevos.delegacion_id = "";
+        }
+
+        setFiltros(nuevos);
+      }}
+      // =========================================
+      // SIDEBAR
+      // =========================================
+
+      sidebarTitle="
+      Recursos
+      "
+      sidebarItems={recursosFiltrados}
+      sidebarSelected={recursoSeleccionado}
+      onSelectSidebarItem={seleccionarRecurso}
+      renderSidebarItem={(item) => (
+        <div>
+          <strong>{item.unidad}</strong>
+
+          <div>{item.indicativo}</div>
+
+          <small>{item.nombre_recurso}</small>
+        </div>
+      )}
+      // =========================================
+      // LEFT PANEL
+      // =========================================
+
+      leftTitle="
+      Personal Disponible
+      "
+      leftContent={
+        <div>
+          {/* ESCUADRA */}
 
           <div
             style={{
-              marginBottom: "20px",
+              marginBottom: "15px",
             }}
           >
-            <label>Escuadra</label>
-
             <select
               value={escuadraId}
               onChange={(e) => setEscuadraId(e.target.value)}
@@ -495,193 +733,196 @@ function GestionRecurso() {
 
               {escuadras.map((e) => (
                 <option key={e.id} value={e.id}>
-                  {e.codigo} - {e.nombre}
+                  {e.codigo}
+                  {" - "}
+                  {e.nombre}
                 </option>
               ))}
             </select>
           </div>
 
-          {/* 🔥 BUSQUEDA */}
+          {/* BUSQUEDA */}
 
           <div
             style={{
-              marginBottom: "20px",
+              marginBottom: "15px",
             }}
           >
             <input
-              placeholder="Buscar oficial..."
+              placeholder="
+              Buscar oficial...
+              "
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
               style={inputStyle}
             />
           </div>
 
-          {/* 🔥 GRID */}
+          {/* USERS */}
 
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit,minmax(320px,1fr))",
-              gap: "20px",
-            }}
-          >
-            {/* 🔥 DISPONIBLES */}
+          {oficialesDisponibles.map((u) => (
+            <div key={u.id} style={userCardStyle}>
+              <div>
+                <strong>
+                  {[u.nombre, u.apellido1, u.apellido2]
+                    .filter(Boolean)
+                    .join(" ")}
+                </strong>
 
-            <div style={panelStyle}>
-              <h3>Oficiales Disponibles</h3>
-
-              {oficialesDisponibles.length === 0 && (
-                <p>No hay oficiales disponibles.</p>
-              )}
-
-              {oficialesDisponibles.map((u) => (
-                <div key={u.id} style={userCardStyle}>
-                  <div>
-                    <strong>
-                      {[u.nombre, u.apellido1, u.apellido2]
-                        .filter(Boolean)
-                        .join(" ")}
-                    </strong>
-
-                    <p>{u.rol}</p>
-                  </div>
-
-                  <button
-                    onClick={() => agregarOficial(u)}
-                    style={addButtonStyle}
-                  >
-                    Agregar
-                  </button>
+                <div>
+                  {u.rango_siglas}
+                  {" • "}
+                  {u.escuadra_nombre || "Sin escuadra"}
                 </div>
-              ))}
+              </div>
+
+              <button onClick={() => agregarOficial(u)}>Agregar</button>
             </div>
-
-            {/* 🔥 ASIGNADOS */}
-
-            <div style={panelStyle}>
-              <h3>Oficiales Asignados</h3>
-
-              {(recursoSeleccionado.oficiales || []).length === 0 && (
-                <p>No hay oficiales asignados.</p>
-              )}
-
-              {(recursoSeleccionado.oficiales || []).map((o) => (
-                <div key={o.uid} style={userCardStyle}>
-                  <div>
-                    <strong>{o.nombre}</strong>
-
-                    <p>{o.rol}</p>
-                  </div>
-
-                  <button
-                    onClick={() => eliminarOficial(o.uid)}
-                    style={removeButtonStyle}
-                  >
-                    Eliminar
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* 🔥 BOTONES */}
-
-          <div
-            style={{
-              display: "flex",
-              gap: "15px",
-              marginTop: "25px",
-              flexWrap: "wrap",
-            }}
-          >
-            <button
-              onClick={guardarRecurso}
-              disabled={loading}
-              style={primaryButtonStyle}
-            >
-              {loading ? "Guardando..." : "Guardar"}
-            </button>
-
-            <button
-              onClick={liberarRecurso}
-              disabled={loading}
-              style={dangerButtonStyle}
-            >
-              Liberar Recurso
-            </button>
-          </div>
+          ))}
         </div>
-      )}
-    </div>
+      }
+      // =========================================
+      // CENTER PANEL
+      // =========================================
+
+      centerTitle="
+      Oficiales Asignados
+      "
+      centerContent={
+        <div>
+          {(recursoSeleccionado?.oficiales || []).map((o) => (
+            <div key={o.uid} style={userCardStyle}>
+              <div>
+                <strong>{o.nombre}</strong>
+
+                <div>
+                  {o.rango}
+                  {" • "}
+                  {o.escuadra_nombre || "Sin escuadra"}
+                </div>
+              </div>
+
+              <button onClick={() => eliminarOficial(o.uid)}>Eliminar</button>
+            </div>
+          ))}
+        </div>
+      }
+      // =========================================
+      // RIGHT PANEL
+      // =========================================
+
+      rightTitle="
+      Acciones
+      "
+      rightContent={
+        <div>
+          {recursoSeleccionado && (
+            <>
+              <div
+                style={{
+                  marginBottom: "15px",
+                }}
+              >
+                <strong>Estado:</strong>
+
+                <div>{recursoSeleccionado.estado}</div>
+              </div>
+
+              <div
+                style={{
+                  marginBottom: "15px",
+                }}
+              >
+                <strong>Escuadra:</strong>
+
+                <div>
+                  {recursoSeleccionado.escuadra_nombre || "Sin escuadra"}
+                </div>
+              </div>
+
+              <button onClick={guardarRecurso} style={actionButtonStyle}>
+                Guardar
+              </button>
+
+              <button onClick={liberarRecurso} style={dangerButtonStyle}>
+                Liberar Recurso
+              </button>
+            </>
+          )}
+        </div>
+      }
+      loading={loading}
+    />
   );
 }
 
 // =========================================
-// 🔥 STYLES
+// STYLES
 // =========================================
 
 const inputStyle = {
   width: "100%",
-  padding: "10px",
-  borderRadius: "8px",
-  border: "1px solid #ccc",
-  boxSizing: "border-box",
-};
 
-const panelStyle = {
-  background: "#f8fafc",
-  borderRadius: "12px",
-  padding: "15px",
-  border: "1px solid #dbe4ee",
+  padding: "10px",
+
+  border: "1px solid #ccc",
+
+  borderRadius: "8px",
+
+  boxSizing: "border-box",
 };
 
 const userCardStyle = {
   display: "flex",
+
   justifyContent: "space-between",
+
   alignItems: "center",
-  gap: "10px",
-  padding: "10px",
-  marginBottom: "10px",
-  borderRadius: "10px",
-  background: "white",
+
   border: "1px solid #e5e7eb",
-};
 
-const addButtonStyle = {
-  background: "#166534",
-  color: "white",
-  border: "none",
-  borderRadius: "8px",
-  padding: "8px 12px",
-  cursor: "pointer",
-};
-
-const removeButtonStyle = {
-  background: "#991b1b",
-  color: "white",
-  border: "none",
-  borderRadius: "8px",
-  padding: "8px 12px",
-  cursor: "pointer",
-};
-
-const primaryButtonStyle = {
-  background: "#0f172a",
-  color: "white",
-  border: "none",
   borderRadius: "10px",
-  padding: "12px 18px",
+
+  padding: "12px",
+
+  marginBottom: "10px",
+};
+
+const actionButtonStyle = {
+  width: "100%",
+
+  padding: "12px",
+
+  border: "none",
+
+  borderRadius: "10px",
+
+  marginBottom: "10px",
+
   cursor: "pointer",
+
+  background: "#0f172a",
+
+  color: "white",
+
   fontWeight: "bold",
 };
 
 const dangerButtonStyle = {
-  background: "#991b1b",
-  color: "white",
+  width: "100%",
+
+  padding: "12px",
+
   border: "none",
+
   borderRadius: "10px",
-  padding: "12px 18px",
+
   cursor: "pointer",
+
+  background: "#991b1b",
+
+  color: "white",
+
   fontWeight: "bold",
 };
 
