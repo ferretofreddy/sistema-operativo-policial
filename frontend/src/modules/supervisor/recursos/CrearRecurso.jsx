@@ -17,7 +17,7 @@ import { db } from "../../../services/firebase";
 
 import { AuthContext } from "../../../context/AuthContext";
 
-import GestionLayout from "../../../layouts/GestionLayout";
+import GestionLayout from "../../../shared/layouts/GestionLayout";
 
 function CrearRecurso() {
   // =========================================

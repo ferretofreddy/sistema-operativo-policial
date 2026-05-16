@@ -11,7 +11,7 @@ import {
 
 import { db } from "../../../services/firebase";
 
-import CatalogoSimpleLayout from "../../../layouts/CatalogoSimpleLayout";
+import CatalogoSimpleLayout from "../../../shared/layouts/CatalogoSimpleLayout";
 
 function GestionCondicionesUsuario() {
   // =========================================

@@ -1,9 +1,8 @@
+// frontend/src/services/catalogosService.js
 import {
-    collection,
-    getDocs,
-} from "firebase/firestore";
-
-import { db } from "./firebase";
+    fetchCatalogCached,
+    clearCatalogCache,
+} from "./firebaseQuery";
 
 // =========================================
 // 🔥 TIPOS RECURSO
@@ -11,64 +10,29 @@ import { db } from "./firebase";
 
 export const getTiposRecurso =
     async () => {
-
-        const snapshot =
-            await getDocs(
-                collection(
-                    db,
-                    "tipos_recurso",
-                ),
-            );
-
-        return snapshot.docs
-            .map((d) => ({
-                id: d.id,
-                ...d.data(),
-            }))
-            .filter(
-                (t) =>
-                    t.estado ===
-                    "activo",
-            )
-            .sort((a, b) =>
-                a.nombre.localeCompare(
-                    b.nombre,
-                ),
-            );
+        return await fetchCatalogCached(
+            "tipos_recurso",
+        );
     };
 
 // =========================================
-// 🔥 RANGOS
+// 🔥 RANGOS USUARIO
 // =========================================
 
 export const getRangosUsuario =
     async () => {
-
-        const snapshot =
-            await getDocs(
-                collection(
-                    db,
-                    "rangos_usuario",
-                ),
+        const data =
+            await fetchCatalogCached(
+                "rangos_usuario",
             );
 
-        return snapshot.docs
-            .map((d) => ({
-                id: d.id,
-                ...d.data(),
-            }))
-            .filter(
-                (r) =>
-                    r.estado ===
-                    "activo",
-            )
-            .sort(
-                (a, b) =>
-                    (a.orden_jerarquico ||
-                        0) -
-                    (b.orden_jerarquico ||
-                        0),
-            );
+        return data.sort(
+            (a, b) =>
+                (a.orden_jerarquico ||
+                    0) -
+                (b.orden_jerarquico ||
+                    0),
+        );
     };
 
 // =========================================
@@ -77,28 +41,26 @@ export const getRangosUsuario =
 
 export const getCondicionesUsuario =
     async () => {
+        return await fetchCatalogCached(
+            "condiciones_usuario",
+        );
+    };
 
-        const snapshot =
-            await getDocs(
-                collection(
-                    db,
-                    "condiciones_usuario",
-                ),
-            );
+// =========================================
+// 🔥 LIMPIAR CACHE
+// =========================================
 
-        return snapshot.docs
-            .map((d) => ({
-                id: d.id,
-                ...d.data(),
-            }))
-            .filter(
-                (c) =>
-                    c.estado ===
-                    "activo",
-            )
-            .sort((a, b) =>
-                a.nombre.localeCompare(
-                    b.nombre,
-                ),
-            );
+export const clearCatalogsCache =
+    () => {
+        clearCatalogCache(
+            "tipos_recurso",
+        );
+
+        clearCatalogCache(
+            "rangos_usuario",
+        );
+
+        clearCatalogCache(
+            "condiciones_usuario",
+        );
     };

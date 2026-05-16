@@ -2,40 +2,40 @@
 
 import { useContext, useEffect, useMemo, useState } from "react";
 
-import {
-  collection,
-  getDocs,
-  updateDoc,
-  doc,
-  Timestamp,
-} from "firebase/firestore";
-
-import { db } from "../../../services/firebase";
-
 import { AuthContext } from "../../../context/AuthContext";
 
-import OperacionLayout from "../../../layouts/OperacionLayout";
+import OperacionLayout from "../../../shared/layouts/OperacionLayout";
+
+import {
+  getEscuadrasByTerritory,
+  assignUsuarioToEscuadra,
+  removeUsuarioFromEscuadra,
+  updateSupervisor,
+} from "../../../services/escuadraService";
+
+import { getUsuariosByTerritory } from "../../../services/userService";
+
+import {
+  getRegiones,
+  getDelegaciones,
+} from "../../../services/territorialService";
+
+import { useRoles } from "../../../hooks/useRoles";
 
 function GestionEscuadra() {
-  // =========================================
-  // AUTH
-  // =========================================
-
   const { userData } = useContext(AuthContext);
 
-  const esAdmin = userData?.rol === "admin";
-
-  const esUnidadOperativa = userData?.rol === "unidad_operativa";
-
-  const esSupervisor = userData?.rol === "supervisor";
+  const { filters: territoryFilters, isAdmin } = useRoles(userData);
 
   // =========================================
-  // STATES
+  // 🔥 STATES
   // =========================================
 
-  const [escuadras, setEscuadras] = useState([]);
+  const [loading, setLoading] = useState(false);
 
   const [usuarios, setUsuarios] = useState([]);
+
+  const [escuadras, setEscuadras] = useState([]);
 
   const [regiones, setRegiones] = useState([]);
 
@@ -43,225 +43,108 @@ function GestionEscuadra() {
 
   const [escuadraSeleccionada, setEscuadraSeleccionada] = useState(null);
 
-  const [oficialesAsignados, setOficialesAsignados] = useState([]);
-
-  const [supervisorUid, setSupervisorUid] = useState("");
-
   const [busqueda, setBusqueda] = useState("");
-
-  const [loading, setLoading] = useState(false);
-
-  // =========================================
-  // FILTROS
-  // =========================================
 
   const [filtros, setFiltros] = useState({
     region_id: "",
-
     delegacion_id: "",
   });
 
   // =========================================
-  // INIT USER FILTERS
+  // 🔥 CATÁLOGOS
   // =========================================
 
   useEffect(() => {
-    if (esUnidadOperativa && userData) {
-      setFiltros({
-        region_id: userData.region_id || "",
+    const cargarCatalogos = async () => {
+      try {
+        const [regionesData, delegacionesData] = await Promise.all([
+          getRegiones(),
+          getDelegaciones(),
+        ]);
 
-        delegacion_id: userData.delegacion_id || "",
-      });
-    }
-  }, [esUnidadOperativa, userData]);
+        setRegiones(regionesData);
 
-  // =========================================
-  // CARGAR REGIONES
-  // =========================================
-
-  const cargarRegiones = async () => {
-    try {
-      const snapshot = await getDocs(collection(db, "regiones"));
-
-      const lista = snapshot.docs.map((d) => ({
-        id: d.id,
-        ...d.data(),
-      }));
-
-      setRegiones(lista);
-    } catch (error) {
-      console.error(error);
-    }
-  };
-
-  // =========================================
-  // CARGAR DELEGACIONES
-  // =========================================
-
-  const cargarDelegaciones = async () => {
-    try {
-      const snapshot = await getDocs(collection(db, "delegaciones"));
-
-      const lista = snapshot.docs.map((d) => ({
-        id: d.id,
-        ...d.data(),
-      }));
-
-      setDelegaciones(lista);
-    } catch (error) {
-      console.error(error);
-    }
-  };
-
-  // =========================================
-  // CARGAR USUARIOS
-  // =========================================
-
-  const cargarUsuarios = async () => {
-    try {
-      const snapshot = await getDocs(collection(db, "usuarios"));
-
-      let lista = snapshot.docs
-        .map((d) => ({
-          id: d.id,
-          ...d.data(),
-        }))
-        .filter((u) => u.estado_usuario === "activo");
-
-      // =========================================
-      // UNIDAD OPERATIVA
-      // =========================================
-
-      if (esUnidadOperativa && userData) {
-        lista = lista.filter(
-          (u) =>
-            u.region_id === userData.region_id &&
-            u.delegacion_id === userData.delegacion_id,
-        );
+        setDelegaciones(delegacionesData);
+      } catch (error) {
+        console.error("Error cargando catálogos:", error);
       }
+    };
 
-      // =========================================
-      // SUPERVISOR
-      // =========================================
-
-      if (esSupervisor && userData) {
-        lista = lista.filter((u) => {
-          const mismaEscuadra = u.escuadra_id === userData.escuadra_id;
-
-          const disponible = !u.escuadra_id;
-
-          return mismaEscuadra || disponible;
-        });
-      }
-
-      setUsuarios(lista);
-    } catch (error) {
-      console.error(error);
-    }
-  };
-
-  // =========================================
-  // CARGAR ESCUADRAS
-  // =========================================
-
-  const cargarEscuadras = async () => {
-    try {
-      const snapshot = await getDocs(collection(db, "escuadras"));
-
-      let lista = snapshot.docs
-        .map((d) => ({
-          id: d.id,
-          ...d.data(),
-        }))
-        .filter((e) => e.estado === "activo");
-
-      // =========================================
-      // UNIDAD OPERATIVA
-      // =========================================
-
-      if (esUnidadOperativa && userData) {
-        lista = lista.filter(
-          (e) =>
-            e.region_id === userData.region_id &&
-            e.delegacion_id === userData.delegacion_id,
-        );
-      }
-
-      // =========================================
-      // SUPERVISOR
-      // =========================================
-
-      if (esSupervisor && userData) {
-        lista = lista.filter((e) => e.id === userData.escuadra_id);
-      }
-
-      setEscuadras(lista);
-    } catch (error) {
-      console.error(error);
-    }
-  };
-
-  // =========================================
-  // INIT
-  // =========================================
-
-  useEffect(() => {
-    cargarRegiones();
-
-    cargarDelegaciones();
+    cargarCatalogos();
   }, []);
 
-  useEffect(() => {
-    if (userData) {
-      cargarUsuarios();
+  // =========================================
+  // 🔥 DATOS
+  // =========================================
 
-      cargarEscuadras();
-    }
-  }, [userData]);
+  useEffect(() => {
+    const cargarDatos = async () => {
+      if (!userData?.uid) {
+        return;
+      }
+
+      try {
+        setLoading(true);
+
+        const filtrosFinales = {
+          ...territoryFilters,
+
+          ...(filtros.region_id && {
+            region_id: filtros.region_id,
+          }),
+
+          ...(filtros.delegacion_id && {
+            delegacion_id: filtros.delegacion_id,
+          }),
+        };
+
+        console.log("Filtros:", filtrosFinales);
+
+        const [usuariosData, escuadrasData] = await Promise.all([
+          getUsuariosByTerritory({
+            ...filtrosFinales,
+
+            estado_usuario: "activo",
+          }),
+
+          getEscuadrasByTerritory({
+            ...filtrosFinales,
+
+            estado: "activo",
+          }),
+        ]);
+
+        console.log("Usuarios:", usuariosData);
+
+        console.log("Escuadras:", escuadrasData);
+
+        setUsuarios(usuariosData);
+
+        setEscuadras(escuadrasData);
+      } catch (error) {
+        console.error("Error cargando datos:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    cargarDatos();
+  }, [userData, territoryFilters, filtros]);
 
   // =========================================
-  // DELEGACIONES FILTRADAS
+  // 🔥 DELEGACIONES FILTRADAS
   // =========================================
 
   const delegacionesFiltradas = useMemo(() => {
     if (!filtros.region_id) {
-      return [];
+      return delegaciones;
     }
 
     return delegaciones.filter((d) => d.region_id === filtros.region_id);
   }, [delegaciones, filtros.region_id]);
 
   // =========================================
-  // ESCUADRAS FILTRADAS
-  // =========================================
-
-  const escuadrasFiltradas = useMemo(() => {
-    return escuadras.filter((e) => {
-      const region = !filtros.region_id || e.region_id === filtros.region_id;
-
-      const delegacion =
-        !filtros.delegacion_id || e.delegacion_id === filtros.delegacion_id;
-
-      return region && delegacion;
-    });
-  }, [escuadras, filtros]);
-
-  // =========================================
-  // SELECCIONAR ESCUADRA
-  // =========================================
-
-  const seleccionarEscuadra = (escuadra) => {
-    setEscuadraSeleccionada(escuadra);
-
-    setOficialesAsignados(escuadra.oficiales || []);
-
-    setSupervisorUid(escuadra.supervisor_uid || "");
-
-    setBusqueda("");
-  };
-
-  // =========================================
-  // PERSONAL DISPONIBLE
+  // 🔥 USUARIOS DISPONIBLES
   // =========================================
 
   const usuariosDisponibles = useMemo(() => {
@@ -277,7 +160,8 @@ function GestionEscuadra() {
 
       const disponible = !u.escuadra_id;
 
-      const texto = `${u.nombre} ${u.apellido1} ${u.cedula}`.toLowerCase();
+      const texto =
+        `${u.nombre} ${u.apellido1} ${u.apellido2} ${u.cedula}`.toLowerCase();
 
       const coincideBusqueda = texto.includes(busqueda.toLowerCase());
 
@@ -286,7 +170,7 @@ function GestionEscuadra() {
   }, [usuarios, escuadraSeleccionada, busqueda]);
 
   // =========================================
-  // AGREGAR OFICIAL
+  // 🔥 AGREGAR OFICIAL
   // =========================================
 
   const agregarOficial = async (usuario) => {
@@ -295,69 +179,29 @@ function GestionEscuadra() {
         return;
       }
 
-      const existe = oficialesAsignados.find((o) => o.uid === usuario.id);
-
-      if (existe) {
-        return;
-      }
-
       setLoading(true);
 
-      // =========================================
-      // UPDATE USER
-      // =========================================
+      const result = await assignUsuarioToEscuadra({
+        escuadraId: escuadraSeleccionada.id,
 
-      await updateDoc(
-        doc(db, "usuarios", usuario.id),
+        usuario,
+      });
 
-        {
-          escuadra_id: escuadraSeleccionada.id,
+      if (result.success) {
+        setEscuadraSeleccionada({
+          ...escuadraSeleccionada,
 
-          escuadra_nombre: escuadraSeleccionada.nombre,
+          oficiales: result.oficiales,
+        });
 
-          actualizado: Timestamp.now(),
-        },
-      );
+        const usuariosData = await getUsuariosByTerritory({
+          ...territoryFilters,
 
-      // =========================================
-      // NUEVO OFICIAL
-      // =========================================
+          estado_usuario: "activo",
+        });
 
-      const nuevos = [
-        ...oficialesAsignados,
-
-        {
-          uid: usuario.id,
-
-          nombre: `${usuario.nombre} ${usuario.apellido1}`,
-
-          rol: usuario.rol,
-        },
-      ];
-
-      // =========================================
-      // UPDATE ESCUADRA
-      // =========================================
-
-      await updateDoc(
-        doc(db, "escuadras", escuadraSeleccionada.id),
-
-        {
-          oficiales: nuevos,
-
-          actualizado: Timestamp.now(),
-        },
-      );
-
-      // =========================================
-      // REFRESH
-      // =========================================
-
-      setOficialesAsignados(nuevos);
-
-      await cargarUsuarios();
-
-      await cargarEscuadras();
+        setUsuarios(usuariosData);
+      }
     } catch (error) {
       console.error(error);
 
@@ -368,74 +212,42 @@ function GestionEscuadra() {
   };
 
   // =========================================
-  // ELIMINAR OFICIAL
+  // 🔥 ELIMINAR OFICIAL
   // =========================================
 
   const eliminarOficial = async (uid) => {
     try {
-      setLoading(true);
-
-      // =========================================
-      // LIMPIAR USER
-      // =========================================
-
-      await updateDoc(
-        doc(db, "usuarios", uid),
-
-        {
-          escuadra_id: "",
-
-          escuadra_nombre: "",
-
-          actualizado: Timestamp.now(),
-        },
-      );
-
-      const nuevos = oficialesAsignados.filter((o) => o.uid !== uid);
-
-      // =========================================
-      // LIMPIAR SUPERVISOR
-      // =========================================
-
-      let nuevoSupervisorUid = supervisorUid;
-
-      let nuevoSupervisorNombre = escuadraSeleccionada.supervisor_nombre;
-
-      if (supervisorUid === uid) {
-        nuevoSupervisorUid = "";
-
-        nuevoSupervisorNombre = "";
-
-        setSupervisorUid("");
+      if (!escuadraSeleccionada) {
+        return;
       }
 
-      // =========================================
-      // UPDATE ESCUADRA
-      // =========================================
+      setLoading(true);
 
-      await updateDoc(
-        doc(db, "escuadras", escuadraSeleccionada.id),
+      const result = await removeUsuarioFromEscuadra({
+        escuadraId: escuadraSeleccionada.id,
 
-        {
-          oficiales: nuevos,
+        usuarioUid: uid,
+      });
 
-          supervisor_uid: nuevoSupervisorUid,
+      if (result.success) {
+        setEscuadraSeleccionada({
+          ...escuadraSeleccionada,
 
-          supervisor_nombre: nuevoSupervisorNombre,
+          oficiales: result.oficiales,
 
-          actualizado: Timestamp.now(),
-        },
-      );
+          supervisor_uid: result.supervisor_uid,
 
-      // =========================================
-      // REFRESH
-      // =========================================
+          supervisor_nombre: result.supervisor_nombre,
+        });
 
-      setOficialesAsignados(nuevos);
+        const usuariosData = await getUsuariosByTerritory({
+          ...territoryFilters,
 
-      await cargarUsuarios();
+          estado_usuario: "activo",
+        });
 
-      await cargarEscuadras();
+        setUsuarios(usuariosData);
+      }
     } catch (error) {
       console.error(error);
 
@@ -446,7 +258,7 @@ function GestionEscuadra() {
   };
 
   // =========================================
-  // GUARDAR SUPERVISOR
+  // 🔥 GUARDAR SUPERVISOR
   // =========================================
 
   const guardarSupervisor = async () => {
@@ -457,25 +269,15 @@ function GestionEscuadra() {
 
       setLoading(true);
 
-      const supervisor = oficialesAsignados.find(
-        (o) => o.uid === supervisorUid,
-      );
+      const result = await updateSupervisor({
+        escuadraId: escuadraSeleccionada.id,
 
-      await updateDoc(
-        doc(db, "escuadras", escuadraSeleccionada.id),
+        supervisorUid: escuadraSeleccionada.supervisor_uid,
+      });
 
-        {
-          supervisor_uid: supervisor?.uid || "",
-
-          supervisor_nombre: supervisor?.nombre || "",
-
-          actualizado: Timestamp.now(),
-        },
-      );
-
-      alert("Supervisor actualizado");
-
-      await cargarEscuadras();
+      if (result.success) {
+        alert("Supervisor actualizado");
+      }
     } catch (error) {
       console.error(error);
 
@@ -485,35 +287,24 @@ function GestionEscuadra() {
     }
   };
 
+  // =========================================
+  // 🔥 RENDER
+  // =========================================
+
   return (
     <OperacionLayout
-      // =========================================
-      // HEADER
-      // =========================================
-
-      titulo="
-      Gestión Operativa de Escuadras
-      "
-      subtitulo="
-      Asignación de personal y supervisor operativo
-      "
-      // =========================================
-      // FILTROS
-      // =========================================
-
+      titulo="Gestión Operativa de Escuadras"
+      subtitulo="Asignación de personal y supervisor"
       filtros={[
         {
           name: "region_id",
-
           label: "Región",
-
           type: "select",
-
-          hidden: !esAdmin,
+          hidden: !isAdmin,
 
           options: [
             {
-              label: "Todas",
+              label: "Todas las regiones",
 
               value: "",
             },
@@ -528,18 +319,15 @@ function GestionEscuadra() {
 
         {
           name: "delegacion_id",
-
           label: "Delegación",
-
           type: "select",
-
-          hidden: !esAdmin,
+          hidden: !isAdmin,
 
           disabled: !filtros.region_id,
 
           options: [
             {
-              label: "Todas",
+              label: "Todas las delegaciones",
 
               value: "",
             },
@@ -566,16 +354,10 @@ function GestionEscuadra() {
 
         setFiltros(nuevos);
       }}
-      // =========================================
-      // SIDEBAR
-      // =========================================
-
-      sidebarTitle="
-      Escuadras
-      "
-      sidebarItems={escuadrasFiltradas}
+      sidebarTitle="Escuadras"
+      sidebarItems={escuadras}
       sidebarSelected={escuadraSeleccionada}
-      onSelectSidebarItem={seleccionarEscuadra}
+      onSelectSidebarItem={setEscuadraSeleccionada}
       renderSidebarItem={(item) => (
         <div>
           <strong>{item.codigo}</strong>
@@ -585,21 +367,13 @@ function GestionEscuadra() {
           <small>{item.delegacion_nombre}</small>
         </div>
       )}
-      // =========================================
-      // PANEL LEFT
-      // =========================================
-
-      leftTitle="
-      Personal Disponible
-      "
+      leftTitle="Disponibles"
       leftContent={
         <div>
           <input
-            placeholder="
-            Buscar funcionario
-            "
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
+            placeholder="Buscar funcionario..."
             style={inputStyle}
           />
 
@@ -624,16 +398,10 @@ function GestionEscuadra() {
           </div>
         </div>
       }
-      // =========================================
-      // PANEL CENTER
-      // =========================================
-
-      centerTitle="
-      Personal Asignado
-      "
+      centerTitle="Asignados"
       centerContent={
         <div>
-          {oficialesAsignados.map((o) => (
+          {(escuadraSeleccionada?.oficiales || []).map((o) => (
             <div key={o.uid} style={userCardStyle}>
               <div>
                 <strong>{o.nombre}</strong>
@@ -646,23 +414,23 @@ function GestionEscuadra() {
           ))}
         </div>
       }
-      // =========================================
-      // PANEL RIGHT
-      // =========================================
-
-      rightTitle="
-      Supervisor
-      "
+      rightTitle="Supervisor"
       rightContent={
         <div>
           <select
-            value={supervisorUid}
-            onChange={(e) => setSupervisorUid(e.target.value)}
+            value={escuadraSeleccionada?.supervisor_uid || ""}
+            onChange={(e) =>
+              setEscuadraSeleccionada({
+                ...escuadraSeleccionada,
+
+                supervisor_uid: e.target.value,
+              })
+            }
             style={inputStyle}
           >
             <option value="">Sin supervisor</option>
 
-            {oficialesAsignados
+            {(escuadraSeleccionada?.oficiales || [])
               .filter((o) => o.rol === "supervisor")
               .map((o) => (
                 <option key={o.uid} value={o.uid}>
@@ -675,7 +443,6 @@ function GestionEscuadra() {
             onClick={guardarSupervisor}
             style={{
               marginTop: "15px",
-
               width: "100%",
             }}
           >
@@ -689,35 +456,27 @@ function GestionEscuadra() {
 }
 
 // =========================================
-// STYLES
+// 🔥 ESTILOS
 // =========================================
 
 const inputStyle = {
   width: "100%",
-
   padding: "10px",
-
-  border: "1px solid #ccc",
-
   borderRadius: "8px",
-
+  border: "1px solid #ccc",
+  fontSize: "14px",
   boxSizing: "border-box",
 };
 
 const userCardStyle = {
-  display: "flex",
-
-  justifyContent: "space-between",
-
-  alignItems: "center",
-
   border: "1px solid #e5e7eb",
-
   borderRadius: "10px",
-
   padding: "12px",
-
   marginBottom: "10px",
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  background: "white",
 };
 
 export default GestionEscuadra;

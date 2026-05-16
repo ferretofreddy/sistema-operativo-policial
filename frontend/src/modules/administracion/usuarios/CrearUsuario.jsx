@@ -13,8 +13,9 @@ import { getUsuarios } from "../../../services/userService";
 import {
   getRegiones,
   getDelegaciones,
-  getEscuadras,
 } from "../../../services/territorialService";
+
+import { getEscuadrasByTerritory } from "../../../services/escuadraService";
 
 import {
   getRangosUsuario,
@@ -118,7 +119,7 @@ function CrearUsuario() {
 
         getDelegaciones(),
 
-        getEscuadras(),
+        getEscuadrasByTerritory({ estado: "activa" }),
 
         getRangosUsuario(),
 

@@ -11,7 +11,7 @@ import {
 
 import { db } from "../../../services/firebase";
 
-import GestionLayout from "../../../layouts/GestionLayout";
+import GestionLayout from "../../../shared/layouts/GestionLayout";
 
 function CrearDelegacion() {
   // =========================================

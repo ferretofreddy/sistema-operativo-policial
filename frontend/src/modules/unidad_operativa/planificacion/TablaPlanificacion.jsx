@@ -1,91 +1,199 @@
-function TablaPlanificacion({ plan, ordenes }) {
-  const obtenerOrden = (id) => {
-    return ordenes.find((o) => o.id === id);
-  };
+// frontend/src/modules/unidad_operativa/planificacion/TablaPlanificacion.jsx
+import { useMemo } from "react";
+import PropTypes from "prop-types";
 
-  const obtenerAccion = (ordenId, accionId) => {
-    const orden = ordenes.find((o) => o.id === ordenId);
-    return orden?.acciones?.find((a) => a.id === accionId);
-  };
+function TablaPlanificacion({ plan, ordenes }) {
+  // 🔹 Pre-computar mapas para lookup O(1)
+  const ordenesMap = useMemo(
+    () => new Map(ordenes.map((o) => [o.id, o])),
+    [ordenes],
+  );
+
+  const accionesMap = useMemo(() => {
+    const map = new Map();
+    ordenes.forEach((orden) => {
+      orden.acciones?.forEach((acc) => {
+        map.set(`${orden.id}_${acc.id}`, acc);
+      });
+    });
+    return map;
+  }, [ordenes]);
+
+  // 🔹 Aplanar días + actividades
+  const filas = useMemo(() => {
+    return plan.dias.flatMap((dia, diaIndex) => {
+      if (dia.actividades.length === 0) {
+        return [{ tipo: "vacio", diaIndex, dia }];
+      }
+      return dia.actividades.map((act, actIndex) => ({
+        tipo: "actividad",
+        diaIndex,
+        actIndex,
+        dia,
+        act,
+      }));
+    });
+  }, [plan.dias]);
 
   return (
-    <table
-      border="1"
-      cellPadding="5"
-      style={{ width: "100%", fontSize: "12px" }}
-    >
-      <thead>
-        <tr>
-          <th>Día</th>
-          <th>Fecha</th>
-          <th>Turno</th>
-          <th>Orden</th>
-          <th>Código</th>
-          <th>Acción</th>
-          <th>Detalle</th>
-          <th>Hora Inicio</th>
-          <th>Hora Fin</th>
-          <th>Sector</th>
-          <th>Responsable</th>
-        </tr>
-      </thead>
-
-      <tbody>
-        {plan.dias
-          .flatMap((dia, index) => {
-            if (dia.actividades.length === 0) {
-              return [
-                {
-                  vacio: true,
-                  index,
-                  dia,
-                },
-              ];
-            }
-
-            return dia.actividades.map((act, i) => ({
-              act,
-              index,
-              dia,
-              i,
-            }));
-          })
-          .map((row, key) => {
-            if (row.vacio) {
+    <div style={tableWrapperStyle}>
+      <table
+        style={tableStyle}
+        role="table"
+        aria-label="Planificación operativa"
+      >
+        <caption style={{ display: "none" }}>
+          Actividades de {plan.escuadra_nombre} • {plan.fecha_inicio} -{" "}
+          {plan.fecha_fin}
+        </caption>
+        <thead>
+          <tr>
+            {[
+              "Día",
+              "Fecha",
+              "Turno",
+              "Orden",
+              "Código",
+              "Acción",
+              "Detalle",
+              "Inicio",
+              "Fin",
+              "Sector",
+              "Supervisor",
+            ].map((col) => (
+              <th key={col} style={thStyle}>
+                {col}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {filas.length === 0 && (
+            <tr>
+              <td colSpan="11" style={emptyCellStyle}>
+                No hay actividades planificadas
+              </td>
+            </tr>
+          )}
+          {filas.map((row, key) => {
+            if (row.tipo === "vacio") {
               return (
                 <tr key={key}>
-                  <td>{row.index + 1}</td>
-                  <td>{row.dia.fecha}</td>
-                  <td>{row.dia.turno}</td>
-                  <td colSpan="8" style={{ textAlign: "center" }}>
+                  <td style={tdStyle}>{row.diaIndex + 1}</td>
+                  <td style={tdStyle}>{row.dia.fecha}</td>
+                  <td style={tdStyle}>{row.dia.turno}</td>
+                  <td colSpan="8" style={emptyCellStyle}>
                     Sin actividades
                   </td>
                 </tr>
               );
             }
 
-            const orden = obtenerOrden(row.act.orden_id);
-            const accion = obtenerAccion(row.act.orden_id, row.act.accion_id);
+            const orden = ordenesMap.get(row.act.orden_id);
+            const accion = accionesMap.get(
+              `${row.act.orden_id}_${row.act.accion_id}`,
+            );
 
             return (
-              <tr key={key}>
-                <td>{row.index + 1}</td>
-                <td>{row.dia.fecha}</td>
-                <td>{row.dia.turno}</td>
-                <td>{orden?.consecutivo}</td>
-                <td>{orden?.codigo}</td>
-                <td>{accion?.nombre}</td>
-                <td>{row.act.detalle}</td>
-                <td>{row.act.hora_inicio}</td>
-                <td>{row.act.hora_fin}</td>
-                <td>{row.act.sector}</td>
-                <td>{plan.supervisor}</td>
+              <tr key={key} style={rowStyle}>
+                <td style={tdStyle}>{row.diaIndex + 1}</td>
+                <td style={tdStyle}>{row.dia.fecha}</td>
+                <td style={tdStyle}>{row.dia.turno}</td>
+                <td style={tdStyle}>{orden?.consecutivo || "—"}</td>
+                <td style={tdStyle}>{orden?.codigo || "—"}</td>
+                <td style={tdStyle}>{accion?.nombre || "—"}</td>
+                <td style={tdStyle}>{row.act.detalle}</td>
+                <td style={tdStyle}>{row.act.hora_inicio}</td>
+                <td style={tdStyle}>{row.act.hora_fin}</td>
+                <td style={tdStyle}>{row.act.sector}</td>
+                <td style={tdStyle}>{plan.supervisor_nombre || "—"}</td>
               </tr>
             );
           })}
-      </tbody>
-    </table>
+        </tbody>
+      </table>
+    </div>
   );
 }
+
+// ─────────────────────────────────────────
+// Estilos (alineados con tu diseño)
+// ─────────────────────────────────────────
+const tableWrapperStyle = {
+  width: "100%",
+  overflowX: "auto",
+  WebkitOverflowScrolling: "touch",
+  borderRadius: "10px",
+  boxShadow: "0 2px 5px rgba(0,0,0,0.1)",
+};
+
+const tableStyle = {
+  width: "100%",
+  borderCollapse: "collapse",
+  fontSize: "13px",
+  background: "white",
+  minWidth: "900px", // evita colapso en móvil
+};
+
+const thStyle = {
+  background: "#f8fafc",
+  padding: "10px 12px",
+  textAlign: "left",
+  fontWeight: "600",
+  color: "#1e293b",
+  borderBottom: "2px solid #e2e8f0",
+  position: "sticky",
+  top: 0,
+};
+
+const tdStyle = {
+  padding: "10px 12px",
+  borderBottom: "1px solid #e2e8f0",
+  color: "#334155",
+  verticalAlign: "top",
+};
+
+const rowStyle = {
+  transition: "background 0.1s",
+};
+
+const emptyCellStyle = {
+  padding: "15px",
+  textAlign: "center",
+  color: "#64748b",
+  fontStyle: "italic",
+};
+
+// ─────────────────────────────────────────
+// PropTypes (documentación + validación en dev)
+// ─────────────────────────────────────────
+TablaPlanificacion.propTypes = {
+  plan: PropTypes.shape({
+    dias: PropTypes.arrayOf(
+      PropTypes.shape({
+        fecha: PropTypes.string.isRequired,
+        turno: PropTypes.string.isRequired,
+        actividades: PropTypes.arrayOf(PropTypes.object).isRequired,
+      }),
+    ).isRequired,
+    escuadra_nombre: PropTypes.string,
+    supervisor_nombre: PropTypes.string,
+    fecha_inicio: PropTypes.string,
+    fecha_fin: PropTypes.string,
+  }).isRequired,
+  ordenes: PropTypes.arrayOf(
+    PropTypes.shape({
+      id: PropTypes.string.isRequired,
+      consecutivo: PropTypes.string,
+      codigo: PropTypes.string,
+      acciones: PropTypes.arrayOf(
+        PropTypes.shape({
+          id: PropTypes.string.isRequired,
+          nombre: PropTypes.string.isRequired,
+        }),
+      ),
+    }),
+  ).isRequired,
+};
 
 export default TablaPlanificacion;

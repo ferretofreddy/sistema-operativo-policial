@@ -1,9 +1,8 @@
+// frontend/src/services/territorialService.js
 import {
-    collection,
-    getDocs,
-} from "firebase/firestore";
-
-import { db } from "./firebase";
+    fetchCatalogCached,
+    clearCatalogCache,
+} from "./firebaseQuery";
 
 // =========================================
 // 🔥 REGIONES
@@ -11,30 +10,16 @@ import { db } from "./firebase";
 
 export const getRegiones =
     async () => {
-
-        const snapshot =
-            await getDocs(
-                collection(
-                    db,
-                    "regiones",
-                ),
+        const data =
+            await fetchCatalogCached(
+                "regiones",
             );
 
-        return snapshot.docs
-            .map((d) => ({
-                id: d.id,
-                ...d.data(),
-            }))
-            .filter(
-                (r) =>
-                    r.estado ===
-                    "activo",
-            )
-            .sort((a, b) =>
-                a.nombre.localeCompare(
-                    b.nombre,
-                ),
-            );
+        return data.sort((a, b) =>
+            a.nombre.localeCompare(
+                b.nombre,
+            ),
+        );
     };
 
 // =========================================
@@ -42,61 +27,35 @@ export const getRegiones =
 // =========================================
 
 export const getDelegaciones =
-    async () => {
+    async (regionId = null) => {
+        const filters = regionId
+            ? { region_id: regionId }
+            : {};
 
-        const snapshot =
-            await getDocs(
-                collection(
-                    db,
-                    "delegaciones",
-                ),
+        const data =
+            await fetchCatalogCached(
+                "delegaciones",
+                filters,
             );
 
-        return snapshot.docs
-            .map((d) => ({
-                id: d.id,
-                ...d.data(),
-            }))
-            .filter(
-                (d) =>
-                    d.estado ===
-                    "activo",
-            )
-            .sort((a, b) =>
-                a.nombre.localeCompare(
-                    b.nombre,
-                ),
-            );
+        return data.sort((a, b) =>
+            a.nombre.localeCompare(
+                b.nombre,
+            ),
+        );
     };
 
 // =========================================
-// 🔥 ESCUADRAS
+// 🔥 LIMPIAR CACHE
 // =========================================
 
-export const getEscuadras =
-    async () => {
+export const clearTerritorialCache =
+    () => {
+        clearCatalogCache(
+            "regiones",
+        );
 
-        const snapshot =
-            await getDocs(
-                collection(
-                    db,
-                    "escuadras",
-                ),
-            );
-
-        return snapshot.docs
-            .map((d) => ({
-                id: d.id,
-                ...d.data(),
-            }))
-            .filter(
-                (e) =>
-                    e.estado ===
-                    "activa",
-            )
-            .sort((a, b) =>
-                a.nombre.localeCompare(
-                    b.nombre,
-                ),
-            );
+        clearCatalogCache(
+            "delegaciones",
+        );
     };
