@@ -1,0 +1,7 @@
+services:
+  frontend-dev:
+    name: Frontend Dev Server
+    description: Vite dev server for the React frontend
+    commands:
+      start: cd /workspaces/sistema-operativo-policial/frontend && npm run dev
+      ready: curl -s http://localhost:5173 > /dev/null

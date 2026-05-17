@@ -11,10 +11,7 @@ export default defineConfig({
 
     strictPort: true,
 
-    allowedHosts: [
-      ".gitpod.dev",
-      ".gitpod.io",
-    ],
+    allowedHosts: true,
 
     hmr: {
       clientPort: 443,
