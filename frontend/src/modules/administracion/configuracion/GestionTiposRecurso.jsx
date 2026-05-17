@@ -15,13 +15,13 @@ import CatalogoSimpleLayout from "../../../shared/layouts/CatalogoSimpleLayout";
 
 function GestionTiposRecurso() {
   // =========================================
-  // 🔥 DATA
+  // DATA
   // =========================================
 
   const [tipos, setTipos] = useState([]);
 
   // =========================================
-  // 🔥 FORM
+  // FORM
   // =========================================
 
   const [formData, setFormData] = useState({
@@ -35,19 +35,19 @@ function GestionTiposRecurso() {
   });
 
   // =========================================
-  // 🔥 EDITAR
+  // EDITAR
   // =========================================
 
   const [editandoId, setEditandoId] = useState(null);
 
   // =========================================
-  // 🔥 LOADING
+  // LOADING
   // =========================================
 
   const [loading, setLoading] = useState(false);
 
   // =========================================
-  // 🔥 CARGAR
+  // CARGAR
   // =========================================
 
   const cargarTipos = async () => {
@@ -72,7 +72,7 @@ function GestionTiposRecurso() {
   }, []);
 
   // =========================================
-  // 🔥 CHANGE
+  // CHANGE
   // =========================================
 
   const handleChange = (field, value) => {
@@ -84,7 +84,7 @@ function GestionTiposRecurso() {
   };
 
   // =========================================
-  // 🔥 LIMPIAR
+  // LIMPIAR
   // =========================================
 
   const limpiarFormulario = () => {
@@ -102,7 +102,7 @@ function GestionTiposRecurso() {
   };
 
   // =========================================
-  // 🔥 GUARDAR
+  // GUARDAR
   // =========================================
 
   const guardarTipo = async () => {
@@ -114,7 +114,7 @@ function GestionTiposRecurso() {
       const siglas = formData.siglas.trim().toUpperCase();
 
       // =========================================
-      // 🔥 VALIDAR
+      // VALIDAR
       // =========================================
 
       if (!nombre) {
@@ -130,7 +130,7 @@ function GestionTiposRecurso() {
       }
 
       // =========================================
-      // 🔥 DUPLICADOS
+      // DUPLICADOS
       // =========================================
 
       const nombreExiste = tipos.find(
@@ -166,7 +166,7 @@ function GestionTiposRecurso() {
       };
 
       // =========================================
-      // 🔥 CREAR
+      // CREAR
       // =========================================
 
       if (!editandoId) {
@@ -183,7 +183,7 @@ function GestionTiposRecurso() {
         alert("Tipo creado");
       } else {
         // =========================================
-        // 🔥 ACTUALIZAR
+        // ACTUALIZAR
         // =========================================
 
         await updateDoc(
@@ -208,7 +208,7 @@ function GestionTiposRecurso() {
   };
 
   // =========================================
-  // 🔥 EDITAR
+  // EDITAR
   // =========================================
 
   const editarTipo = (tipo) => {
@@ -226,7 +226,7 @@ function GestionTiposRecurso() {
   };
 
   // =========================================
-  // 🔥 ESTADO
+  // ESTADO
   // =========================================
 
   const cambiarEstado = async (tipo) => {
@@ -254,7 +254,7 @@ function GestionTiposRecurso() {
   return (
     <CatalogoSimpleLayout
       // =========================================
-      // 🔥 HEADER
+      // HEADER
       // =========================================
 
       titulo="
@@ -264,7 +264,7 @@ function GestionTiposRecurso() {
       Administración de tipos de recursos operativos
       "
       // =========================================
-      // 🔥 FORM
+      // FORM
       // =========================================
 
       formTitle={editandoId ? "Editar Tipo" : "Nuevo Tipo"}
@@ -326,7 +326,7 @@ function GestionTiposRecurso() {
         },
       ]}
       // =========================================
-      // 🔥 LISTA
+      // LISTA
       // =========================================
 
       items={tipos}

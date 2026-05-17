@@ -1,6 +1,5 @@
 // frontend/src/modules/supervisor/recursos/GestionRecurso.jsx
 import { useContext, useEffect, useMemo, useState } from "react";
-// ✅ CORRECCIÓN: Removido Timestamp import (ya no se usa en módulo)
 import { AuthContext } from "../../../context/AuthContext";
 import OperacionLayout from "../../../shared/layouts/OperacionLayout";
 import { getRecursosByTerritory } from "../../../services/recursosService";
@@ -23,7 +22,7 @@ function GestionRecurso() {
   } = useRoles(userData);
 
   // =========================================
-  // 🔥 STATES
+  // STATES
   // =========================================
   const [recursos, setRecursos] = useState([]);
   const [usuarios, setUsuarios] = useState([]);
@@ -36,7 +35,6 @@ function GestionRecurso() {
   const [loading, setLoading] = useState(false);
   const [filtros, setFiltros] = useState({ region_id: "", delegacion_id: "" });
 
-  // ... resto del componente igual, usando los servicios corregidos ...
 
   // ✅ CORRECCIÓN: liberarRecursoAction llama al servicio corregido
   const liberarRecursoAction = async () => {
@@ -68,8 +66,6 @@ function GestionRecurso() {
       setLoading(false);
     }
   };
-
-  // ... render igual ...
 
   return (
     <OperacionLayout
@@ -103,5 +99,4 @@ function GestionRecurso() {
   );
 }
 
-// ... estilos iguales ...
 export default GestionRecurso;

@@ -5,7 +5,7 @@ import {
 } from "./firebaseQuery";
 
 // =========================================
-// 🔥 TIPOS RECURSO
+// TIPOS RECURSO
 // =========================================
 
 export const getTiposRecurso =
@@ -16,7 +16,7 @@ export const getTiposRecurso =
     };
 
 // =========================================
-// 🔥 RANGOS USUARIO
+// RANGOS USUARIO
 // =========================================
 
 export const getRangosUsuario =
@@ -36,7 +36,7 @@ export const getRangosUsuario =
     };
 
 // =========================================
-// 🔥 CONDICIONES
+// CONDICIONES
 // =========================================
 
 export const getCondicionesUsuario =
@@ -47,7 +47,7 @@ export const getCondicionesUsuario =
     };
 
 // =========================================
-// 🔥 LIMPIAR CACHE
+// LIMPIAR CACHE
 // =========================================
 
 export const clearCatalogsCache =

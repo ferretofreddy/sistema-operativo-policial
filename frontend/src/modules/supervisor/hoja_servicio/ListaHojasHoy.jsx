@@ -18,7 +18,7 @@ function ListaHojasHoy() {
   const [loading, setLoading] = useState(true);
 
   // ====================================
-  // 🔥 CARGAR
+  //  CARGAR
   // ====================================
 
   useEffect(() => {
@@ -56,7 +56,7 @@ function ListaHojasHoy() {
   }, [userData]);
 
   // ====================================
-  // 🔥 LOADING
+  //  LOADING
   // ====================================
 
   if (loading) {
@@ -66,7 +66,7 @@ function ListaHojasHoy() {
   return (
     <div>
       {/* ==================================== */}
-      {/* 🔥 TITULO */}
+      {/* TITULO */}
       {/* ==================================== */}
 
       <div
@@ -80,7 +80,7 @@ function ListaHojasHoy() {
       </div>
 
       {/* ==================================== */}
-      {/* 🔥 VACIO */}
+      {/* VACIO */}
       {/* ==================================== */}
 
       {hojas.length === 0 && (
@@ -88,7 +88,7 @@ function ListaHojasHoy() {
       )}
 
       {/* ==================================== */}
-      {/* 🔥 LISTA */}
+      {/* LISTA */}
       {/* ==================================== */}
 
       <div
@@ -103,7 +103,7 @@ function ListaHojasHoy() {
 
           return (
             <div key={h.id} style={cardStyle}>
-              {/* 🔥 HEADER */}
+              {/* HEADER */}
               <div
                 style={{
                   display: "flex",
@@ -144,7 +144,7 @@ function ListaHojasHoy() {
                 </div>
               </div>
 
-              {/* 🔥 INFO */}
+              {/* INFO */}
               <div style={gridStyle}>
                 <InfoItem label="Escuadra" value={h.escuadra_nombre} />
 
@@ -165,7 +165,7 @@ function ListaHojasHoy() {
                 />
               </div>
 
-              {/* 🔥 MISION */}
+              {/* MISION */}
               <div
                 style={{
                   marginTop: "20px",
@@ -184,7 +184,7 @@ function ListaHojasHoy() {
                 </p>
               </div>
 
-              {/* 🔥 BOTON */}
+              {/* BOTON */}
               <div
                 style={{
                   marginTop: "25px",
@@ -206,7 +206,7 @@ function ListaHojasHoy() {
 }
 
 // ====================================
-// 🔥 INFO ITEM
+// INFO ITEM
 // ====================================
 
 function InfoItem({ label, value }) {
@@ -226,7 +226,7 @@ function InfoItem({ label, value }) {
 }
 
 // ====================================
-// 🔥 STYLES
+// STYLES
 // ====================================
 
 const cardStyle = {

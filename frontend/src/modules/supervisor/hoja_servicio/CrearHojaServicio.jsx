@@ -14,13 +14,13 @@ import SelectorJefatura from "../components/SelectorJefatura";
 
 function CrearHojaServicio() {
   // ====================================
-  // 🔥 USER DATA
+  // USER DATA
   // ====================================
 
   const { userData } = useContext(AuthContext);
 
   // ====================================
-  // 🔥 STATES
+  // STATES
   // ====================================
 
   const [planificaciones, setPlanificaciones] = useState([]);
@@ -60,7 +60,7 @@ function CrearHojaServicio() {
   const [jefatura, setJefatura] = useState("");
 
   // ====================================
-  // 🔥 CARGAR DATOS
+  // CARGAR DATOS
   // ====================================
 
   useEffect(() => {
@@ -69,7 +69,7 @@ function CrearHojaServicio() {
         if (!userData) return;
 
         // ====================================
-        // 🔥 PLANIFICACIONES
+        // PLANIFICACIONES
         // ====================================
 
         const snapPlanes = await getDocs(collection(db, "planificaciones"));
@@ -93,7 +93,7 @@ function CrearHojaServicio() {
         setPlanificaciones(listaPlanes);
 
         // ====================================
-        // 🔥 ORDENES
+        // ORDENES
         // ====================================
 
         const snapOrdenes = await getDocs(collection(db, "ordenes"));
@@ -107,7 +107,7 @@ function CrearHojaServicio() {
         setOrdenes(listaOrdenes);
 
         // ====================================
-        // 🔥 RECURSOS
+        // RECURSOS
         // ====================================
 
         const snapRecursos = await getDocs(
@@ -120,7 +120,7 @@ function CrearHojaServicio() {
           ...doc.data(),
         }));
 
-        // 🔥 FILTRAR
+        // FILTRAR
         const filtrados = todosRecursos.filter(
           (r) =>
             r.region_id === userData.region_id &&
@@ -155,7 +155,7 @@ function CrearHojaServicio() {
   }, [userData]);
 
   // ====================================
-  // 🔥 CREAR HOJA
+  // CREAR HOJA
   // ====================================
 
   const crearHoja = async () => {
@@ -205,7 +205,7 @@ function CrearHojaServicio() {
 
     const dia = plan.dias[diaSeleccionado];
 
-    // 🔥 ENRIQUECER
+    // ENRIQUECER
     const actividadesFinal = actividadesSeleccionadas.map((act) => {
       const orden = ordenes.find((o) => o.id === act.orden_id);
 
@@ -368,7 +368,7 @@ function CrearHojaServicio() {
         setJefaturaSeleccionada={setJefatura}
       />
       {/* ==================================== */}
-      {/* 🔥 HORARIO */}
+      {/* HORARIO */}
       {/* ==================================== */}
       <div style={cardStyle}>
         <h2 style={titleStyle}>Horario Alimentacion</h2>
@@ -409,7 +409,7 @@ function CrearHojaServicio() {
         </div>
       </div>
       {/* ==================================== */}
-      {/* 🔥 DATOS OPERATIVOS */}
+      {/* DATOS OPERATIVOS */}
       {/* ==================================== */}
       <div style={cardStyle}>
         <h2 style={titleStyle}>Datos Operativos</h2>
@@ -450,7 +450,7 @@ function CrearHojaServicio() {
         </div>
       </div>
       {/* ==================================== */}
-      {/* 🔥 NOTICIA CRIMINIS */}
+      {/* NOTICIA CRIMINIS */}
       {/* ==================================== */}
       <div style={cardStyle}>
         <h2 style={titleStyle}>Noticia Criminis</h2>
@@ -463,7 +463,7 @@ function CrearHojaServicio() {
         />
       </div>
       {/* ==================================== */}
-      {/* 🔥 OBSERVACIONES */}
+      {/* OBSERVACIONES */}
       {/* ==================================== */}
       <div style={cardStyle}>
         <h2 style={titleStyle}>Observaciones</h2>
@@ -476,7 +476,7 @@ function CrearHojaServicio() {
         />
       </div>
       {/* ==================================== */}
-      {/* 🔥 BOTON */}
+      {/* BOTON */}
       {/* ==================================== */}
       <div
         style={{

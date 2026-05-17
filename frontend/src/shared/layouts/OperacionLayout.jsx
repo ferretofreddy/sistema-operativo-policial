@@ -42,7 +42,7 @@ function OperacionLayout({
                 <div key={filtro.name}>
                   <label style={labelStyle}>{filtro.label}</label>
 
-                  {/* 🔥 SELECT */}
+                  {/* SELECT */}
                   {filtro.type === "select" ? (
                     <select
                       value={filtrosData[filtro.name] || ""}
@@ -59,7 +59,7 @@ function OperacionLayout({
                       ))}
                     </select>
                   ) : (
-                    /* 🔥 INPUT */
+                    /* INPUT */
                     <input
                       value={filtrosData[filtro.name] || ""}
                       onChange={(e) =>
@@ -146,7 +146,7 @@ function OperacionLayout({
 }
 
 // =========================================
-// 🔥 ESTILOS
+// ESTILOS
 // =========================================
 
 export const containerStyle = {
@@ -270,7 +270,7 @@ export const loadingSpinnerStyle = {
 };
 
 // =========================================
-// 🔥 ANIMACIÓN
+// ANIMACIÓN
 // =========================================
 
 if (typeof document !== "undefined") {

@@ -6,33 +6,33 @@ import { auth } from "../services/firebase";
 
 import { createUserIfNotExists, getUserData } from "../services/userService";
 
-// 🔥 CONTEXT
+//  CONTEXT
 export const AuthContext = createContext();
 
-// 🔥 PROVIDER
+//  PROVIDER
 export function AuthProvider({ children }) {
-  // 🔥 AUTH FIREBASE
+  //  AUTH FIREBASE
   const [user, setUser] = useState(null);
 
-  // 🔥 USER DATA FIRESTORE
+  //  USER DATA FIRESTORE
   const [userData, setUserData] = useState(null);
 
-  // 🔥 LOADING
+  //  LOADING
   const [loading, setLoading] = useState(true);
 
-  // 🔥 AUTH LISTENER
+  //  AUTH LISTENER
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(
       auth,
 
       async (currentUser) => {
         try {
-          // 🔥 USER LOGGED
+          //  USER LOGGED
           if (currentUser) {
-            // 🔥 CREAR USER SI NO EXISTE
+            //  CREAR USER SI NO EXISTE
             await createUserIfNotExists(currentUser);
 
-            // 🔥 CARGAR FIRESTORE DATA
+            // CARGAR FIRESTORE DATA
             try {
               const data = await getUserData(currentUser.uid);
 
@@ -43,11 +43,11 @@ export function AuthProvider({ children }) {
               setUserData(null);
             }
           } else {
-            // 🔥 LOGOUT
+            // LOGOUT
             setUserData(null);
           }
 
-          // 🔥 AUTH USER
+          // AUTH USER
           setUser(currentUser);
         } catch (error) {
           console.error("Error AuthContext:", error);
@@ -56,13 +56,13 @@ export function AuthProvider({ children }) {
 
           setUserData(null);
         } finally {
-          // 🔥 FIN LOADING
+          // FIN LOADING
           setLoading(false);
         }
       },
     );
 
-    // 🔥 CLEANUP
+    // CLEANUP
     return () => unsubscribe();
   }, []);
 

@@ -51,7 +51,7 @@ function VerPlanificacion() {
     cargarUsuario();
   }, [user]);
 
-  // 🔥 EXPORTAR EXCEL (Versión mejorada - Institucional)
+  // EXPORTAR EXCEL (Versión mejorada - Institucional)
   const exportarExcel = (plan, ordenes) => {
     const datos = [];
     const ordenesMap = new Map(ordenes.map((o) => [o.id, o])); // Lookup O(1)

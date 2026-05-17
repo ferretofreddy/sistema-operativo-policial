@@ -1,13 +1,13 @@
 // frontend/src/shared/layouts/CatalogoSimpleLayout.jsx
 function CatalogoSimpleLayout({
   // =========================================
-  // 🔥 HEADER
+  // HEADER
   // =========================================
   titulo,
   subtitulo,
 
   // =========================================
-  // 🔥 FORM
+  // FORM
   // =========================================
   formTitle,
   fields,
@@ -19,7 +19,7 @@ function CatalogoSimpleLayout({
   loading,
 
   // =========================================
-  // 🔥 LISTA
+  // LISTA
   // =========================================
   items,
   renderItemTitle,
@@ -162,7 +162,7 @@ function CatalogoSimpleLayout({
 }
 
 // =========================================
-// 🔥 STYLES (exportados para reutilización opcional)
+// STYLES (exportados para reutilización opcional)
 // =========================================
 export const cardStyle = {
   background: "white",

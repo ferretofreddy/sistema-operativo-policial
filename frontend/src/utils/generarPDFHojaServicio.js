@@ -7,7 +7,7 @@ export const generarPDFHojaServicio = (hoja) => {
   let y = 6;
 
   // ====================================
-  // 🔥 ESTILOS GENERALES
+  // ESTILOS GENERALES
   // ====================================
 
   const borderColor = [0, 0, 0];
@@ -31,7 +31,7 @@ export const generarPDFHojaServicio = (hoja) => {
   };
 
   // ====================================
-  // 🔥 DATOS ÚNICOS
+  // DATOS ÚNICOS
   // ====================================
 
   const ordenes = [
@@ -51,7 +51,7 @@ export const generarPDFHojaServicio = (hoja) => {
   ];
 
   // ====================================
-  // 🔥 FORMATEAR FECHA
+  // FORMATEAR FECHA
   // ====================================
 
   const [
@@ -61,14 +61,14 @@ export const generarPDFHojaServicio = (hoja) => {
   ] = hoja.fecha.split("-");
 
   // ====================================
-  // 🔥 ESCUDO
+  // ESCUDO
   // ====================================
 
   const escudo =
     "/src/assets/escudo.png";
 
   // ====================================
-  // 🔥 ENCABEZADO
+  // ENCABEZADO
   // ====================================
 
   autoTable(doc, {
@@ -248,7 +248,7 @@ export const generarPDFHojaServicio = (hoja) => {
   y = doc.lastAutoTable.finalY;
 
   // ====================================
-  // 🔥 PERSONAL
+  // PERSONAL
   // ====================================
 
   autoTable(doc, {
@@ -393,7 +393,7 @@ export const generarPDFHojaServicio = (hoja) => {
   y = doc.lastAutoTable.finalY;
 
   // ====================================
-  // 🔥 MISION
+  // MISION
   // ====================================
 
   autoTable(doc, {
@@ -456,7 +456,7 @@ export const generarPDFHojaServicio = (hoja) => {
   y = doc.lastAutoTable.finalY;
 
   // ====================================
-  // 🔥 SECTORES
+  // SECTORES
   // ====================================
 
   autoTable(doc, {
@@ -524,7 +524,7 @@ export const generarPDFHojaServicio = (hoja) => {
   y = doc.lastAutoTable.finalY;
 
   // ====================================
-  // 🔥 NOTICIA CRIMINIS
+  // NOTICIA CRIMINIS
   // ====================================
 
   autoTable(doc, {
@@ -588,7 +588,7 @@ export const generarPDFHojaServicio = (hoja) => {
   y = doc.lastAutoTable.finalY;
 
   // ====================================
-  // 🔥 TAREAS
+  // TAREAS
   // ====================================
 
   autoTable(doc, {
@@ -745,7 +745,7 @@ export const generarPDFHojaServicio = (hoja) => {
   y = doc.lastAutoTable.finalY;
 
   // ====================================
-  // 🔥 OBSERVACIONES
+  // OBSERVACIONES
   // ====================================
 
   autoTable(doc, {
@@ -809,7 +809,7 @@ export const generarPDFHojaServicio = (hoja) => {
   y = doc.lastAutoTable.finalY;
 
   // ====================================
-  // 🔥 FIRMAS
+  // FIRMAS
   // ====================================
 
   const fechaEntrega =
@@ -966,7 +966,7 @@ export const generarPDFHojaServicio = (hoja) => {
   });
 
   // ====================================
-  // 🔥 GUARDAR
+  // GUARDAR
   // ====================================
 
   doc.save(

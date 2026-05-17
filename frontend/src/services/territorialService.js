@@ -5,7 +5,7 @@ import {
 } from "./firebaseQuery";
 
 // =========================================
-// 🔥 REGIONES
+// REGIONES
 // =========================================
 
 export const getRegiones =
@@ -23,7 +23,7 @@ export const getRegiones =
     };
 
 // =========================================
-// 🔥 DELEGACIONES
+// DELEGACIONES
 // =========================================
 
 export const getDelegaciones =
@@ -46,7 +46,7 @@ export const getDelegaciones =
     };
 
 // =========================================
-// 🔥 LIMPIAR CACHE
+// LIMPIAR CACHE
 // =========================================
 
 export const clearTerritorialCache =

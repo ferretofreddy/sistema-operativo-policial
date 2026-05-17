@@ -44,7 +44,7 @@ function SelectorJefatura({
   );
 }
 
-// 🔥 STYLE
+// STYLE
 const inputStyle = {
   width: "100%",
 

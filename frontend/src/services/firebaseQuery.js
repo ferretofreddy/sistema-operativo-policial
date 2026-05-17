@@ -12,7 +12,7 @@ import {
 import { db } from "./firebase";
 
 // =========================================
-// 🔥 QUERY FILTRADA CENTRALIZADA
+// QUERY FILTRADA CENTRALIZADA
 // =========================================
 
 export const fetchCollectionFiltered = async (
@@ -31,7 +31,7 @@ export const fetchCollectionFiltered = async (
         const constraints = [];
 
         // =========================================
-        // 🔥 LIMPIAR FILTROS VACÍOS
+        // LIMPIAR FILTROS VACÍOS
         // =========================================
 
         const cleanedFilters = Object.fromEntries(
@@ -44,7 +44,7 @@ export const fetchCollectionFiltered = async (
         );
 
         // =========================================
-        // 🔥 ESTADOS POR DEFECTO
+        // ESTADOS POR DEFECTO
         // =========================================
 
         const defaultEstados = {
@@ -107,7 +107,7 @@ export const fetchCollectionFiltered = async (
         }
 
         // =========================================
-        // 🔥 FILTROS DINÁMICOS
+        // FILTROS DINÁMICOS
         // =========================================
 
         Object.entries(cleanedFilters).forEach(
@@ -119,7 +119,7 @@ export const fetchCollectionFiltered = async (
         );
 
         // =========================================
-        // 🔥 ORDER BY
+        // ORDER BY
         // =========================================
 
         constraints.push(
@@ -130,7 +130,7 @@ export const fetchCollectionFiltered = async (
         );
 
         // =========================================
-        // 🔥 LIMIT
+        // LIMIT
         // =========================================
 
         if (limitToFirst) {
@@ -167,7 +167,7 @@ export const fetchCollectionFiltered = async (
 };
 
 // =========================================
-// 🔥 DOCUMENTO POR ID
+// DOCUMENTO POR ID
 // =========================================
 
 export const fetchDocumentById = async (
@@ -203,7 +203,7 @@ export const fetchDocumentById = async (
 };
 
 // =========================================
-// 🔥 CACHE CATÁLOGOS
+// CACHE CATÁLOGOS
 // =========================================
 
 const catalogCache = new Map();
@@ -212,7 +212,7 @@ const CACHE_TTL =
     5 * 60 * 1000;
 
 // =========================================
-// 🔥 FETCH CACHE
+// FETCH CACHE
 // =========================================
 
 export const fetchCatalogCached = async (
@@ -257,7 +257,7 @@ export const fetchCatalogCached = async (
 };
 
 // =========================================
-// 🔥 LIMPIAR CACHE
+// LIMPIAR CACHE
 // =========================================
 
 export const clearCatalogCache = (

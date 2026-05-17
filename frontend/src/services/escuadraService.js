@@ -12,7 +12,7 @@ import {
 import { db } from "./firebase";
 
 // =========================================
-// 🔥 ESCUADRAS TERRITORIO
+// ESCUADRAS TERRITORIO
 // =========================================
 
 export const getEscuadrasByTerritory =
@@ -38,7 +38,7 @@ export const getEscuadrasByTerritory =
     };
 
 // =========================================
-// 🔥 ESCUADRAS DISPONIBLES
+// ESCUADRAS DISPONIBLES
 // =========================================
 
 export const getEscuadrasDisponibles =
@@ -61,7 +61,7 @@ export const getEscuadrasDisponibles =
     };
 
 // =========================================
-// 🔥 ESCUADRA POR ID
+// ESCUADRA POR ID
 // =========================================
 
 export const getEscuadraById =
@@ -73,7 +73,7 @@ export const getEscuadraById =
     };
 
 // =========================================
-// 🔥 ASIGNAR USUARIO
+// ASIGNAR USUARIO
 // =========================================
 
 export const assignUsuarioToEscuadra =
@@ -145,7 +145,7 @@ export const assignUsuarioToEscuadra =
     };
 
 // =========================================
-// 🔥 REMOVER USUARIO
+// REMOVER USUARIO
 // =========================================
 
 export const removeUsuarioFromEscuadra =
@@ -221,7 +221,7 @@ export const removeUsuarioFromEscuadra =
     };
 
 // =========================================
-// 🔥 ACTUALIZAR SUPERVISOR
+// ACTUALIZAR SUPERVISOR
 // =========================================
 
 export const updateSupervisor =
@@ -267,7 +267,7 @@ export const updateSupervisor =
     };
 
 // =========================================
-// 🔥 LEGACY
+// LEGACY
 // =========================================
 
 export const getEscuadras =

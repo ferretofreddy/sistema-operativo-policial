@@ -5,7 +5,7 @@ import { db } from "./firebase";
 import { doc, updateDoc } from "firebase/firestore";
 
 // =========================================
-// 🔥 RECURSOS POR TERRITORIO
+// RECURSOS POR TERRITORIO
 // =========================================
 export const getRecursosByTerritory = async (filters = {}, options = {}) => {
     return await fetchCollectionFiltered("recursos_operativos", filters, {
@@ -16,7 +16,7 @@ export const getRecursosByTerritory = async (filters = {}, options = {}) => {
 };
 
 // =========================================
-// 🔥 RECURSOS POR ESCUADRA
+// RECURSOS POR ESCUADRA
 // =========================================
 export const getRecursosByEscuadra = async (escuadraId) => {
     return await fetchCollectionFiltered("recursos_operativos", {
@@ -28,7 +28,7 @@ export const getRecursosByEscuadra = async (escuadraId) => {
 };
 
 // =========================================
-// 🔥 ASIGNAR OFICIAL A RECURSO (bidireccional - CORREGIDO)
+// ASIGNAR OFICIAL A RECURSO (bidireccional - CORREGIDO)
 // =========================================
 export const assignOficialToRecurso = async ({ recursoId, usuario, escuadraData }) => {
     // ✅ CORRECCIÓN: Cargar recurso PRIMERO para obtener nombre_recurso correcto
@@ -66,7 +66,7 @@ export const assignOficialToRecurso = async ({ recursoId, usuario, escuadraData 
 };
 
 // =========================================
-// 🔥 REMOVER OFICIAL DE RECURSO (bidireccional)
+// REMOVER OFICIAL DE RECURSO (bidireccional)
 // =========================================
 export const removeOficialFromRecurso = async ({ recursoId, oficialUid }) => {
     // 1️⃣ Liberar usuario
@@ -92,7 +92,7 @@ export const removeOficialFromRecurso = async ({ recursoId, oficialUid }) => {
 };
 
 // =========================================
-// 🔥 LIBERAR RECURSO COMPLETO
+// LIBERAR RECURSO COMPLETO
 // =========================================
 export const liberarRecurso = async (recursoId) => {
     const recurso = await fetchDocumentById("recursos_operativos", recursoId);
@@ -120,7 +120,7 @@ export const liberarRecurso = async (recursoId) => {
 };
 
 // =========================================
-// 🔥 LEGACY
+// LEGACY
 // =========================================
 export const getRecursos = async () => {
     console.warn("⚠️ getRecursos() está obsoleto. Usa getRecursosByTerritory().");

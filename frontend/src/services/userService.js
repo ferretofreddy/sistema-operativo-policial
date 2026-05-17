@@ -5,7 +5,7 @@ import { db } from "./firebase";
 import { doc, setDoc, updateDoc, getDoc } from "firebase/firestore";
 
 // =========================================
-// 🔥 CREAR USER SI NO EXISTE (sin cambios)
+// CREAR USER SI NO EXISTE (sin cambios)
 // =========================================
 export const createUserIfNotExists = async (user) => {
   try {
@@ -50,14 +50,14 @@ export const createUserIfNotExists = async (user) => {
 };
 
 // =========================================
-// 🔥 OBTENER USER DATA (sin cambios)
+// OBTENER USER DATA (sin cambios)
 // =========================================
 export const getUserData = async (uid) => {
   return await fetchDocumentById("usuarios", uid);
 };
 
 // =========================================
-// 🔥 OBTENER USUARIOS POR TERRITORIO (NUEVO - PRINCIPAL)
+// OBTENER USUARIOS POR TERRITORIO (NUEVO - PRINCIPAL)
 // =========================================
 export const getUsuariosByTerritory = async (filters = {}, options = {}) => {
   // Opción para incluir inactivos (útil para admin)
@@ -72,14 +72,14 @@ export const getUsuariosByTerritory = async (filters = {}, options = {}) => {
 };
 
 // =========================================
-// 🔥 OBTENER USUARIO POR ID (alias)
+// OBTENER USUARIO POR ID (alias)
 // =========================================
 export const getUsuarioById = async (uid) => {
   return await fetchDocumentById("usuarios", uid);
 };
 
 // =========================================
-// 🔥 ACTUALIZAR USUARIO (sin cambios)
+// ACTUALIZAR USUARIO (sin cambios)
 // =========================================
 export const updateUsuario = async (uid, datos) => {
   await updateDoc(doc(db, "usuarios", uid), {
@@ -89,7 +89,7 @@ export const updateUsuario = async (uid, datos) => {
 };
 
 // =========================================
-// 🔥 LEGACY: getUsuarios() para compatibilidad (DEPRECATED)
+// LEGACY: getUsuarios() para compatibilidad (DEPRECATED)
 // =========================================
 export const getUsuarios = async () => {
   console.warn("⚠️ getUsuarios() está obsoleto. Usa getUsuariosByTerritory() con filtros.");

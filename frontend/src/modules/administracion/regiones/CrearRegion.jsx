@@ -15,7 +15,7 @@ import CatalogoSimpleLayout from "../../../shared/layouts/CatalogoSimpleLayout";
 
 function CrearRegion() {
   // =========================================
-  // 🔥 FORM
+  // FORM
   // =========================================
 
   const [formData, setFormData] = useState({
@@ -25,25 +25,25 @@ function CrearRegion() {
   });
 
   // =========================================
-  // 🔥 DATA
+  // DATA
   // =========================================
 
   const [regiones, setRegiones] = useState([]);
 
   // =========================================
-  // 🔥 EDITAR
+  // EDITAR
   // =========================================
 
   const [editandoId, setEditandoId] = useState(null);
 
   // =========================================
-  // 🔥 LOADING
+  // LOADING
   // =========================================
 
   const [loading, setLoading] = useState(false);
 
   // =========================================
-  // 🔥 CARGAR
+  // CARGAR
   // =========================================
 
   const cargarRegiones = async () => {
@@ -68,7 +68,7 @@ function CrearRegion() {
   }, []);
 
   // =========================================
-  // 🔥 CHANGE
+  // CHANGE
   // =========================================
 
   const handleChange = (field, value) => {
@@ -80,7 +80,7 @@ function CrearRegion() {
   };
 
   // =========================================
-  // 🔥 LIMPIAR
+  // LIMPIAR
   // =========================================
 
   const limpiarFormulario = () => {
@@ -94,7 +94,7 @@ function CrearRegion() {
   };
 
   // =========================================
-  // 🔥 GUARDAR
+  // GUARDAR
   // =========================================
 
   const guardarRegion = async () => {
@@ -112,7 +112,7 @@ function CrearRegion() {
       }
 
       // =========================================
-      // 🔥 VALIDAR
+      // VALIDAR
       // =========================================
 
       const nombreExiste = regiones.find(
@@ -144,7 +144,7 @@ function CrearRegion() {
       };
 
       // =========================================
-      // 🔥 CREAR
+      // CREAR
       // =========================================
 
       if (!editandoId) {
@@ -163,7 +163,7 @@ function CrearRegion() {
         alert("Región creada correctamente");
       } else {
         // =========================================
-        // 🔥 UPDATE
+        // UPDATE
         // =========================================
 
         await updateDoc(
@@ -188,7 +188,7 @@ function CrearRegion() {
   };
 
   // =========================================
-  // 🔥 EDITAR
+  // EDITAR
   // =========================================
 
   const editarRegion = (region) => {
@@ -202,7 +202,7 @@ function CrearRegion() {
   };
 
   // =========================================
-  // 🔥 ESTADO
+  // ESTADO
   // =========================================
 
   const cambiarEstado = async (region) => {
@@ -230,7 +230,7 @@ function CrearRegion() {
   return (
     <CatalogoSimpleLayout
       // =========================================
-      // 🔥 HEADER
+      // HEADER
       // =========================================
 
       titulo="Gestión Regiones"
@@ -238,7 +238,7 @@ function CrearRegion() {
       Administración de regiones operativas
       "
       // =========================================
-      // 🔥 FORM
+      // FORM
       // =========================================
 
       formTitle={editandoId ? "Editar Región" : "Nueva Región"}
@@ -266,7 +266,7 @@ function CrearRegion() {
         },
       ]}
       // =========================================
-      // 🔥 LISTA
+      // LISTA
       // =========================================
 
       items={regiones}

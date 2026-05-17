@@ -8,11 +8,11 @@ function SelectorPlanificacion({
   setActividadesSeleccionadas,
   ordenes,
 }) {
-  // 🔥 ID ACTIVIDAD
+  // ID ACTIVIDAD
   const getActividadId = (act) =>
     `${act.orden_id}-${act.accion_id}-${act.hora_inicio}`;
 
-  // 🔥 TOGGLE
+  // TOGGLE
   const toggleActividad = (act) => {
     const id = getActividadId(act);
 
@@ -45,7 +45,7 @@ function SelectorPlanificacion({
     >
       <h2>Planificación</h2>
 
-      {/* 🔥 PLANIFICACION */}
+      {/* PLANIFICACION */}
       <label>Seleccione planificación</label>
 
       <select
@@ -72,7 +72,7 @@ function SelectorPlanificacion({
         ))}
       </select>
 
-      {/* 🔥 DIAS */}
+      {/* DIAS */}
       {planSeleccionado && (
         <div>
           <h3>Seleccione día</h3>
@@ -115,7 +115,7 @@ function SelectorPlanificacion({
         </div>
       )}
 
-      {/* 🔥 ACTIVIDADES */}
+      {/* ACTIVIDADES */}
       {planSeleccionado && diaSeleccionado !== null && (
         <div>
           <h3>Actividades</h3>
@@ -196,7 +196,7 @@ function SelectorPlanificacion({
   );
 }
 
-// 🔥 STYLE
+// STYLE
 const inputStyle = {
   width: "100%",
 

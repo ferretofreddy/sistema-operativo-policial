@@ -15,13 +15,13 @@ import CatalogoSimpleLayout from "../../../shared/layouts/CatalogoSimpleLayout";
 
 function GestionRangosUsuario() {
   // =========================================
-  // 🔥 DATA
+  // DATA
   // =========================================
 
   const [rangos, setRangos] = useState([]);
 
   // =========================================
-  // 🔥 FORM
+  // FORM
   // =========================================
 
   const [formData, setFormData] = useState({
@@ -35,19 +35,19 @@ function GestionRangosUsuario() {
   });
 
   // =========================================
-  // 🔥 EDITAR
+  // EDITAR
   // =========================================
 
   const [editandoId, setEditandoId] = useState(null);
 
   // =========================================
-  // 🔥 LOADING
+  // LOADING
   // =========================================
 
   const [loading, setLoading] = useState(false);
 
   // =========================================
-  // 🔥 CARGAR
+  // CARGAR
   // =========================================
 
   const cargarRangos = async () => {
@@ -72,7 +72,7 @@ function GestionRangosUsuario() {
   }, []);
 
   // =========================================
-  // 🔥 CHANGE
+  // CHANGE
   // =========================================
 
   const handleChange = (field, value) => {
@@ -84,7 +84,7 @@ function GestionRangosUsuario() {
   };
 
   // =========================================
-  // 🔥 LIMPIAR
+  // LIMPIAR
   // =========================================
 
   const limpiarFormulario = () => {
@@ -102,7 +102,7 @@ function GestionRangosUsuario() {
   };
 
   // =========================================
-  // 🔥 GUARDAR
+  // GUARDAR
   // =========================================
 
   const guardarRango = async () => {
@@ -116,7 +116,7 @@ function GestionRangosUsuario() {
       const orden = Number(formData.orden_jerarquico);
 
       // =========================================
-      // 🔥 VALIDAR
+      // VALIDAR
       // =========================================
 
       if (!nombre) {
@@ -138,7 +138,7 @@ function GestionRangosUsuario() {
       }
 
       // =========================================
-      // 🔥 DUPLICADOS
+      // DUPLICADOS
       // =========================================
 
       const nombreExiste = rangos.find(
@@ -184,7 +184,7 @@ function GestionRangosUsuario() {
       };
 
       // =========================================
-      // 🔥 CREAR
+      // CREAR
       // =========================================
 
       if (!editandoId) {
@@ -201,7 +201,7 @@ function GestionRangosUsuario() {
         alert("Rango creado");
       } else {
         // =========================================
-        // 🔥 ACTUALIZAR
+        // ACTUALIZAR
         // =========================================
 
         await updateDoc(
@@ -226,7 +226,7 @@ function GestionRangosUsuario() {
   };
 
   // =========================================
-  // 🔥 EDITAR
+  // EDITAR
   // =========================================
 
   const editarRango = (rango) => {
@@ -244,7 +244,7 @@ function GestionRangosUsuario() {
   };
 
   // =========================================
-  // 🔥 ESTADO
+  // ESTADO
   // =========================================
 
   const cambiarEstado = async (rango) => {
@@ -272,7 +272,7 @@ function GestionRangosUsuario() {
   return (
     <CatalogoSimpleLayout
       // =========================================
-      // 🔥 HEADER
+      // HEADER
       // =========================================
 
       titulo="
@@ -282,7 +282,7 @@ function GestionRangosUsuario() {
       Administración de rangos jerárquicos institucionales
       "
       // =========================================
-      // 🔥 FORM
+      // FORM
       // =========================================
 
       formTitle={editandoId ? "Editar Rango" : "Nuevo Rango"}
@@ -342,7 +342,7 @@ function GestionRangosUsuario() {
         },
       ]}
       // =========================================
-      // 🔥 LISTA
+      // LISTA
       // =========================================
 
       items={rangos}

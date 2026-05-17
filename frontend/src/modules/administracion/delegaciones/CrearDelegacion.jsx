@@ -15,7 +15,7 @@ import GestionLayout from "../../../shared/layouts/GestionLayout";
 
 function CrearDelegacion() {
   // =========================================
-  // 🔥 DATA
+  // DATA
   // =========================================
 
   const [regiones, setRegiones] = useState([]);
@@ -23,7 +23,7 @@ function CrearDelegacion() {
   const [delegaciones, setDelegaciones] = useState([]);
 
   // =========================================
-  // 🔥 FILTROS
+  // FILTROS
   // =========================================
 
   const [filtros, setFiltros] = useState({
@@ -33,7 +33,7 @@ function CrearDelegacion() {
   });
 
   // =========================================
-  // 🔥 FORM
+  // FORM
   // =========================================
 
   const [formData, setFormData] = useState({
@@ -45,19 +45,19 @@ function CrearDelegacion() {
   });
 
   // =========================================
-  // 🔥 EDITAR
+  // EDITAR
   // =========================================
 
   const [editandoId, setEditandoId] = useState(null);
 
   // =========================================
-  // 🔥 LOADING
+  // LOADING
   // =========================================
 
   const [loading, setLoading] = useState(false);
 
   // =========================================
-  // 🔥 CARGAR REGIONES
+  // CARGAR REGIONES
   // =========================================
 
   const cargarRegiones = async () => {
@@ -78,7 +78,7 @@ function CrearDelegacion() {
   };
 
   // =========================================
-  // 🔥 CARGAR DELEGACIONES
+  // CARGAR DELEGACIONES
   // =========================================
 
   const cargarDelegaciones = async () => {
@@ -105,7 +105,7 @@ function CrearDelegacion() {
   }, []);
 
   // =========================================
-  // 🔥 FILTRAR
+  // FILTRAR
   // =========================================
 
   const delegacionesFiltradas = useMemo(() => {
@@ -126,7 +126,7 @@ function CrearDelegacion() {
   }, [delegaciones, filtros]);
 
   // =========================================
-  // 🔥 CHANGE FORM
+  // CHANGE FORM
   // =========================================
 
   const handleFormChange = (field, value) => {
@@ -138,7 +138,7 @@ function CrearDelegacion() {
   };
 
   // =========================================
-  // 🔥 CHANGE FILTRO
+  // CHANGE FILTRO
   // =========================================
 
   const handleFiltroChange = (field, value) => {
@@ -150,7 +150,7 @@ function CrearDelegacion() {
   };
 
   // =========================================
-  // 🔥 LIMPIAR FORM
+  // LIMPIAR FORM
   // =========================================
 
   const limpiarFormulario = () => {
@@ -166,7 +166,7 @@ function CrearDelegacion() {
   };
 
   // =========================================
-  // 🔥 GUARDAR
+  // GUARDAR
   // =========================================
 
   const guardarDelegacion = async () => {
@@ -178,7 +178,7 @@ function CrearDelegacion() {
       const codigo = formData.codigo.trim().toUpperCase();
 
       // =========================================
-      // 🔥 VALIDAR
+      // VALIDAR
       // =========================================
 
       if (!formData.region_id) {
@@ -200,7 +200,7 @@ function CrearDelegacion() {
       }
 
       // =========================================
-      // 🔥 REGION
+      // REGION
       // =========================================
 
       const region = regiones.find((r) => r.id === formData.region_id);
@@ -212,7 +212,7 @@ function CrearDelegacion() {
       }
 
       // =========================================
-      // 🔥 DUPLICADOS
+      // DUPLICADOS
       // =========================================
 
       const nombreExiste = delegaciones.find(
@@ -239,7 +239,7 @@ function CrearDelegacion() {
       }
 
       // =========================================
-      // 🔥 DATOS
+      // DATOS
       // =========================================
 
       const datos = {
@@ -255,7 +255,7 @@ function CrearDelegacion() {
       };
 
       // =========================================
-      // 🔥 CREAR
+      // CREAR
       // =========================================
 
       if (!editandoId) {
@@ -272,7 +272,7 @@ function CrearDelegacion() {
         alert("Delegación creada");
       } else {
         // =========================================
-        // 🔥 UPDATE
+        // UPDATE
         // =========================================
 
         await updateDoc(
@@ -297,7 +297,7 @@ function CrearDelegacion() {
   };
 
   // =========================================
-  // 🔥 EDITAR
+  // EDITAR
   // =========================================
 
   const editarDelegacion = (delegacion) => {
@@ -315,7 +315,7 @@ function CrearDelegacion() {
   return (
     <GestionLayout
       // =========================================
-      // 🔥 HEADER
+      // HEADER
       // =========================================
 
       titulo="
@@ -325,7 +325,7 @@ function CrearDelegacion() {
       Administración territorial de delegaciones operativas
       "
       // =========================================
-      // 🔥 FILTROS
+      // FILTROS
       // =========================================
 
       filtros={[
@@ -362,7 +362,7 @@ function CrearDelegacion() {
       filtrosData={filtros}
       onFiltroChange={handleFiltroChange}
       // =========================================
-      // 🔥 TABLA
+      // TABLA
       // =========================================
 
       columnas={["Código", "Delegación", "Región"]}
@@ -383,12 +383,12 @@ function CrearDelegacion() {
         }
       }}
       // =========================================
-      // 🔥 ACTIONS
+      // ACTIONS
       // =========================================
 
       onEditar={editarDelegacion}
       // =========================================
-      // 🔥 FORM
+      // FORM
       // =========================================
 
       formTitle={editandoId ? "Editar Delegación" : "Nueva Delegación"}

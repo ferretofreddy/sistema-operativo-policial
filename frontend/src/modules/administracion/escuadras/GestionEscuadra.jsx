@@ -28,7 +28,7 @@ function GestionEscuadra() {
   const { filters: territoryFilters, isAdmin } = useRoles(userData);
 
   // =========================================
-  // 🔥 STATES
+  // STATES
   // =========================================
 
   const [loading, setLoading] = useState(false);
@@ -51,7 +51,7 @@ function GestionEscuadra() {
   });
 
   // =========================================
-  // 🔥 CATÁLOGOS
+  // CATÁLOGOS
   // =========================================
 
   useEffect(() => {
@@ -74,7 +74,7 @@ function GestionEscuadra() {
   }, []);
 
   // =========================================
-  // 🔥 DATOS
+  // DATOS
   // =========================================
 
   useEffect(() => {
@@ -132,7 +132,7 @@ function GestionEscuadra() {
   }, [userData, territoryFilters, filtros]);
 
   // =========================================
-  // 🔥 DELEGACIONES FILTRADAS
+  // DELEGACIONES FILTRADAS
   // =========================================
 
   const delegacionesFiltradas = useMemo(() => {
@@ -144,7 +144,7 @@ function GestionEscuadra() {
   }, [delegaciones, filtros.region_id]);
 
   // =========================================
-  // 🔥 USUARIOS DISPONIBLES
+  // USUARIOS DISPONIBLES
   // =========================================
 
   const usuariosDisponibles = useMemo(() => {
@@ -170,7 +170,7 @@ function GestionEscuadra() {
   }, [usuarios, escuadraSeleccionada, busqueda]);
 
   // =========================================
-  // 🔥 AGREGAR OFICIAL
+  // AGREGAR OFICIAL
   // =========================================
 
   const agregarOficial = async (usuario) => {
@@ -212,7 +212,7 @@ function GestionEscuadra() {
   };
 
   // =========================================
-  // 🔥 ELIMINAR OFICIAL
+  // ELIMINAR OFICIAL
   // =========================================
 
   const eliminarOficial = async (uid) => {
@@ -258,7 +258,7 @@ function GestionEscuadra() {
   };
 
   // =========================================
-  // 🔥 GUARDAR SUPERVISOR
+  // GUARDAR SUPERVISOR
   // =========================================
 
   const guardarSupervisor = async () => {
@@ -288,7 +288,7 @@ function GestionEscuadra() {
   };
 
   // =========================================
-  // 🔥 RENDER
+  // RENDER
   // =========================================
 
   return (
@@ -456,7 +456,7 @@ function GestionEscuadra() {
 }
 
 // =========================================
-// 🔥 ESTILOS
+// ESTILOS
 // =========================================
 
 const inputStyle = {

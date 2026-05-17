@@ -24,7 +24,7 @@ import {
 
 function CrearUsuario() {
   // =========================================
-  // 🔥 SISTEMA
+  // SISTEMA
   // =========================================
 
   const [email, setEmail] = useState("");
@@ -36,7 +36,7 @@ function CrearUsuario() {
   const [estadoUsuario, setEstadoUsuario] = useState("activo");
 
   // =========================================
-  // 🔥 PERSONALES
+  // PERSONALES
   // =========================================
 
   const [nombre, setNombre] = useState("");
@@ -56,7 +56,7 @@ function CrearUsuario() {
   const [fechaAlta, setFechaAlta] = useState("");
 
   // =========================================
-  // 🔥 RELACIONES
+  // RELACIONES
   // =========================================
 
   const [rangoId, setRangoId] = useState("");
@@ -70,7 +70,7 @@ function CrearUsuario() {
   const [escuadraId, setEscuadraId] = useState("");
 
   // =========================================
-  // 🔥 LISTAS
+  // LISTAS
   // =========================================
 
   const [usuarios, setUsuarios] = useState([]);
@@ -86,13 +86,13 @@ function CrearUsuario() {
   const [condiciones, setCondiciones] = useState([]);
 
   // =========================================
-  // 🔥 LOADING
+  // LOADING
   // =========================================
 
   const [loading, setLoading] = useState(false);
 
   // =========================================
-  // 🔥 AUTH SECUNDARIO
+  // AUTH SECUNDARIO
   // =========================================
 
   const secondaryApp = initializeApp(app.options, "Secondary");
@@ -100,7 +100,7 @@ function CrearUsuario() {
   const secondaryAuth = getAuth(secondaryApp);
 
   // =========================================
-  // 🔥 CARGAR DATOS
+  // CARGAR DATOS
   // =========================================
 
   const cargarDatos = async () => {
@@ -147,7 +147,7 @@ function CrearUsuario() {
   }, []);
 
   // =========================================
-  // 🔥 FILTROS
+  // FILTROS
   // =========================================
 
   const delegacionesFiltradas = delegaciones.filter(
@@ -159,7 +159,7 @@ function CrearUsuario() {
   );
 
   // =========================================
-  // 🔥 VALIDAR ESTRUCTURA
+  // VALIDAR ESTRUCTURA
   // =========================================
 
   const requiereTerritorial = [
@@ -172,7 +172,7 @@ function CrearUsuario() {
   const requiereEscuadra = ["supervisor", "agente"].includes(rol);
 
   // =========================================
-  // 🔥 LIMPIAR
+  // LIMPIAR
   // =========================================
 
   const limpiarFormulario = () => {
@@ -212,7 +212,7 @@ function CrearUsuario() {
   };
 
   // =========================================
-  // 🔥 CREAR USUARIO
+  // CREAR USUARIO
   // =========================================
 
   const crearUsuario = async () => {
@@ -220,7 +220,7 @@ function CrearUsuario() {
       setLoading(true);
 
       // =========================================
-      // 🔥 VALIDACIONES
+      // VALIDACIONES
       // =========================================
 
       if (!email || !password || !nombre || !apellido1 || !cedula) {
@@ -254,7 +254,7 @@ function CrearUsuario() {
       }
 
       // =========================================
-      // 🔥 DUPLICADOS
+      // DUPLICADOS
       // =========================================
 
       const cedulaExiste = usuarios.find((u) => u.cedula === cedula);
@@ -274,7 +274,7 @@ function CrearUsuario() {
       }
 
       // =========================================
-      // 🔥 RELACIONES
+      // RELACIONES
       // =========================================
 
       const region = regiones.find((r) => r.id === regionId);
@@ -288,7 +288,7 @@ function CrearUsuario() {
       const condicion = condiciones.find((c) => c.id === condicionId);
 
       // =========================================
-      // 🔥 AUTH
+      // AUTH
       // =========================================
 
       const userCredential = await createUserWithEmailAndPassword(
@@ -300,7 +300,7 @@ function CrearUsuario() {
       const uid = userCredential.user.uid;
 
       // =========================================
-      // 🔥 GUARDAR FIRESTORE
+      // GUARDAR FIRESTORE
       // =========================================
 
       await setDoc(
@@ -308,7 +308,7 @@ function CrearUsuario() {
 
         {
           // =========================================
-          // 🔥 IDENTIDAD
+          // IDENTIDAD
           // =========================================
 
           uid,
@@ -318,7 +318,7 @@ function CrearUsuario() {
           cedula: cedula.trim(),
 
           // =========================================
-          // 🔥 PERSONALES
+          // PERSONALES
           // =========================================
 
           nombre: nombre.trim().toUpperCase(),
@@ -340,7 +340,7 @@ function CrearUsuario() {
             : null,
 
           // =========================================
-          // 🔥 SISTEMA
+          // SISTEMA
           // =========================================
 
           rol,
@@ -354,7 +354,7 @@ function CrearUsuario() {
           ultimo_login: null,
 
           // =========================================
-          // 🔥 REGION
+          // REGION
           // =========================================
 
           region_id: region?.id || "",
@@ -362,7 +362,7 @@ function CrearUsuario() {
           region_nombre: region?.nombre || "",
 
           // =========================================
-          // 🔥 DELEGACION
+          // DELEGACION
           // =========================================
 
           delegacion_id: delegacion?.id || "",
@@ -370,7 +370,7 @@ function CrearUsuario() {
           delegacion_nombre: delegacion?.nombre || "",
 
           // =========================================
-          // 🔥 ESCUADRA
+          // ESCUADRA
           // =========================================
 
           escuadra_id: escuadra?.id || "",
@@ -378,7 +378,7 @@ function CrearUsuario() {
           escuadra_nombre: escuadra?.nombre || "",
 
           // =========================================
-          // 🔥 RECURSO
+          // RECURSO
           // =========================================
 
           recurso_id: "",
@@ -386,7 +386,7 @@ function CrearUsuario() {
           recurso_nombre: "",
 
           // =========================================
-          // 🔥 RANGO
+          // RANGO
           // =========================================
 
           rango_id: rango?.id || "",
@@ -398,7 +398,7 @@ function CrearUsuario() {
           rango_orden: rango?.orden_jerarquico || 0,
 
           // =========================================
-          // 🔥 CONDICION
+          // CONDICION
           // =========================================
 
           condicion_id: condicion?.id || "",
@@ -434,7 +434,7 @@ function CrearUsuario() {
 
       <div style={cardStyle}>
         {/* ========================================= */}
-        {/* 🔥 SISTEMA */}
+        {/* SISTEMA */}
         {/* ========================================= */}
 
         <h2>Datos Sistema</h2>
@@ -491,7 +491,7 @@ function CrearUsuario() {
         </select>
 
         {/* ========================================= */}
-        {/* 🔥 PERSONALES */}
+        {/* PERSONALES */}
         {/* ========================================= */}
 
         <h2>Datos Personales</h2>
@@ -567,7 +567,7 @@ function CrearUsuario() {
         />
 
         {/* ========================================= */}
-        {/* 🔥 RELACIONES */}
+        {/* RELACIONES */}
         {/* ========================================= */}
 
         <h2>Relaciones</h2>
@@ -609,7 +609,7 @@ function CrearUsuario() {
         </select>
 
         {/* ========================================= */}
-        {/* 🔥 TERRITORIAL */}
+        {/* TERRITORIAL */}
         {/* ========================================= */}
 
         {requiereTerritorial && (
@@ -687,7 +687,7 @@ function CrearUsuario() {
         )}
 
         {/* ========================================= */}
-        {/* 🔥 BOTÓN */}
+        {/* BOTÓN */}
         {/* ========================================= */}
 
         <button
@@ -703,7 +703,7 @@ function CrearUsuario() {
 }
 
 // =========================================
-// 🔥 STYLES
+// STYLES
 // =========================================
 
 const cardStyle = {

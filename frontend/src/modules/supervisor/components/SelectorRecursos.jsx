@@ -5,7 +5,7 @@ function SelectorRecursos({
   encargado,
   setEncargado,
 }) {
-  // 🔥 AGREGAR
+  // AGREGAR
   const agregarRecurso = (recursoId) => {
     const recurso = recursosDisponibles.find((r) => r.id === recursoId);
 
@@ -22,13 +22,13 @@ function SelectorRecursos({
     setRecursosSeleccionados([...recursosSeleccionados, recurso]);
   };
 
-  // 🔥 ELIMINAR
+  // ELIMINAR
   const eliminarRecurso = (id) => {
     const nuevos = recursosSeleccionados.filter((r) => r.id !== id);
 
     setRecursosSeleccionados(nuevos);
 
-    // 🔥 LIMPIAR ENCARGADO
+    // LIMPIAR ENCARGADO
     if (
       encargado &&
       !nuevos.some((r) => r.oficiales?.some((o) => o.uid === encargado))
@@ -37,7 +37,7 @@ function SelectorRecursos({
     }
   };
 
-  // 🔥 OFICIALES
+  // OFICIALES
   const oficialesDisponibles = recursosSeleccionados.flatMap(
     (r) => r.oficiales || [],
   );
@@ -58,7 +58,7 @@ function SelectorRecursos({
     >
       <h2>Recursos Operativos</h2>
 
-      {/* 🔥 SELECTOR */}
+      {/* SELECTOR */}
       <select
         onChange={(e) => {
           if (!e.target.value) return;
@@ -82,7 +82,7 @@ function SelectorRecursos({
         ))}
       </select>
 
-      {/* 🔥 LISTA */}
+      {/* LISTA */}
       <div
         style={{
           display: "grid",
@@ -146,7 +146,7 @@ function SelectorRecursos({
               </button>
             </div>
 
-            {/* 🔥 OFICIALES */}
+            {/* OFICIALES */}
             <div
               style={{
                 marginTop: "15px",
@@ -164,7 +164,7 @@ function SelectorRecursos({
         ))}
       </div>
 
-      {/* 🔥 ENCARGADO */}
+      {/* ENCARGADO */}
       {oficialesDisponibles.length > 0 && (
         <div
           style={{
@@ -192,7 +192,7 @@ function SelectorRecursos({
   );
 }
 
-// 🔥 STYLE
+// STYLE
 const inputStyle = {
   width: "100%",
 

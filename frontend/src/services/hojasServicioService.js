@@ -9,7 +9,7 @@ import {
 import { db } from "./firebase";
 
 // =========================================
-// 🔥 HOJAS
+// HOJAS
 // =========================================
 
 export const getHojasServicio =
@@ -32,7 +32,7 @@ export const getHojasServicio =
     };
 
 // =========================================
-// 🔥 HOJA POR ID
+// HOJA POR ID
 // =========================================
 
 export const getHojaServicioById =

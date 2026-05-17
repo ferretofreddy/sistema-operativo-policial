@@ -1,3 +1,4 @@
+// front
 import { useEffect, useState } from "react";
 
 import { useParams } from "react-router-dom";
@@ -16,7 +17,7 @@ function VerHojaServicio() {
   const [loading, setLoading] = useState(true);
 
   // ====================================
-  // 🔥 CARGAR
+  // CARGAR
   // ====================================
 
   useEffect(() => {
@@ -44,7 +45,7 @@ function VerHojaServicio() {
   }, [id]);
 
   // ====================================
-  // 🔥 LOADING
+  // LOADING
   // ====================================
 
   if (loading) {
@@ -56,7 +57,7 @@ function VerHojaServicio() {
   }
 
   // ====================================
-  // 🔥 DATOS
+  // DATOS
   // ====================================
 
   const ordenes = [
@@ -66,7 +67,7 @@ function VerHojaServicio() {
   const sectores = [...new Set(hoja.actividades?.map((a) => a.sector))];
 
   // ====================================
-  // 🔥 PERSONAL
+  // PERSONAL
   // ====================================
 
   return (
@@ -80,7 +81,7 @@ function VerHojaServicio() {
       }}
     >
       {/* ==================================== */}
-      {/* 🔥 BOTON PDF */}
+      {/* BOTON PDF */}
       {/* ==================================== */}
 
       <div
@@ -97,12 +98,12 @@ function VerHojaServicio() {
       </div>
 
       {/* ==================================== */}
-      {/* 🔥 DOCUMENTO */}
+      {/* DOCUMENTO */}
       {/* ==================================== */}
 
       <div style={documentStyle}>
         {/* ==================================== */}
-        {/* 🔥 ENCABEZADO */}
+        {/* ENCABEZADO */}
         {/* ==================================== */}
 
         <div
@@ -147,7 +148,7 @@ function VerHojaServicio() {
         </div>
 
         {/* ==================================== */}
-        {/* 🔥 INFORMACION GENERAL */}
+        {/* INFORMACION GENERAL */}
         {/* ==================================== */}
 
         <SectionTitle title="INFORMACION GENERAL" />
@@ -169,7 +170,7 @@ function VerHojaServicio() {
         </div>
 
         {/* ==================================== */}
-        {/* 🔥 ORDENES */}
+        {/* ORDENES */}
         {/* ==================================== */}
 
         <SectionTitle title="ORDENES DE EJECUCION" />
@@ -183,7 +184,7 @@ function VerHojaServicio() {
         </div>
 
         {/* ==================================== */}
-        {/* 🔥 PERSONAL */}
+        {/* PERSONAL */}
         {/* ==================================== */}
 
         <SectionTitle title="PERSONAL Y RECURSO" />
@@ -269,7 +270,7 @@ function VerHojaServicio() {
         </div>
 
         {/* ==================================== */}
-        {/* 🔥 HORARIO */}
+        {/* HORARIO */}
         {/* ==================================== */}
 
         <SectionTitle title="HORARIO ALIMENTACION" />
@@ -285,7 +286,7 @@ function VerHojaServicio() {
         </div>
 
         {/* ==================================== */}
-        {/* 🔥 MISION */}
+        {/* MISION */}
         {/* ==================================== */}
 
         <SectionTitle
@@ -296,7 +297,7 @@ function VerHojaServicio() {
         <div style={blockStyle}>{hoja.mision}</div>
 
         {/* ==================================== */}
-        {/* 🔥 SECTORES */}
+        {/* SECTORES */}
         {/* ==================================== */}
 
         <SectionTitle title="SECTOR(ES) DE TRABAJO (S)" />
@@ -310,7 +311,7 @@ function VerHojaServicio() {
         </div>
 
         {/* ==================================== */}
-        {/* 🔥 ACTIVIDADES */}
+        {/* ACTIVIDADES */}
         {/* ==================================== */}
 
         <SectionTitle title="TAREAS A DESARROLLAR" />
@@ -352,7 +353,7 @@ function VerHojaServicio() {
         </table>
 
         {/* ==================================== */}
-        {/* 🔥 NOTICIA */}
+        {/* NOTICIA */}
         {/* ==================================== */}
 
         <SectionTitle title="NOTICIA CRIMINIS" />
@@ -362,7 +363,7 @@ function VerHojaServicio() {
         </div>
 
         {/* ==================================== */}
-        {/* 🔥 OBSERVACIONES */}
+        {/* OBSERVACIONES */}
         {/* ==================================== */}
 
         <SectionTitle title="OBSERVACIONES" />
@@ -372,7 +373,7 @@ function VerHojaServicio() {
         </div>
 
         {/* ==================================== */}
-        {/* 🔥 FIRMAS */}
+        {/* FIRMAS */}
         {/* ==================================== */}
 
         <SectionTitle title="RESPONSABLES" />
@@ -392,7 +393,7 @@ function VerHojaServicio() {
 }
 
 // ====================================
-// 🔥 COMPONENTES
+// COMPONENTES
 // ====================================
 
 function SectionTitle({ title }) {
@@ -427,7 +428,7 @@ function InfoItem({ label, value }) {
 }
 
 // ====================================
-// 🔥 STYLES
+// STYLES
 // ====================================
 
 const documentStyle = {

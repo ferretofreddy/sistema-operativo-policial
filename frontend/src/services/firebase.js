@@ -27,19 +27,19 @@ const firebaseConfig = {
     "1:168664650115:web:6ffe8254b18919713266b6",
 };
 
-// 🔥 APP PRINCIPAL
+// APP PRINCIPAL
 const app =
   initializeApp(firebaseConfig);
 
-// 🔥 AUTH
+// AUTH
 const auth =
   getAuth(app);
 
-// 🔥 FIRESTORE
+// FIRESTORE
 const db =
   getFirestore(app);
 
-// 🔥 EXPORTAR TODO
+// EXPORTAR TODO
 export {
   app,
   auth,

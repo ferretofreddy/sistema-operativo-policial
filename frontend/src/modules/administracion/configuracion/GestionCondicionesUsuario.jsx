@@ -15,13 +15,13 @@ import CatalogoSimpleLayout from "../../../shared/layouts/CatalogoSimpleLayout";
 
 function GestionCondicionesUsuario() {
   // =========================================
-  // 🔥 DATA
+  // DATA
   // =========================================
 
   const [condiciones, setCondiciones] = useState([]);
 
   // =========================================
-  // 🔥 FORM
+  // FORM
   // =========================================
 
   const [formData, setFormData] = useState({
@@ -35,19 +35,19 @@ function GestionCondicionesUsuario() {
   });
 
   // =========================================
-  // 🔥 EDITAR
+  // EDITAR
   // =========================================
 
   const [editandoId, setEditandoId] = useState(null);
 
   // =========================================
-  // 🔥 LOADING
+  // LOADING
   // =========================================
 
   const [loading, setLoading] = useState(false);
 
   // =========================================
-  // 🔥 CARGAR
+  // CARGAR
   // =========================================
 
   const cargarCondiciones = async () => {
@@ -72,7 +72,7 @@ function GestionCondicionesUsuario() {
   }, []);
 
   // =========================================
-  // 🔥 CHANGE
+  // CHANGE
   // =========================================
 
   const handleChange = (field, value) => {
@@ -84,7 +84,7 @@ function GestionCondicionesUsuario() {
   };
 
   // =========================================
-  // 🔥 LIMPIAR
+  // LIMPIAR
   // =========================================
 
   const limpiarFormulario = () => {
@@ -102,7 +102,7 @@ function GestionCondicionesUsuario() {
   };
 
   // =========================================
-  // 🔥 GUARDAR
+  // GUARDAR
   // =========================================
 
   const guardarCondicion = async () => {
@@ -118,7 +118,7 @@ function GestionCondicionesUsuario() {
       }
 
       // =========================================
-      // 🔥 VALIDAR
+      // VALIDAR
       // =========================================
 
       const existe = condiciones.find(
@@ -144,7 +144,7 @@ function GestionCondicionesUsuario() {
       };
 
       // =========================================
-      // 🔥 CREAR
+      // CREAR
       // =========================================
 
       if (!editandoId) {
@@ -161,7 +161,7 @@ function GestionCondicionesUsuario() {
         alert("Condición creada");
       } else {
         // =========================================
-        // 🔥 ACTUALIZAR
+        // ACTUALIZAR
         // =========================================
 
         await updateDoc(
@@ -186,7 +186,7 @@ function GestionCondicionesUsuario() {
   };
 
   // =========================================
-  // 🔥 EDITAR
+  // EDITAR
   // =========================================
 
   const editarCondicion = (condicion) => {
@@ -204,7 +204,7 @@ function GestionCondicionesUsuario() {
   };
 
   // =========================================
-  // 🔥 ESTADO
+  // ESTADO
   // =========================================
 
   const cambiarEstado = async (condicion) => {
@@ -232,7 +232,7 @@ function GestionCondicionesUsuario() {
   return (
     <CatalogoSimpleLayout
       // =========================================
-      // 🔥 HEADER
+      // HEADER
       // =========================================
 
       titulo="
@@ -242,7 +242,7 @@ function GestionCondicionesUsuario() {
       Administración de condiciones operativas del personal
       "
       // =========================================
-      // 🔥 FORM
+      // FORM
       // =========================================
 
       formTitle={editandoId ? "Editar Condición" : "Nueva Condición"}
@@ -314,7 +314,7 @@ function GestionCondicionesUsuario() {
         },
       ]}
       // =========================================
-      // 🔥 LISTA
+      // LISTA
       // =========================================
 
       items={condiciones}
