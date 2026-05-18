@@ -79,25 +79,23 @@ const COLLECTION_MAP = {
 };
 
 // =========================================
-// MAPEO: campos Firestore → campos SQL
-// Solo para los campos que cambiaron de nombre en el diseño relacional.
+// NOTA: NO hay FIELD_MAP en este provider.
+//
+// Los repositories envían datos con nombres PostgreSQL correctos.
+// El mapeo Firestore → SQL ocurre en repositories y migración de datos.
+//
+// REFERENCIA de campos renombrados (para repositories):
+//   uid               → auth_id      (solo en insertWithId)
+//   rango_id          → rank_id
+//   condicion_id      → condition_id
+//   delegacion_id     → delegation_id
+//   escuadra_id       → squad_id
+//   tipo_recurso_id   → resource_type_id
+//
+// CRÍTICO: region_id NO mapea a delegation_id.
+//   region_id se obtiene vía JOIN: users → delegations → regions
+//   No almacenar region_id denormalizado en users de PostgreSQL.
 // =========================================
-
-const FIELD_MAP = {
-  // users
-  estado_usuario:    "estado_usuario",   // igual
-  uid:               "auth_id",          // Firebase uid → Supabase auth_id
-  rango_id:          "rank_id",          // singular inglés
-  condicion_id:      "condition_id",
-  region_id:         "delegation_id",    // region_id ahora viene de delegations JOIN
-  delegacion_id:     "delegation_id",
-  escuadra_id:       "squad_id",
-
-  // resources
-  tipo_recurso_id:   "resource_type_id",
-  delegacion_id:     "delegation_id",
-  escuadra_id:       "squad_id",
-};
 
 // =========================================
 // ESTADO POR DEFECTO: equivalente Supabase de DEFAULT_ACTIVE_STATES
