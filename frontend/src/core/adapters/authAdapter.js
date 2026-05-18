@@ -1,35 +1,12 @@
 // src/core/adapters/authAdapter.js
 //
-// Adaptador de autenticación — AuthService universal.
+// Adaptador de autenticación — soporta Firebase y Supabase Auth.
 //
-// PROBLEMA que resuelve:
-// AuthContext importa directamente firebase/auth.
-// onAuthStateChanged, signOut, createUserWithEmailAndPassword
-// están dispersos en varios componentes.
-//
-// Este adapter centraliza TODO lo relacionado con auth.
-// Cuando migremos a Supabase Auth:
-//   - Solo cambia la implementación dentro de este archivo
-//   - AuthContext, Login, Dashboards no cambian nada
-//
-// REGLA: ningún componente importa directamente firebase/auth o supabase/auth.
-// Todo pasa por AuthService de este archivo.
+// PARA ACTIVAR SUPABASE AUTH:
+//   Cambiar ACTIVE_PROVIDER de "firebase" a "supabase"
+//   Todo lo demás (AuthContext, Login, componentes) no cambia.
 
-import {
-  signInWithEmailAndPassword,
-  signOut as firebaseSignOut,
-  onAuthStateChanged as firebaseOnAuthStateChanged,
-  sendPasswordResetEmail as firebaseSendPasswordResetEmail,
-  createUserWithEmailAndPassword,
-  getAuth,
-  initializeApp,
-} from "firebase/auth";
-
-import { auth, app } from "../../services/firebase";
-
-// =========================================
-// SESSION TYPE
-// =========================================
+const ACTIVE_PROVIDER = "firebase"; // "firebase" | "supabase"
 
 /**
  * @typedef {object} AuthSession
@@ -38,127 +15,118 @@ import { auth, app } from "../../services/firebase";
  * @property {boolean} emailVerified
  */
 
-/**
- * Normalizar usuario de Firebase a AuthSession estándar.
- * Cuando migremos a Supabase, esta función transforma el formato Supabase.
- * Los consumidores siempre reciben AuthSession — nunca el objeto nativo.
- * @param {import('firebase/auth').User|null} firebaseUser
- * @returns {AuthSession|null}
- */
-function normalizeUser(firebaseUser) {
-  if (!firebaseUser) return null;
+// =========================================
+// FIREBASE IMPL
+// =========================================
+
+async function buildFirebaseImpl() {
+  const {
+    signInWithEmailAndPassword,
+    signOut,
+    onAuthStateChanged,
+    sendPasswordResetEmail,
+    createUserWithEmailAndPassword,
+    getAuth,
+    initializeApp,
+  } = await import("firebase/auth");
+  const { auth, app } = await import("../../services/firebase");
+
+  const norm = (u) => u ? { uid: u.uid, email: u.email, emailVerified: u.emailVerified } : null;
+
   return {
-    uid: firebaseUser.uid,
-    email: firebaseUser.email,
-    emailVerified: firebaseUser.emailVerified,
+    async login(email, password) {
+      const c = await signInWithEmailAndPassword(auth, email.trim(), password);
+      return norm(c.user);
+    },
+    async logout() { await signOut(auth); },
+    onSessionChange(cb) { return onAuthStateChanged(auth, (u) => cb(norm(u))); },
+    async sendPasswordReset(email) { await sendPasswordResetEmail(auth, email); },
+    async createUser(email, password) {
+      const secApp  = initializeApp(app.options, `secondary-${Date.now()}`);
+      const secAuth = getAuth(secApp);
+      const c = await createUserWithEmailAndPassword(secAuth, email.trim(), password);
+      return norm(c.user);
+    },
+    getCurrentSession() { return norm(auth.currentUser); },
   };
 }
 
 // =========================================
-// AUTH SERVICE
+// SUPABASE IMPL
 // =========================================
 
+function mapSupabaseError(err) {
+  const m = err.message ?? "";
+  if (m.includes("Invalid login credentials")) return "Credenciales incorrectas.";
+  if (m.includes("Email not confirmed"))       return "Email sin confirmar. Revise su bandeja.";
+  if (m.includes("User already registered"))   return "El email ya está registrado.";
+  if (m.includes("rate limit"))                return "Demasiados intentos. Intente más tarde.";
+  if (m.includes("network"))                   return "Error de conexión.";
+  return m || "Error de autenticación";
+}
+
+async function buildSupabaseImpl() {
+  const { supabase } = await import("../providers/supabase/SupabaseProvider");
+
+  const norm = (u) => u ? { uid: u.id, email: u.email, emailVerified: u.email_confirmed_at != null } : null;
+
+  return {
+    async login(email, password) {
+      const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+      if (error) throw new Error(mapSupabaseError(error));
+      return norm(data.user);
+    },
+    async logout() {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw new Error(error.message);
+    },
+    onSessionChange(cb) {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => cb(norm(s?.user ?? null)));
+      return () => subscription.unsubscribe();
+    },
+    async sendPasswordReset(email) {
+      const { error } = await supabase.auth.resetPasswordForEmail(email);
+      if (error) throw new Error(error.message);
+    },
+    async createUser(email, password) {
+      // Con anon key: signUp crea + envía confirmación
+      // Para crear sin perder sesión del admin → Edge Function con service_role
+      const { data, error } = await supabase.auth.signUp({ email: email.trim(), password });
+      if (error) throw new Error(mapSupabaseError(error));
+      return norm(data.user);
+    },
+    getCurrentSession() {
+      // Disponible sincrónicamente después del primer load
+      return null; // Supabase requiere getSession() async — AuthContext usa onSessionChange
+    },
+  };
+}
+
+// =========================================
+// PROXY UNIVERSAL
+// =========================================
+
+let _impl = null;
+
+async function getImpl() {
+  if (_impl) return _impl;
+  _impl = ACTIVE_PROVIDER === "supabase"
+    ? await buildSupabaseImpl()
+    : await buildFirebaseImpl();
+  return _impl;
+}
+
 export const AuthService = {
-  // =========================================
-  // LOGIN
-  // =========================================
+  async login(email, password)        { return (await getImpl()).login(email, password); },
+  async logout()                      { return (await getImpl()).logout(); },
+  async sendPasswordReset(email)      { return (await getImpl()).sendPasswordReset(email); },
+  async createUser(email, password)   { return (await getImpl()).createUser(email, password); },
+  getCurrentSession()                 { return _impl?.getCurrentSession() ?? null; },
 
-  /**
-   * Iniciar sesión con email y contraseña.
-   * @param {string} email
-   * @param {string} password
-   * @returns {Promise<AuthSession>}
-   */
-  async login(email, password) {
-    const credential = await signInWithEmailAndPassword(
-      auth,
-      email.trim(),
-      password,
-    );
-    return normalizeUser(credential.user);
-  },
-
-  // =========================================
-  // LOGOUT
-  // =========================================
-
-  /**
-   * Cerrar sesión.
-   * @returns {Promise<void>}
-   */
-  async logout() {
-    await firebaseSignOut(auth);
-  },
-
-  // =========================================
-  // OBSERVADOR DE SESIÓN
-  // =========================================
-
-  /**
-   * Suscribirse a cambios de sesión.
-   * Reemplaza onAuthStateChanged directo en AuthContext.
-   * @param {(session: AuthSession|null) => void} callback
-   * @returns {() => void} Función de cleanup (unsubscribe)
-   */
   onSessionChange(callback) {
-    return firebaseOnAuthStateChanged(auth, (firebaseUser) => {
-      callback(normalizeUser(firebaseUser));
-    });
-  },
-
-  // =========================================
-  // PASSWORD RESET
-  // =========================================
-
-  /**
-   * Enviar email de recuperación de contraseña.
-   * @param {string} email
-   * @returns {Promise<void>}
-   */
-  async sendPasswordReset(email) {
-    await firebaseSendPasswordResetEmail(auth, email);
-  },
-
-  // =========================================
-  // CREAR USUARIO (operación admin)
-  // =========================================
-
-  /**
-   * Crear nuevo usuario con email y contraseña.
-   * Usa una instancia secundaria de Firebase Auth para no
-   * cerrar la sesión del admin que está creando el usuario.
-   *
-   * NOTA: En Supabase esto se reemplaza por supabase.auth.admin.createUser()
-   * sin necesidad de instancia secundaria.
-   *
-   * @param {string} email
-   * @param {string} password
-   * @returns {Promise<AuthSession>}
-   */
-  async createUser(email, password) {
-    // Instancia secundaria para no desloguear al admin
-    const secondaryApp = initializeApp(app.options, `secondary-${Date.now()}`);
-    const secondaryAuth = getAuth(secondaryApp);
-
-    const credential = await createUserWithEmailAndPassword(
-      secondaryAuth,
-      email.trim(),
-      password,
-    );
-
-    return normalizeUser(credential.user);
-  },
-
-  // =========================================
-  // SESIÓN ACTUAL (snapshot, no suscripción)
-  // =========================================
-
-  /**
-   * Obtener sesión actual de forma síncrona.
-   * Útil para guards y validaciones puntuales.
-   * @returns {AuthSession|null}
-   */
-  getCurrentSession() {
-    return normalizeUser(auth.currentUser);
+    // Retorna unsubscribe síncrono — carga impl de forma lazy
+    let unsub = () => {};
+    getImpl().then((impl) => { unsub = impl.onSessionChange(callback); });
+    return () => unsub();
   },
 };

@@ -1,46 +1,34 @@
 // src/core/providers/providerRegistry.js
 //
-// PUNTO ÚNICO DE CONFIGURACIÓN DEL PROVIDER.
+// PUNTO ÚNICO DE CONFIGURACIÓN DEL PROVIDER DE DATOS.
 //
-// HOY: FirebaseProvider
-// MAÑANA: SupabaseProvider (solo cambiar el import de abajo)
+// PARA ACTIVAR SUPABASE:
+//   1. Comentar la línea FirebaseProvider (import + instancia)
+//   2. Descomentar las líneas SupabaseProvider
+//   3. Agregar en .env:
+//        VITE_SUPABASE_URL=https://<project-ref>.supabase.co
+//        VITE_SUPABASE_ANON_KEY=<anon-key>
+//   4. Nada más cambia en el proyecto.
 //
-// Ningún repository, service ni componente importa Firebase o Supabase
-// directamente — todos usan getProvider() de este archivo.
-//
-// Cuando llegue la migración:
-// 1. Crear SupabaseProvider implementando BaseProvider
-// 2. Cambiar el import de abajo
-// 3. Nada más cambia en el proyecto
+// EN AUTHadapter.js: cambiar ACTIVE_PROVIDER = "supabase"
 
-import { FirebaseProvider } from "./firebase/FirebaseProvider";
-// import { SupabaseProvider } from "./supabase/SupabaseProvider"; // FUTURO
-
-// =========================================
-// INSTANCIA SINGLETON DEL PROVIDER ACTIVO
-// =========================================
+import { FirebaseProvider }  from "./firebase/FirebaseProvider";
+// import { SupabaseProvider } from "./supabase/SupabaseProvider";
 
 let _providerInstance = null;
 
 export function getProvider() {
   if (!_providerInstance) {
     _providerInstance = new FirebaseProvider();
-    // _providerInstance = new SupabaseProvider(); // FUTURO
+    // _providerInstance = new SupabaseProvider();
   }
   return _providerInstance;
 }
 
-/**
- * Solo para tests — permite inyectar un provider mock.
- * @param {BaseProvider} mockProvider
- */
 export function setProviderForTesting(mockProvider) {
   _providerInstance = mockProvider;
 }
 
-/**
- * Reset del singleton — útil entre tests.
- */
 export function resetProvider() {
   _providerInstance = null;
 }
