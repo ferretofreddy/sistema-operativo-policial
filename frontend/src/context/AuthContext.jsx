@@ -1,81 +1,125 @@
+// frontend/src/context/AuthContext.jsx
+//
+// Contexto global de sesión.
+//
+// ANTES: importaba firebase/auth directamente
+//   - onAuthStateChanged(auth, ...)
+//   - import { auth } from '../services/firebase'
+//
+// AHORA: usa AuthService y UserRepository del core
+//   - AuthService.onSessionChange(...)
+//   - UserRepository.createIfNotExists()
+//   - UserRepository.getById()
+//
+// Beneficio: AuthContext ya no sabe si la auth viene de
+// Firebase, Supabase, o cualquier otro provider.
+// Cuando migremos a Supabase Auth, solo cambia authAdapter.js.
+
 import { createContext, useEffect, useState } from "react";
+import { AuthService }    from "../core/adapters/authAdapter";
+import { UserRepository } from "../core/repositories/UserRepository";
 
-import { onAuthStateChanged } from "firebase/auth";
+// =========================================
+// CONTEXT
+// =========================================
 
-import { auth } from "../services/firebase";
-
-import { createUserIfNotExists, getUserData } from "../services/userService";
-
-//  CONTEXT
 export const AuthContext = createContext();
 
-//  PROVIDER
-export function AuthProvider({ children }) {
-  //  AUTH FIREBASE
-  const [user, setUser] = useState(null);
+// =========================================
+// PROVIDER
+// =========================================
 
-  //  USER DATA FIRESTORE
+export function AuthProvider({ children }) {
+  // session = { uid, email, emailVerified } | null
+  // Forma normalizada — no es el objeto Firebase User
+  const [session,  setSession]  = useState(null);
+
+  // userData = documento de Firestore/BD del usuario
   const [userData, setUserData] = useState(null);
 
-  //  LOADING
-  const [loading, setLoading] = useState(true);
+  // loading = true mientras se resuelve la sesión inicial
+  const [loading,  setLoading]  = useState(true);
 
-  //  AUTH LISTENER
+  // =========================================
+  // OBSERVER DE SESIÓN
+  // =========================================
+
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(
-      auth,
+    // AuthService.onSessionChange reemplaza onAuthStateChanged(auth, ...)
+    // El callback recibe AuthSession | null (ya normalizado)
+    const unsubscribe = AuthService.onSessionChange(async (currentSession) => {
+      try {
+        if (currentSession) {
+          // =========================================
+          // USUARIO AUTENTICADO
+          // =========================================
 
-      async (currentUser) => {
-        try {
-          //  USER LOGGED
-          if (currentUser) {
-            //  CREAR USER SI NO EXISTE
-            await createUserIfNotExists(currentUser);
+          // 1. Crear perfil en BD si es primer login
+          //    (patrón existente centralizado en repository)
+          await UserRepository.createIfNotExists(currentSession);
 
-            // CARGAR FIRESTORE DATA
-            try {
-              const data = await getUserData(currentUser.uid);
-
-              setUserData(data);
-            } catch (error) {
-              console.error("Error cargando userData:", error);
-
-              setUserData(null);
-            }
-          } else {
-            // LOGOUT
+          // 2. Cargar datos del perfil institucional
+          try {
+            const data = await UserRepository.getById(currentSession.uid);
+            setUserData(data);
+          } catch (profileError) {
+            console.error("[AuthContext] Error cargando perfil:", profileError);
             setUserData(null);
           }
-
-          // AUTH USER
-          setUser(currentUser);
-        } catch (error) {
-          console.error("Error AuthContext:", error);
-
-          setUser(null);
-
+        } else {
+          // =========================================
+          // SESIÓN CERRADA
+          // =========================================
           setUserData(null);
-        } finally {
-          // FIN LOADING
-          setLoading(false);
         }
-      },
-    );
 
-    // CLEANUP
+        // Actualizar sesión normalizada
+        setSession(currentSession);
+      } catch (error) {
+        console.error("[AuthContext] Error en observer:", error);
+        setSession(null);
+        setUserData(null);
+      } finally {
+        // Solo en la primera resolución
+        setLoading(false);
+      }
+    });
+
+    // Cleanup al desmontar
     return () => unsubscribe();
   }, []);
+
+  // =========================================
+  // CONTEXTO EXPUESTO
+  // =========================================
 
   return (
     <AuthContext.Provider
       value={{
-        user,
+        // session = { uid, email, emailVerified } | null
+        // Para compatibilidad con componentes que aún usan user.uid
+        // se expone como "user" (mismo nombre que antes)
+        user: session,
 
+        // userData = documento completo del usuario en BD
         userData,
 
+        // loading = resolución inicial de sesión
         loading,
+
+        // Refrescar userData manualmente (útil tras editar perfil)
+        refreshUserData: async () => {
+          if (!session?.uid) return;
+          try {
+            const data = await UserRepository.getById(session.uid);
+            setUserData(data);
+          } catch (error) {
+            console.error("[AuthContext] Error refrescando perfil:", error);
+          }
+        },
       }}
     >
+      {/* Renderizar children solo cuando la sesión inicial ya se resolvió */}
       {!loading && children}
     </AuthContext.Provider>
   );

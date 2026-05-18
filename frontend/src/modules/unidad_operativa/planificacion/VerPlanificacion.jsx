@@ -1,197 +1,70 @@
 // frontend/src/modules/unidad_operativa/planificacion/VerPlanificacion.jsx
 import { useEffect, useState, useContext } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { db } from "../../../services/firebase";
+import { useParams, useNavigate }          from "react-router-dom";
+import * as XLSX                           from "xlsx";
+import { AuthContext }                     from "../../../context/AuthContext";
 import {
-  doc,
-  getDoc,
-  updateDoc,
-  collection,
-  getDocs,
-} from "firebase/firestore";
-import { AuthContext } from "../../../context/AuthContext";
+  PlanningRepository,
+  OrderRepository,
+  getTerritoryScope,
+  canAccessEntity,
+  validateActividad,
+  downloadBuffer,
+  getPlanningFilename,
+  MIME_TYPES,
+} from "../../../core";
 import DesktopLayout from "../../../shared/layouts/DesktopLayout";
-import * as XLSX from "xlsx";
-import { saveAs } from "file-saver";
+
+// =========================================
+// FORM VACÍO
+// =========================================
+
+const EMPTY_FORM = {
+  orden_id:    "",
+  orden_codigo: "",
+  accion_id:   "",
+  hora_inicio: "",
+  hora_fin:    "",
+  sector:      "",
+  detalle:     "",
+};
+
+// =========================================
+// COMPONENTE
+// =========================================
 
 function VerPlanificacion() {
-  const { id } = useParams();
-  const navigate = useNavigate();
-  const { user } = useContext(AuthContext);
-  const [userData, setUserData] = useState(null);
-  const [plan, setPlan] = useState(null);
+  const { id }      = useParams();
+  const navigate    = useNavigate();
+  const { userData } = useContext(AuthContext);
+
+  const [plan,    setPlan]    = useState(null);
   const [ordenes, setOrdenes] = useState([]);
+  const [form,    setForm]    = useState(EMPTY_FORM);
+  const [errors,  setErrors]  = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // 🔹 Form actualizado con orden_codigo
-  const [form, setForm] = useState({
-    orden_id: "",
-    orden_codigo: "", // ← NUEVO: almacenar código de la orden
-    accion_id: "",
-    hora_inicio: "",
-    hora_fin: "",
-    sector: "",
-    detalle: "",
-  });
+  // =========================================
+  // CARGAR DATOS
+  // =========================================
 
-  const [editando, setEditando] = useState(null);
-  const [formEdit, setFormEdit] = useState({});
-
-  // Cargar userData
   useEffect(() => {
-    const cargarUsuario = async () => {
+    if (!userData?.uid) return;
+
+    const cargar = async () => {
       try {
-        if (!user?.uid) return;
-        const ref = doc(db, "usuarios", user.uid);
-        const snap = await getDoc(ref);
-        if (snap.exists()) setUserData(snap.data());
-      } catch (error) {
-        console.error(error);
-      }
-    };
-    cargarUsuario();
-  }, [user]);
+        // 1. Cargar planificación
+        const planData = await PlanningRepository.getById(id);
 
-  // EXPORTAR EXCEL (Versión mejorada - Institucional)
-  const exportarExcel = (plan, ordenes) => {
-    const datos = [];
-    const ordenesMap = new Map(ordenes.map((o) => [o.id, o])); // Lookup O(1)
+        if (!planData) {
+          alert("Planificación no encontrada");
+          navigate("/unidad_operativa");
+          return;
+        }
 
-    // ─────────────────────────────────────────
-    // 🔹 ENCABEZADO INSTITUCIONAL (8 filas, celdas A:F combinadas)
-    // ─────────────────────────────────────────
-
-    // Fila 1: Ministerio
-    datos.push(["MINISTERIO DE SEGURIDAD PÚBLICA"]);
-
-    // Fila 2: Dirección Regional
-    datos.push([
-      `DIRECCIÓN REGIONAL ${plan.region_nombre || ""}`.toUpperCase(),
-    ]);
-
-    // Fila 3: Delegación Cantonal
-    datos.push([
-      `DELEGACIÓN CANTONAL DE ${plan.delegacion_nombre || ""}`.toUpperCase(),
-    ]);
-
-    // Fila 4: Título
-    datos.push(["PLANIFICACIÓN OPERATIVA"]);
-
-    // Fila 5: Periodo
-    datos.push([`PERIODO: ${plan.fecha_inicio} - ${plan.fecha_fin}`]);
-
-    // Fila 6: Escuadra
-    datos.push([`ESCUADRA: ${(plan.escuadra_nombre || "").toUpperCase()}`]);
-
-    // Fila 7: Supervisor
-    datos.push([`SUPERVISOR: ${(plan.supervisor_nombre || "").toUpperCase()}`]);
-
-    // Fila 8: Creado por (confirmado: este campo SÍ existe en planificaciones)
-    datos.push([`CREADO POR: ${(plan.creado_por_nombre || "").toUpperCase()}`]);
-
-    // Fila 9: Separador vacío
-    datos.push([]);
-
-    // ─────────────────────────────────────────
-    // 🔹 CUERPO: DÍAS Y ACTIVIDADES
-    // ─────────────────────────────────────────
-
-    plan.dias.forEach((dia, diaIndex) => {
-      // Separador de día
-      datos.push([]);
-      datos.push([`DÍA ${diaIndex + 1}`]);
-      datos.push([`FECHA: ${dia.fecha}`]);
-      datos.push([`TURNO: ${dia.turno.toUpperCase()}`]);
-      datos.push([]);
-
-      // Cabecera de tabla (7 columnas: ORDEN, CÓDIGO, ACCIÓN, HORA INICIO, HORA FIN, SECTOR, DETALLE)
-      datos.push([
-        "ORDEN",
-        "CÓDIGO",
-        "ACCIÓN",
-        "HORA INICIO",
-        "HORA FIN",
-        "SECTOR",
-        "DETALLE",
-      ]);
-
-      // Actividades
-      dia.actividades.forEach((act) => {
-        const orden = ordenesMap.get(act.orden_id);
-        const accion = orden?.acciones?.find((a) => a.id === act.accion_id);
-
-        datos.push([
-          orden?.consecutivo || "", // Columna A: Orden
-          orden?.codigo || "", // Columna B: CÓDIGO (NUEVO)
-          accion?.nombre || "", // Columna C: Acción
-          act.hora_inicio, // Columna D: Hora Inicio
-          act.hora_fin, // Columna E: Hora Fin
-          act.sector, // Columna F: Sector
-          act.detalle, // Columna G: Detalle (texto largo)
-        ]);
-      });
-
-      // Separador entre días
-      datos.push([]);
-      datos.push([]);
-    });
-
-    // ─────────────────────────────────────────
-    // 🔹 CREAR HOJA DE CÁLCULO CON FORMATO
-    // ─────────────────────────────────────────
-
-    const ws = XLSX.utils.aoa_to_sheet(datos);
-
-    // 🔹 Combinar celdas A:F para las primeras 8 filas (encabezado institucional)
-    ws["!merges"] = [];
-    for (let row = 0; row < 8; row++) {
-      ws["!merges"].push({ s: { r: row, c: 0 }, e: { r: row, c: 5 } });
-    }
-
-    // 🔹 Ancho de columnas (A-G) - ajustado para contenido largo
-    ws["!cols"] = [
-      { wch: 28 }, // A: ORDEN
-      { wch: 22 }, // B: CÓDIGO
-      { wch: 60 }, // C: ACCIÓN (texto largo - wrap automático)
-      { wch: 14 }, // D: HORA INICIO
-      { wch: 14 }, // E: HORA FIN
-      { wch: 30 }, // F: SECTOR
-      { wch: 70 }, // G: DETALLE (texto muy largo - wrap automático)
-    ];
-
-    // 🔹 Nota: xlsx maneja automáticamente el alto de fila según el contenido
-    // Las celdas con texto largo se expanden verticalmente al abrir en Excel
-
-    // ─────────────────────────────────────────
-    // 🔹 EXPORTAR ARCHIVO
-    // ─────────────────────────────────────────
-
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Planificación");
-
-    const excelBuffer = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-    const file = new Blob([excelBuffer], { type: "application/octet-stream" });
-
-    // Nombre del archivo con formato institucional
-    const nombreArchivo = `PLANIFICACION_${(plan.escuadra_nombre || "SIN_ESCUADRA").replace(/\s+/g, "_")}_${plan.fecha_inicio}.xlsx`;
-    saveAs(file, nombreArchivo);
-  };
-
-  // Cargar plan y órdenes
-  useEffect(() => {
-    const obtenerDatos = async () => {
-      try {
-        const ref = doc(db, "planificaciones", id);
-        const snap = await getDoc(ref);
-        if (!snap.exists()) return;
-
-        const planData = { id: snap.id, ...snap.data() };
-
-        // Validar acceso territorial
-        if (
-          userData &&
-          (planData.region_id !== userData.region_id ||
-            planData.delegacion_id !== userData.delegacion_id)
-        ) {
+        // 2. Validar acceso territorial
+        const scope = getTerritoryScope(userData);
+        if (!canAccessEntity(scope, planData)) {
           alert("No tiene acceso a esta planificación");
           navigate("/unidad_operativa");
           return;
@@ -199,153 +72,190 @@ function VerPlanificacion() {
 
         setPlan(planData);
 
-        // Cargar órdenes filtradas por territorio y periodo
-        const snapOrdenes = await getDocs(collection(db, "ordenes"));
-        const todas = snapOrdenes.docs.map((d) => ({ id: d.id, ...d.data() }));
+        // 3. Cargar órdenes activas del período
+        const ordenesData = await OrderRepository.getActivasByTerritoryAndPeriodo(
+          {
+            region_id:    planData.region_id,
+            delegacion_id: planData.delegacion_id,
+          },
+          {
+            inicio: planData.fecha_inicio,
+            fin:    planData.fecha_fin,
+          },
+        );
 
-        const filtradas = todas.filter((orden) => {
-          const mismaRegion = orden.region_id === planData.region_id;
-          const mismaDelegacion =
-            orden.delegacion_id === planData.delegacion_id;
-          const dentroPeriodo =
-            orden.fecha_fin >= planData.fecha_inicio &&
-            orden.fecha_inicio <= planData.fecha_fin;
-          const activa = orden.estado === "activa";
-          return mismaRegion && mismaDelegacion && dentroPeriodo && activa;
-        });
-
-        setOrdenes(filtradas);
+        setOrdenes(ordenesData);
       } catch (error) {
-        console.error(error);
+        console.error("[VerPlanificacion]", error.message);
+      } finally {
+        setLoading(false);
       }
     };
 
-    if (userData) obtenerDatos();
-  }, [id, userData]);
+    cargar();
+  }, [id, userData, navigate]);
 
-  // 🔹 Helpers
-  const accionesDeOrden = () => {
-    const orden = ordenes.find((o) => o.id === form.orden_id);
-    return orden?.acciones || [];
-  };
+  // =========================================
+  // HELPERS DE LOOKUP
+  // =========================================
 
-  const obtenerOrden = (id) => ordenes.find((o) => o.id === id);
+  const getOrden  = (ordenId)            => ordenes.find((o) => o.id === ordenId);
+  const getAccion = (ordenId, accionId)  => getOrden(ordenId)?.acciones?.find((a) => a.id === accionId);
+  const accionesDeOrden = ()             => getOrden(form.orden_id)?.acciones ?? [];
 
-  const obtenerAccion = (ordenId, accionId) => {
-    const orden = ordenes.find((o) => o.id === ordenId);
-    return orden?.acciones?.find((a) => a.id === accionId);
-  };
+  // =========================================
+  // AGREGAR ACTIVIDAD
+  // =========================================
 
-  // 🔹 Agregar actividad (persiste orden_codigo)
-  const agregarActividad = async (indexDia) => {
-    if (
-      !form.orden_id ||
-      !form.accion_id ||
-      !form.hora_inicio ||
-      !form.hora_fin ||
-      !form.sector ||
-      !form.detalle
-    ) {
-      alert("Complete todos los campos");
-      return;
-    }
-    if (form.hora_inicio >= form.hora_fin) {
-      alert("Horario inválido");
+  const agregarActividad = async (diaIndex) => {
+    setErrors([]);
+
+    const validation = validateActividad(form);
+    if (!validation.valid) {
+      setErrors(validation.errors);
       return;
     }
 
-    const nuevosDias = [...plan.dias];
-    nuevosDias[indexDia].actividades.push({
-      ...form, // ← Incluye: orden_id, orden_codigo, accion_id, etc.
-    });
+    try {
+      // Repository actualiza el array dias[] en Firestore
+      // En PostgreSQL: INSERT en planning_activities
+      await PlanningRepository.addActividad(id, diaIndex, form, plan.dias);
 
-    await updateDoc(doc(db, "planificaciones", id), { dias: nuevosDias });
-    setPlan({ ...plan, dias: nuevosDias });
+      // Actualizar estado local sin re-fetch
+      setPlan((prev) => ({
+        ...prev,
+        dias: prev.dias.map((dia, i) =>
+          i === diaIndex
+            ? { ...dia, actividades: [...dia.actividades, form] }
+            : dia,
+        ),
+      }));
 
-    // Reset form (incluye orden_codigo)
-    setForm({
-      orden_id: "",
-      orden_codigo: "",
-      accion_id: "",
-      hora_inicio: "",
-      hora_fin: "",
-      sector: "",
-      detalle: "",
-    });
+      setForm(EMPTY_FORM);
+    } catch (error) {
+      console.error("[VerPlanificacion] agregarActividad:", error.message);
+      setErrors([error.message]);
+    }
   };
 
-  // 🔹 Eliminar actividad
-  const eliminarActividad = async (indexDia, indexAct) => {
-    if (!confirm("¿Eliminar actividad?")) return;
+  // =========================================
+  // ELIMINAR ACTIVIDAD
+  // =========================================
 
-    const nuevosDias = [...plan.dias];
-    nuevosDias[indexDia].actividades = nuevosDias[indexDia].actividades.filter(
-      (_, i) => i !== indexAct,
-    );
+  const eliminarActividad = async (diaIndex, actIndex) => {
+    if (!confirm("¿Eliminar esta actividad?")) return;
 
-    await updateDoc(doc(db, "planificaciones", id), { dias: nuevosDias });
-    setPlan({ ...plan, dias: nuevosDias });
+    try {
+      await PlanningRepository.removeActividad(id, diaIndex, actIndex, plan.dias);
+
+      setPlan((prev) => ({
+        ...prev,
+        dias: prev.dias.map((dia, i) =>
+          i === diaIndex
+            ? { ...dia, actividades: dia.actividades.filter((_, ai) => ai !== actIndex) }
+            : dia,
+        ),
+      }));
+    } catch (error) {
+      console.error("[VerPlanificacion] eliminarActividad:", error.message);
+    }
   };
 
-  // 🔹 Menú para DesktopLayout
+  // =========================================
+  // EXPORTAR EXCEL — storageAdapter + lógica extraída del componente
+  // =========================================
+
+  const exportarExcel = () => {
+    if (!plan) return;
+
+    const datos  = buildExcelData(plan, ordenes);
+    const ws     = XLSX.utils.aoa_to_sheet(datos);
+
+    // Merge encabezado institucional (filas 0-7, columnas A:F)
+    ws["!merges"] = Array.from({ length: 8 }, (_, row) => ({
+      s: { r: row, c: 0 },
+      e: { r: row, c: 5 },
+    }));
+
+    ws["!cols"] = [
+      { wch: 28 }, { wch: 22 }, { wch: 60 },
+      { wch: 14 }, { wch: 14 }, { wch: 30 }, { wch: 70 },
+    ];
+
+    const wb     = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Planificación");
+
+    const buffer   = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+    const filename = getPlanningFilename(plan); // naming convention centralizada
+
+    // storageAdapter abstrae el mecanismo de descarga
+    downloadBuffer(buffer, filename, MIME_TYPES.EXCEL);
+  };
+
+  // =========================================
+  // RENDER
+  // =========================================
+
   const menuItems = [
-    { label: "🏠 Dashboard", onClick: () => navigate("/unidad_operativa") },
-    {
-      label: "🗓️ Planificaciones",
-      onClick: () => navigate("/unidad_operativa/planificacion/crear"),
-    },
+    { label: "🏠 Dashboard",        onClick: () => navigate("/unidad_operativa") },
+    { label: "🗓️ Planificaciones",  onClick: () => navigate("/unidad_operativa/planificacion/crear") },
   ];
 
-  // 🔹 Loading state
-  if (!plan) {
+  if (loading)
     return (
       <DesktopLayout title="Planificación" menuItems={menuItems}>
-        <p style={loadingStyle}>Cargando...</p>
+        <p style={msgStyle}>Cargando...</p>
       </DesktopLayout>
     );
-  }
+
+  if (!plan)
+    return (
+      <DesktopLayout title="Planificación" menuItems={menuItems}>
+        <p style={msgStyle}>Planificación no encontrada.</p>
+      </DesktopLayout>
+    );
 
   return (
     <DesktopLayout title="Planificación" menuItems={menuItems} user={userData}>
       <div style={containerStyle}>
-        {/* Header institucional */}
+        {/* Header */}
         <Section
           title="Planificación"
-          subtitle={`${plan.escuadra_nombre} • ${plan.fecha_inicio} - ${plan.fecha_fin}`}
+          subtitle={`${plan.escuadra_nombre} • ${plan.fecha_inicio} — ${plan.fecha_fin}`}
         >
-          <div style={headerActionsStyle}>
-            <button
-              onClick={() => exportarExcel(plan, ordenes)}
-              style={exportButtonStyle}
-            >
-              📊 Exportar Excel
-            </button>
-          </div>
+          <button onClick={exportarExcel} style={exportButtonStyle}>
+            📊 Exportar Excel
+          </button>
         </Section>
 
-        {/* Días y actividades */}
-        {plan.dias.map((dia, index) => (
-          <div key={index} style={dayCardStyle}>
-            <h2 style={dayTitleStyle}>Día {index + 1}</h2>
+        {/* Errores */}
+        {errors.length > 0 && (
+          <div style={errorsStyle} role="alert">
+            {errors.map((e, i) => <div key={i}>• {e}</div>)}
+          </div>
+        )}
+
+        {/* Días */}
+        {plan.dias.map((dia, diaIndex) => (
+          <div key={diaIndex} style={dayCardStyle}>
+            <h2 style={dayTitleStyle}>Día {diaIndex + 1}</h2>
             <p style={daySubtitleStyle}>
-              {dia.fecha} - {dia.turno.toUpperCase()}
+              {dia.fecha} — {dia.turno.toUpperCase()}
             </p>
             <hr style={dividerStyle} />
 
-            {/* Formulario para agregar actividad */}
+            {/* Formulario nueva actividad */}
             <div style={formGridStyle}>
-              {/* Select de Órdenes - captura orden_id y orden_codigo */}
+              {/* Selector orden */}
               <select
                 value={form.orden_id}
                 onChange={(e) => {
-                  const ordenSeleccionada = ordenes.find(
-                    (o) => o.id === e.target.value,
-                  );
+                  const seleccionada = ordenes.find((o) => o.id === e.target.value);
                   setForm({
                     ...form,
-                    orden_id: e.target.value,
-                    orden_codigo: ordenSeleccionada?.codigo || "", // ← Capturar código
-                    accion_id: "",
+                    orden_id:    e.target.value,
+                    orden_codigo: seleccionada?.codigo ?? "",
+                    accion_id:   "",
                   });
                 }}
                 style={selectStyle}
@@ -353,87 +263,52 @@ function VerPlanificacion() {
                 <option value="">Orden</option>
                 {ordenes.map((o) => (
                   <option key={o.id} value={o.id}>
-                    {o.consecutivo} {o.codigo ? `• ${o.codigo}` : ""}
+                    {o.consecutivo}{o.codigo ? ` • ${o.codigo}` : ""}
                   </option>
                 ))}
               </select>
 
-              {/* Select de Acciones */}
+              {/* Selector acción */}
               <select
                 value={form.accion_id}
-                onChange={(e) =>
-                  setForm({ ...form, accion_id: e.target.value })
-                }
+                onChange={(e) => setForm({ ...form, accion_id: e.target.value })}
                 style={selectStyle}
               >
                 <option value="">Acción</option>
                 {accionesDeOrden().map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.nombre}
-                  </option>
+                  <option key={a.id} value={a.id}>{a.nombre}</option>
                 ))}
               </select>
 
-              {/* Inputs de horario y detalles */}
-              <input
-                type="time"
-                value={form.hora_inicio}
-                onChange={(e) =>
-                  setForm({ ...form, hora_inicio: e.target.value })
-                }
-                style={inputStyle}
-              />
-              <input
-                type="time"
-                value={form.hora_fin}
-                onChange={(e) => setForm({ ...form, hora_fin: e.target.value })}
-                style={inputStyle}
-              />
-              <input
-                placeholder="Sector"
-                value={form.sector}
-                onChange={(e) => setForm({ ...form, sector: e.target.value })}
-                style={inputStyle}
-              />
-              <input
-                placeholder="Detalle"
-                value={form.detalle}
-                onChange={(e) => setForm({ ...form, detalle: e.target.value })}
-                style={inputStyle}
-              />
+              <input type="time" value={form.hora_inicio} onChange={(e) => setForm({ ...form, hora_inicio: e.target.value })} style={inputStyle} />
+              <input type="time" value={form.hora_fin}    onChange={(e) => setForm({ ...form, hora_fin: e.target.value })}    style={inputStyle} />
+              <input placeholder="Sector"  value={form.sector}  onChange={(e) => setForm({ ...form, sector: e.target.value })}  style={inputStyle} />
+              <input placeholder="Detalle" value={form.detalle} onChange={(e) => setForm({ ...form, detalle: e.target.value })} style={inputStyle} />
             </div>
 
-            <button
-              onClick={() => agregarActividad(index)}
-              style={primaryButtonStyle}
-            >
+            <button onClick={() => agregarActividad(diaIndex)} style={primaryButtonStyle}>
               Agregar Actividad
             </button>
 
             <hr style={dividerStyle} />
 
-            {/* Lista de actividades del día */}
+            {/* Lista actividades */}
             <div style={activitiesListStyle}>
-              {dia.actividades.map((act, i) => {
-                const orden = obtenerOrden(act.orden_id);
-                const accion = obtenerAccion(act.orden_id, act.accion_id);
+              {dia.actividades.map((act, actIndex) => {
+                const orden  = getOrden(act.orden_id);
+                const accion = getAccion(act.orden_id, act.accion_id);
 
                 return (
-                  <div key={i} style={activityCardStyle}>
-                    <InfoRow label="Orden" value={orden?.consecutivo} />
-                    <InfoRow label="Código" value={orden?.codigo || "—"} />{" "}
-                    {/* ← NUEVO */}
-                    <InfoRow label="Acción" value={accion?.nombre} />
-                    <InfoRow
-                      label="Horario"
-                      value={`${act.hora_inicio} - ${act.hora_fin}`}
-                    />
-                    <InfoRow label="Sector" value={act.sector} />
-                    <InfoRow label="Detalle" value={act.detalle} fullWidth />
+                  <div key={actIndex} style={activityCardStyle}>
+                    <InfoRow label="Orden"   value={orden?.consecutivo} />
+                    <InfoRow label="Código"  value={orden?.codigo || "—"} />
+                    <InfoRow label="Acción"  value={accion?.nombre} />
+                    <InfoRow label="Horario" value={`${act.hora_inicio} — ${act.hora_fin}`} />
+                    <InfoRow label="Sector"  value={act.sector} />
+                    <InfoRow label="Detalle" value={act.detalle} />
                     <div style={activityActionsStyle}>
-                      <button style={secondaryButtonStyle}>Editar</button>
                       <button
-                        onClick={() => eliminarActividad(index, i)}
+                        onClick={() => eliminarActividad(diaIndex, actIndex)}
                         style={dangerButtonStyle}
                       >
                         Eliminar
@@ -450,11 +325,59 @@ function VerPlanificacion() {
   );
 }
 
-// ─────────────────────────────────────────
-// Estilos (preservados y alineados con tu diseño)
-// ─────────────────────────────────────────
-const containerStyle = { padding: "20px" };
-const loadingStyle = { padding: "20px", textAlign: "center", color: "#64748b" };
+// =========================================
+// BUILDER DE DATOS EXCEL — extraído del componente
+// =========================================
+
+function buildExcelData(plan, ordenes) {
+  const ordenesMap = new Map(ordenes.map((o) => [o.id, o]));
+  const datos      = [];
+
+  // Encabezado institucional
+  datos.push([`MINISTERIO DE SEGURIDAD PÚBLICA`]);
+  datos.push([`DIRECCIÓN REGIONAL ${(plan.region_nombre ?? "").toUpperCase()}`]);
+  datos.push([`DELEGACIÓN CANTONAL DE ${(plan.delegacion_nombre ?? "").toUpperCase()}`]);
+  datos.push(["PLANIFICACIÓN OPERATIVA"]);
+  datos.push([`PERIODO: ${plan.fecha_inicio} - ${plan.fecha_fin}`]);
+  datos.push([`ESCUADRA: ${(plan.escuadra_nombre ?? "").toUpperCase()}`]);
+  datos.push([`SUPERVISOR: ${(plan.supervisor_nombre ?? "").toUpperCase()}`]);
+  datos.push([`CREADO POR: ${(plan.creado_por_nombre ?? "").toUpperCase()}`]);
+  datos.push([]);
+
+  // Días y actividades
+  plan.dias.forEach((dia, diaIndex) => {
+    datos.push([]);
+    datos.push([`DÍA ${diaIndex + 1}`]);
+    datos.push([`FECHA: ${dia.fecha}`]);
+    datos.push([`TURNO: ${dia.turno.toUpperCase()}`]);
+    datos.push([]);
+    datos.push(["ORDEN", "CÓDIGO", "ACCIÓN", "HORA INICIO", "HORA FIN", "SECTOR", "DETALLE"]);
+
+    dia.actividades.forEach((act) => {
+      const orden  = ordenesMap.get(act.orden_id);
+      const accion = orden?.acciones?.find((a) => a.id === act.accion_id);
+
+      datos.push([
+        orden?.consecutivo ?? "",
+        orden?.codigo      ?? "",
+        accion?.nombre     ?? "",
+        act.hora_inicio,
+        act.hora_fin,
+        act.sector,
+        act.detalle,
+      ]);
+    });
+
+    datos.push([]);
+    datos.push([]);
+  });
+
+  return datos;
+}
+
+// =========================================
+// SUB-COMPONENTES
+// =========================================
 
 const Section = ({ title, subtitle, children }) => (
   <div style={sectionStyle}>
@@ -465,142 +388,33 @@ const Section = ({ title, subtitle, children }) => (
   </div>
 );
 
-const sectionStyle = {
-  background: "white",
-  padding: "20px",
-  borderRadius: "10px",
-  boxShadow: "0 2px 5px rgba(0,0,0,0.1)",
-  marginBottom: "20px",
-};
-
-const sectionTitleStyle = {
-  margin: "0 0 4px 0",
-  fontSize: "20px",
-  fontWeight: "600",
-  color: "#1e293b",
-};
-
-const sectionSubtitleStyle = {
-  margin: "0 0 15px 0",
-  fontSize: "14px",
-  color: "#64748b",
-};
-
-const dividerStyle = {
-  border: "none",
-  borderTop: "1px solid #e2e8f0",
-  margin: "15px 0",
-};
-
-const headerActionsStyle = {
-  display: "flex",
-  gap: "10px",
-  flexWrap: "wrap",
-  marginTop: "15px",
-};
-
-const exportButtonStyle = {
-  padding: "10px 20px",
-  border: "none",
-  borderRadius: "8px",
-  background: "#16a34a",
-  color: "white",
-  cursor: "pointer",
-  fontWeight: "500",
-};
-
-const dayCardStyle = {
-  background: "white",
-  padding: "20px",
-  borderRadius: "10px",
-  boxShadow: "0 2px 5px rgba(0,0,0,0.1)",
-  marginBottom: "20px",
-};
-
-const dayTitleStyle = {
-  margin: "0 0 4px 0",
-  fontSize: "18px",
-  fontWeight: "600",
-  color: "#1e293b",
-};
-
-const daySubtitleStyle = {
-  margin: "0 0 15px 0",
-  fontSize: "14px",
-  color: "#64748b",
-};
-
-const formGridStyle = {
-  display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-  gap: "10px",
-  marginBottom: "20px",
-};
-
-const inputStyle = {
-  width: "100%",
-  padding: "10px",
-  borderRadius: "8px",
-  border: "1px solid #ccc",
-  boxSizing: "border-box",
-  fontSize: "14px",
-};
-
-const selectStyle = { ...inputStyle, background: "white" };
-
-const primaryButtonStyle = {
-  padding: "10px 20px",
-  border: "none",
-  borderRadius: "8px",
-  background: "#1e293b",
-  color: "white",
-  cursor: "pointer",
-  fontWeight: "500",
-};
-
-const secondaryButtonStyle = {
-  padding: "8px 16px",
-  border: "1px solid #cbd5e1",
-  borderRadius: "8px",
-  background: "white",
-  color: "#1e293b",
-  cursor: "pointer",
-  fontWeight: "500",
-};
-
-const dangerButtonStyle = {
-  padding: "8px 16px",
-  border: "none",
-  borderRadius: "8px",
-  background: "#fef2f2",
-  color: "#dc2626",
-  cursor: "pointer",
-  fontWeight: "500",
-};
-
-const activitiesListStyle = { display: "grid", gap: "15px" };
-
-const activityCardStyle = {
-  background: "#f8fafc",
-  padding: "15px",
-  borderRadius: "10px",
-  border: "1px solid #e2e8f0",
-};
-
-const activityActionsStyle = {
-  display: "flex",
-  gap: "10px",
-  marginTop: "10px",
-};
-
-const InfoRow = ({ label, value, fullWidth }) => (
-  <p
-    style={{ ...infoRowStyle, ...(fullWidth ? { gridColumn: "1 / -1" } : {}) }}
-  >
-    <strong>{label}:</strong> {value}
-  </p>
+const InfoRow = ({ label, value }) => (
+  <p style={infoRowStyle}><strong>{label}:</strong> {value ?? "—"}</p>
 );
 
-const infoRowStyle = { margin: "4px 0", fontSize: "14px", color: "#334155" };
+// =========================================
+// ESTILOS
+// =========================================
+
+const containerStyle       = { padding: "20px" };
+const msgStyle             = { padding: "20px", textAlign: "center", color: "#64748b" };
+const sectionStyle         = { background: "white", padding: "20px", borderRadius: "10px", boxShadow: "0 2px 5px rgba(0,0,0,0.1)", marginBottom: "20px" };
+const sectionTitleStyle    = { margin: "0 0 4px 0", fontSize: "20px", fontWeight: "600", color: "#1e293b" };
+const sectionSubtitleStyle = { margin: "0 0 15px 0", fontSize: "14px", color: "#64748b" };
+const dividerStyle         = { border: "none", borderTop: "1px solid #e2e8f0", margin: "15px 0" };
+const exportButtonStyle    = { padding: "10px 20px", border: "none", borderRadius: "8px", background: "#16a34a", color: "white", cursor: "pointer", fontWeight: "500" };
+const errorsStyle          = { background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "8px", padding: "12px 16px", marginBottom: "16px", fontSize: "13px", color: "#dc2626", lineHeight: "1.8" };
+const dayCardStyle         = { background: "white", padding: "20px", borderRadius: "10px", boxShadow: "0 2px 5px rgba(0,0,0,0.1)", marginBottom: "20px" };
+const dayTitleStyle        = { margin: "0 0 4px 0", fontSize: "18px", fontWeight: "600", color: "#1e293b" };
+const daySubtitleStyle     = { margin: "0 0 15px 0", fontSize: "14px", color: "#64748b" };
+const formGridStyle        = { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "10px", marginBottom: "20px" };
+const inputStyle           = { width: "100%", padding: "10px", borderRadius: "8px", border: "1px solid #ccc", boxSizing: "border-box", fontSize: "14px" };
+const selectStyle          = { ...inputStyle, background: "white" };
+const primaryButtonStyle   = { padding: "10px 20px", border: "none", borderRadius: "8px", background: "#1e293b", color: "white", cursor: "pointer", fontWeight: "500" };
+const dangerButtonStyle    = { padding: "8px 16px", border: "none", borderRadius: "8px", background: "#fef2f2", color: "#dc2626", cursor: "pointer", fontWeight: "500" };
+const activitiesListStyle  = { display: "grid", gap: "15px" };
+const activityCardStyle    = { background: "#f8fafc", padding: "15px", borderRadius: "10px", border: "1px solid #e2e8f0" };
+const activityActionsStyle = { display: "flex", gap: "10px", marginTop: "10px" };
+const infoRowStyle         = { margin: "4px 0", fontSize: "14px", color: "#334155" };
 
 export default VerPlanificacion;
