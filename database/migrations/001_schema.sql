@@ -471,9 +471,33 @@ CREATE INDEX IF NOT EXISTS idx_service_sheets_fecha       ON service_sheets(fech
 CREATE INDEX IF NOT EXISTS idx_audit_tabla         ON audit_logs(tabla, ocurrido_en DESC);
 CREATE INDEX IF NOT EXISTS idx_audit_user          ON audit_logs(user_id, ocurrido_en DESC);
 
--- Búsqueda de texto (sin acentos para nombres costarricenses)
+-- Búsqueda de texto con unaccent + trigrams
+-- unaccent disponible pero no instalada — se instala aquí.
+-- SET search_path en la función es crítico: resuelve el problema de
+-- "function does not exist" durante validación IMMUTABLE en Supabase.
+CREATE EXTENSION IF NOT EXISTS unaccent  SCHEMA public;
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
+CREATE OR REPLACE FUNCTION immutable_unaccent(txt text)
+RETURNS text AS $$
+  SELECT public.unaccent('public.unaccent', txt);
+$$ LANGUAGE sql IMMUTABLE PARALLEL SAFE STRICT
+SET search_path = public;
+
+-- Índice GIN para búsqueda full-text sin acentos
 CREATE INDEX IF NOT EXISTS idx_users_nombre_search
-  ON users USING gin(to_tsvector('spanish', unaccent(nombre || ' ' || apellido1 || ' ' || coalesce(apellido2,''))));
+  ON users USING gin(
+    to_tsvector(
+      'spanish',
+      immutable_unaccent(nombre || ' ' || apellido1 || ' ' || coalesce(apellido2,''))
+    )
+  );
+
+-- Índice trigram para búsqueda parcial (LIKE/ILIKE)
+CREATE INDEX IF NOT EXISTS idx_users_nombre_trgm
+  ON users USING gin(
+    (nombre || ' ' || apellido1 || ' ' || coalesce(apellido2,'')) gin_trgm_ops
+  );
 
 -- PostGIS FUTURO — índices espaciales
 -- CREATE INDEX IF NOT EXISTS idx_regions_geom ON regions USING gist(geom);
