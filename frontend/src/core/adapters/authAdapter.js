@@ -6,7 +6,7 @@
 //   Cambiar ACTIVE_PROVIDER de "firebase" a "supabase"
 //   Todo lo demás (AuthContext, Login, componentes) no cambia.
 
-const ACTIVE_PROVIDER = "firebase"; // "firebase" | "supabase"
+const ACTIVE_PROVIDER = "supabase"; // "firebase" | "supabase"
 
 /**
  * @typedef {object} AuthSession
