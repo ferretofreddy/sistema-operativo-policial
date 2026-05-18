@@ -1,109 +1,68 @@
 // frontend/src/modules/unidad_operativa/ordenes/CrearOrden.jsx
-import { useState, useContext, useEffect } from "react";
-import { db } from "../../../services/firebase";
-import {
-  collection,
-  addDoc,
-  query,
-  where,
-  getDocs,
-  doc,
-  getDoc,
-} from "firebase/firestore";
-import { AuthContext } from "../../../context/AuthContext";
-import DesktopLayout from "../../../shared/layouts/DesktopLayout";
+import { useState, useContext } from "react";
 import { useNavigate } from "react-router-dom";
+import { AuthContext } from "../../../context/AuthContext";
+import { OrderRepository, validateOrden } from "../../../core";
+import DesktopLayout from "../../../shared/layouts/DesktopLayout";
 
 function CrearOrden() {
-  const { user } = useContext(AuthContext);
-  const [userData, setUserData] = useState(null);
   const navigate = useNavigate();
+  const { userData } = useContext(AuthContext);
 
-  // Form state
-  const [consecutivo, setConsecutivo] = useState("");
-  const [nombre, setNombre] = useState("");
-  const [codigo, setCodigo] = useState("");
-  const [fechaInicio, setFechaInicio] = useState("");
-  const [fechaFin, setFechaFin] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [consecutivo, setConsecutivo]   = useState("");
+  const [nombre, setNombre]             = useState("");
+  const [codigo, setCodigo]             = useState("");
+  const [fechaInicio, setFechaInicio]   = useState("");
+  const [fechaFin, setFechaFin]         = useState("");
+  const [loading, setLoading]           = useState(false);
+  const [errors, setErrors]             = useState([]);
 
-  // Cargar userData
-  useEffect(() => {
-    const cargarUsuario = async () => {
-      try {
-        if (!user?.uid) return;
-        const ref = doc(db, "usuarios", user.uid);
-        const snap = await getDoc(ref);
-        if (snap.exists()) setUserData(snap.data());
-      } catch (error) {
-        console.error("Error cargando usuario:", error);
-      }
-    };
-    cargarUsuario();
-  }, [user]);
+  // =========================================
+  // CREAR ORDEN
+  // =========================================
 
-  // Crear orden
   const handleCrear = async () => {
+    setErrors([]);
+
+    // Validación centralizada — ya no está dentro del componente
+    const validation = validateOrden({
+      consecutivo,
+      nombre,
+      fechaInicio,
+      fechaFin,
+      region_id: userData?.region_id,
+      delegacion_id: userData?.delegacion_id,
+    });
+
+    if (!validation.valid) {
+      setErrors(validation.errors);
+      return;
+    }
+
     try {
       setLoading(true);
-      if (!userData) {
-        alert("Cargando datos del usuario...");
-        setLoading(false);
-        return;
-      }
-      if (!consecutivo || !nombre || !fechaInicio || !fechaFin) {
-        alert("Complete todos los campos obligatorios");
-        setLoading(false);
-        return;
-      }
-      if (!userData.region_id || !userData.delegacion_id) {
-        alert("El usuario no tiene región o delegación asignada");
-        setLoading(false);
-        return;
-      }
-      if (fechaFin < fechaInicio) {
-        alert("La fecha final no puede ser menor a la inicial");
-        setLoading(false);
-        return;
-      }
 
-      const consecutivoLimpio = consecutivo.trim().toUpperCase();
-      const nombreLimpio = nombre.trim();
-      const codigoLimpio = codigo.trim().toUpperCase();
-
-      const q = query(
-        collection(db, "ordenes"),
-        where("consecutivo", "==", consecutivoLimpio),
-        where("region_id", "==", userData.region_id),
-        where("delegacion_id", "==", userData.delegacion_id),
-      );
-      const snapshot = await getDocs(q);
-      if (!snapshot.empty) {
-        alert("Ya existe una orden con ese consecutivo en esta delegación");
-        setLoading(false);
-        return;
-      }
-
-      await addDoc(collection(db, "ordenes"), {
-        consecutivo: consecutivoLimpio,
-        nombre: nombreLimpio,
-        codigo: codigoLimpio,
+      // Repository maneja la validación de duplicado y el insert
+      await OrderRepository.create({
+        consecutivo: consecutivo.trim().toUpperCase(),
+        nombre: nombre.trim(),
+        codigo: codigo.trim().toUpperCase(),
         fecha_inicio: fechaInicio,
         fecha_fin: fechaFin,
         region_id: userData.region_id,
         region_nombre: userData.region_nombre,
         delegacion_id: userData.delegacion_id,
         delegacion_nombre: userData.delegacion_nombre,
-        creado_por: user.uid,
-        creado_por_nombre:
-          `${userData.nombre || ""} ${userData.apellido1 || ""} ${userData.apellido2 || ""}`
-            .trim()
-            .toUpperCase(),
+        creado_por: userData.uid,
+        creado_por_nombre: [userData.nombre, userData.apellido1, userData.apellido2]
+          .filter(Boolean)
+          .join(" ")
+          .trim()
+          .toUpperCase(),
         rol_creador: userData.rol,
         estado: "activa",
-        creado: new Date(),
-        actualizado: new Date(),
       });
+
       alert("Orden creada correctamente");
       setConsecutivo("");
       setNombre("");
@@ -111,20 +70,21 @@ function CrearOrden() {
       setFechaInicio("");
       setFechaFin("");
     } catch (error) {
-      console.error(error);
-      alert("Error creando orden");
+      console.error("[CrearOrden]", error.message);
+      // El repository lanza errores con mensajes de dominio legibles
+      setErrors([error.message]);
     } finally {
       setLoading(false);
     }
   };
 
-  // Menú para DesktopLayout
+  // =========================================
+  // RENDER
+  // =========================================
+
   const menuItems = [
     { label: "🏠 Dashboard", onClick: () => navigate("/unidad_operativa") },
-    {
-      label: "📋 Lista Órdenes",
-      onClick: () => navigate("/unidad_operativa/ordenes"),
-    },
+    { label: "📋 Lista Órdenes", onClick: () => navigate("/unidad_operativa/ordenes") },
   ];
 
   return (
@@ -134,8 +94,14 @@ function CrearOrden() {
           title="Crear Orden de Ejecución"
           subtitle="Registro de órdenes operativas institucionales"
         >
+          {errors.length > 0 && (
+            <div style={errorsStyle} role="alert">
+              {errors.map((e, i) => <div key={i}>• {e}</div>)}
+            </div>
+          )}
+
           <div style={formGridStyle}>
-            <FormField label="Consecutivo *" required>
+            <FormField label="Consecutivo" required>
               <input
                 value={consecutivo}
                 onChange={(e) => setConsecutivo(e.target.value)}
@@ -143,7 +109,7 @@ function CrearOrden() {
                 style={inputStyle}
               />
             </FormField>
-            <FormField label="Nombre Orden *" required fullWidth>
+            <FormField label="Nombre Orden" required fullWidth>
               <input
                 value={nombre}
                 onChange={(e) => setNombre(e.target.value)}
@@ -159,7 +125,7 @@ function CrearOrden() {
                 style={inputStyle}
               />
             </FormField>
-            <FormField label="Fecha Inicio *" required>
+            <FormField label="Fecha Inicio" required>
               <input
                 type="date"
                 value={fechaInicio}
@@ -167,7 +133,7 @@ function CrearOrden() {
                 style={inputStyle}
               />
             </FormField>
-            <FormField label="Fecha Fin *" required>
+            <FormField label="Fecha Fin" required>
               <input
                 type="date"
                 value={fechaFin}
@@ -176,25 +142,23 @@ function CrearOrden() {
               />
             </FormField>
           </div>
-          <div style={actionsStyle}>
-            <button
-              onClick={handleCrear}
-              disabled={loading}
-              style={primaryButtonStyle}
-            >
-              {loading ? "Guardando..." : "Crear Orden"}
-            </button>
-          </div>
+
+          <button
+            onClick={handleCrear}
+            disabled={loading}
+            style={{ ...primaryButtonStyle, ...(loading ? disabledStyle : {}) }}
+          >
+            {loading ? "Guardando..." : "Crear Orden"}
+          </button>
         </Section>
       </div>
     </DesktopLayout>
   );
 }
 
-// ─────────────────────────────────────────
-// Estilos (preservando tu diseño inline)
-// ─────────────────────────────────────────
-const containerStyle = { padding: "20px" };
+// =========================================
+// SUB-COMPONENTES
+// =========================================
 
 const Section = ({ title, subtitle, children }) => (
   <div style={sectionStyle}>
@@ -205,78 +169,30 @@ const Section = ({ title, subtitle, children }) => (
   </div>
 );
 
-const sectionStyle = {
-  background: "white",
-  padding: "20px",
-  borderRadius: "10px",
-  boxShadow: "0 2px 5px rgba(0,0,0,0.1)",
-  marginBottom: "20px",
-};
-const sectionTitleStyle = {
-  margin: "0 0 4px 0",
-  fontSize: "20px",
-  fontWeight: "600",
-  color: "#1e293b",
-};
-const sectionSubtitleStyle = {
-  margin: "0 0 15px 0",
-  fontSize: "14px",
-  color: "#64748b",
-};
-const dividerStyle = {
-  border: "none",
-  borderTop: "1px solid #e2e8f0",
-  margin: "15px 0",
-};
-
-const formGridStyle = {
-  display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-  gap: "15px",
-};
-
 const FormField = ({ label, children, required, fullWidth }) => (
   <div style={fullWidth ? { gridColumn: "1 / -1" } : {}}>
     <label style={labelStyle}>
-      {label}
-      {required && <span style={requiredStyle}> *</span>}
+      {label}{required && <span style={requiredStyle}> *</span>}
     </label>
     {children}
   </div>
 );
 
-const labelStyle = {
-  display: "block",
-  fontWeight: "500",
-  marginBottom: "5px",
-  fontSize: "14px",
-  color: "#334155",
-};
-const requiredStyle = { color: "#dc2626" };
-const inputStyle = {
-  width: "100%",
-  padding: "10px",
-  borderRadius: "8px",
-  border: "1px solid #ccc",
-  boxSizing: "border-box",
-  fontSize: "14px",
-};
+// =========================================
+// ESTILOS
+// =========================================
 
-const actionsStyle = {
-  display: "flex",
-  gap: "10px",
-  marginTop: "20px",
-  flexWrap: "wrap",
-};
-const primaryButtonStyle = {
-  padding: "12px 24px",
-  border: "none",
-  borderRadius: "8px",
-  background: "#1e293b",
-  color: "white",
-  cursor: "pointer",
-  fontWeight: "500",
-  fontSize: "14px",
-};
+const containerStyle      = { padding: "20px" };
+const sectionStyle        = { background: "white", padding: "20px", borderRadius: "10px", boxShadow: "0 2px 5px rgba(0,0,0,0.1)", marginBottom: "20px" };
+const sectionTitleStyle   = { margin: "0 0 4px 0", fontSize: "20px", fontWeight: "600", color: "#1e293b" };
+const sectionSubtitleStyle = { margin: "0 0 15px 0", fontSize: "14px", color: "#64748b" };
+const dividerStyle        = { border: "none", borderTop: "1px solid #e2e8f0", margin: "15px 0" };
+const formGridStyle       = { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "15px", marginBottom: "20px" };
+const labelStyle          = { display: "block", fontWeight: "500", marginBottom: "5px", fontSize: "14px", color: "#334155" };
+const requiredStyle       = { color: "#dc2626" };
+const inputStyle          = { width: "100%", padding: "10px", borderRadius: "8px", border: "1px solid #ccc", boxSizing: "border-box", fontSize: "14px" };
+const primaryButtonStyle  = { padding: "12px 24px", border: "none", borderRadius: "8px", background: "#1e293b", color: "white", cursor: "pointer", fontWeight: "500", fontSize: "14px" };
+const disabledStyle       = { background: "#94a3b8", cursor: "not-allowed" };
+const errorsStyle         = { background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "8px", padding: "12px 16px", marginBottom: "16px", fontSize: "13px", color: "#dc2626", lineHeight: "1.8" };
 
 export default CrearOrden;
