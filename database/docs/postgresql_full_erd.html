@@ -1,0 +1,262 @@
+
+<style>
+#erd svg.erDiagram .divider path { stroke-opacity: 0.5; }
+#erd svg.erDiagram .row-rect-odd path,
+#erd svg.erDiagram .row-rect-odd rect,
+#erd svg.erDiagram .row-rect-even path,
+#erd svg.erDiagram .row-rect-even rect { stroke: none !important; }
+</style>
+<div id="erd"></div>
+<script type="module">
+import mermaid from 'https://esm.sh/mermaid@11/dist/mermaid.esm.min.mjs';
+const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+await document.fonts.ready;
+mermaid.initialize({
+  startOnLoad: false,
+  theme: 'base',
+  fontFamily: '"Anthropic Sans", sans-serif',
+  themeVariables: {
+    darkMode: dark,
+    fontSize: '13px',
+    fontFamily: '"Anthropic Sans", sans-serif',
+    lineColor: dark ? '#9c9a92' : '#73726c',
+    textColor: dark ? '#c2c0b6' : '#3d3d3a',
+  },
+});
+const { svg } = await mermaid.render('erd-svg', `erDiagram
+  regions {
+    uuid id PK
+    text nombre
+    text codigo UK
+    text estado
+    timestamptz creado
+    timestamptz actualizado
+  }
+  delegations {
+    uuid id PK
+    uuid region_id FK
+    text nombre
+    text codigo UK
+    text estado
+    timestamptz creado
+    timestamptz actualizado
+  }
+  squads {
+    uuid id PK
+    uuid delegation_id FK
+    uuid supervisor_id FK
+    text nombre
+    text codigo UK
+    text estado
+    timestamptz creado
+    timestamptz actualizado
+  }
+  users {
+    uuid id PK
+    uuid auth_id UK
+    uuid delegation_id FK
+    uuid squad_id FK
+    uuid rank_id FK
+    uuid condition_id FK
+    text email UK
+    text cedula UK
+    text nombre
+    text apellido1
+    text apellido2
+    text rol
+    text estado_usuario
+    date fecha_nacimiento
+    date fecha_alta
+    timestamptz ultimo_login
+    timestamptz creado
+    timestamptz actualizado
+  }
+  ranks {
+    uuid id PK
+    text nombre UK
+    text siglas UK
+    int orden_jerarquico UK
+    text estado
+  }
+  conditions {
+    uuid id PK
+    text nombre UK
+    text descripcion
+    bool bloquea_operaciones
+    text estado
+  }
+  resource_types {
+    uuid id PK
+    text nombre UK
+    text siglas UK
+    text descripcion
+    text estado
+  }
+  resources {
+    uuid id PK
+    uuid delegation_id FK
+    uuid squad_id FK
+    uuid resource_type_id FK
+    text unidad UK
+    text indicativo UK
+    text nombre_recurso
+    text estado
+    timestamptz creado
+    timestamptz actualizado
+  }
+  resource_assignments {
+    uuid id PK
+    uuid resource_id FK
+    uuid user_id FK
+    timestamptz asignado_en
+    timestamptz liberado_en
+  }
+  orders {
+    uuid id PK
+    uuid delegation_id FK
+    uuid creado_por FK
+    text consecutivo
+    text nombre
+    text codigo
+    date fecha_inicio
+    date fecha_fin
+    text estado
+    timestamptz creado
+    timestamptz actualizado
+  }
+  order_actions {
+    uuid id PK
+    uuid order_id FK
+    text nombre
+    int posicion
+    timestamptz creado
+  }
+  planning {
+    uuid id PK
+    uuid delegation_id FK
+    uuid squad_id FK
+    uuid supervisor_id FK
+    uuid creado_por FK
+    date fecha_inicio
+    date fecha_fin
+    text estado
+    timestamptz creado
+    timestamptz actualizado
+  }
+  planning_days {
+    uuid id PK
+    uuid planning_id FK
+    date fecha
+    text turno
+    int dia_numero
+  }
+  planning_activities {
+    uuid id PK
+    uuid planning_day_id FK
+    uuid order_id FK
+    uuid order_action_id FK
+    text hora_inicio
+    text hora_fin
+    text sector
+    text detalle
+    int posicion
+  }
+  service_sheets {
+    uuid id PK
+    uuid planning_id FK
+    uuid planning_day_id FK
+    uuid supervisor_id FK
+    uuid jefatura_id FK
+    uuid squad_id FK
+    uuid delegation_id FK
+    text numero_hoja
+    date fecha
+    text turno_operativo
+    text mision
+    text noticia_criminis
+    text observaciones
+    text estado
+    text estado_operativo
+    timestamptz creado
+    timestamptz actualizado
+  }
+  sheet_resources {
+    uuid id PK
+    uuid service_sheet_id FK
+    uuid resource_id FK
+  }
+  sheet_officers {
+    uuid id PK
+    uuid service_sheet_id FK
+    uuid user_id FK
+    bool es_encargado
+  }
+  sheet_activities {
+    uuid id PK
+    uuid service_sheet_id FK
+    uuid planning_activity_id FK
+    uuid order_id FK
+    uuid order_action_id FK
+    text hora_inicio
+    text hora_fin
+    text sector
+  }
+  audit_logs {
+    uuid id PK
+    uuid user_id FK
+    text tabla
+    text operacion
+    uuid registro_id
+    jsonb datos_anteriores
+    jsonb datos_nuevos
+    timestamptz ocurrido_en
+  }
+
+  regions ||--o{ delegations : "tiene"
+  delegations ||--o{ squads : "tiene"
+  squads ||--o{ users : "pertenecen"
+  users }o--|| ranks : "tiene"
+  users }o--|| conditions : "tiene"
+  delegations ||--o{ resources : "opera"
+  resource_types ||--o{ resources : "clasifica"
+  squads }o--o{ resources : "asignados"
+  resources ||--o{ resource_assignments : "historial"
+  users ||--o{ resource_assignments : "asignado a"
+  delegations ||--o{ orders : "emite"
+  orders ||--o{ order_actions : "tiene"
+  delegations ||--o{ planning : "planifica"
+  squads ||--o{ planning : "asignada"
+  planning ||--o{ planning_days : "tiene"
+  planning_days ||--o{ planning_activities : "contiene"
+  order_actions ||--o{ planning_activities : "referencia"
+  planning_days ||--o{ service_sheets : "origina"
+  squads ||--o{ service_sheets : "ejecuta"
+  service_sheets ||--o{ sheet_resources : "usa"
+  service_sheets ||--o{ sheet_officers : "involucra"
+  service_sheets ||--o{ sheet_activities : "registra"
+  users ||--o{ audit_logs : "genera"
+`);
+document.getElementById('erd').innerHTML = svg;
+document.querySelectorAll('#erd svg.erDiagram .node').forEach(node => {
+  const firstPath = node.querySelector('path[d]');
+  if (!firstPath) return;
+  const d = firstPath.getAttribute('d');
+  const nums = d.match(/-?[\d.]+/g)?.map(Number);
+  if (!nums || nums.length < 8) return;
+  const xs = [nums[0], nums[2], nums[4], nums[6]];
+  const ys = [nums[1], nums[3], nums[5], nums[7]];
+  const x = Math.min(...xs), y = Math.min(...ys);
+  const w = Math.max(...xs) - x, h = Math.max(...ys) - y;
+  const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+  rect.setAttribute('x', x); rect.setAttribute('y', y);
+  rect.setAttribute('width', w); rect.setAttribute('height', h);
+  rect.setAttribute('rx', '8');
+  for (const a of ['fill', 'stroke', 'stroke-width', 'class', 'style']) {
+    if (firstPath.hasAttribute(a)) rect.setAttribute(a, firstPath.getAttribute(a));
+  }
+  firstPath.replaceWith(rect);
+});
+document.querySelectorAll('#erd svg.erDiagram .row-rect-odd path, #erd svg.erDiagram .row-rect-even path').forEach(p => {
+  p.setAttribute('stroke', 'none');
+});
+</script>
