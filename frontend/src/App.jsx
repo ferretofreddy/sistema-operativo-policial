@@ -1,6 +1,6 @@
 // frontend/src/App.jsx
 import { useContext, lazy, Suspense } from "react";
-import { Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { Routes, Route } from "react-router-dom";
 import { AuthContext } from "./context/AuthContext";
 import { ProtectedRoute } from "./shared/components/ProtectedRoute";
 import { LoadingFallback } from "./shared/components/LoadingFallback";
@@ -40,104 +40,168 @@ const GestionRangosUsuario = lazy(() => import("./modules/administracion/configu
 const GestionCondicionesUsuario = lazy(() => import("./modules/administracion/configuracion/GestionCondicionesUsuario"));
 
 // =========================================
-// RUTAS POR ROL
-// =========================================
-
-const ROLE_ROUTES = {
-  admin:            "/admin",
-  unidad_operativa: "/unidad_operativa",
-  supervisor:       "/supervisor",
-  agente:           "/agente",
-  jefatura:         "/jefatura",
-};
-
-// =========================================
-// WILDCARD — solo redirige si no está ya en la ruta del rol
-// =========================================
-
-function RolRedirect({ userData }) {
-  const location = useLocation();
-  const target   = ROLE_ROUTES[userData?.rol] ?? "/login";
-
-  // Si ya está en la ruta correcta o en una subruta, no redirigir
-  // Esto corta el loop: /admin ya empieza con /admin → no redirige
-  if (location.pathname.startsWith(target)) {
-    return null;
-  }
-
-  return <Navigate to={target} replace />;
-}
-
-// =========================================
 // APP
 // =========================================
 
 function App() {
   const { user, userData, loading } = useContext(AuthContext);
 
-  // 1️⃣ Carga inicial de sesión
+  // 1️⃣ Carga inicial — esperar resolución de sesión
   if (loading) return <LoadingFallback />;
 
-  // 2️⃣ No autenticado → Login
+  // 2️⃣ No autenticado → mostrar Login en cualquier ruta
+  // Login.jsx maneja la redirección post-login con su propio useEffect.
+  // App.jsx NO redirige — evita el loop de Navigate.
   if (!user) {
     return (
       <Suspense fallback={<LoadingFallback />}>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="*"     element={<Login />} />
-        </Routes>
+        <Login />
       </Suspense>
     );
   }
 
-  // 3️⃣ Autenticado pero sin perfil institucional todavía
+  // 3️⃣ Autenticado pero perfil no cargado aún
   if (!userData) return <LoadingFallback />;
 
-  // 4️⃣ Rutas + Suspense global
+  // 4️⃣ Rutas protegidas
+  // NO hay ruta wildcard con Navigate — Login.jsx ya redirigió al dashboard.
+  // Si el usuario escribe una ruta inválida, simplemente no renderiza nada.
   return (
     <ErrorBoundary>
       <Suspense fallback={<LoadingFallback />}>
         <Routes>
 
-          {/* Ruta explícita de login — redirige al dashboard si ya autenticado */}
-          <Route path="/login" element={<Navigate to={ROLE_ROUTES[userData.rol] ?? "/admin"} replace />} />
-
           {/* 👤 AGENTE */}
-          <Route path="/agente" element={<ProtectedRoute userData={userData} allowedRoles="agente"><DashboardAgente /></ProtectedRoute>} />
+          <Route path="/agente" element={
+            <ProtectedRoute userData={userData} allowedRoles="agente">
+              <DashboardAgente />
+            </ProtectedRoute>
+          } />
 
           {/* 👮 SUPERVISOR */}
-          <Route path="/supervisor" element={<ProtectedRoute userData={userData} allowedRoles="supervisor"><DashboardSupervisor /></ProtectedRoute>} />
-          <Route path="/supervisor/hoja-servicio" element={<ProtectedRoute userData={userData} allowedRoles={["supervisor", "unidad_operativa"]}><CrearHojaServicio /></ProtectedRoute>} />
-          <Route path="/supervisor/hojas-hoy" element={<ProtectedRoute userData={userData} allowedRoles={["supervisor", "unidad_operativa"]}><ListaHojasHoy /></ProtectedRoute>} />
-          <Route path="/supervisor/hoja-servicio/:id" element={<ProtectedRoute userData={userData} allowedRoles={["supervisor", "unidad_operativa"]}><VerHojaServicio /></ProtectedRoute>} />
-          <Route path="/supervisor/recursos" element={<ProtectedRoute userData={userData} allowedRoles={["supervisor", "unidad_operativa", "admin"]}><CrearRecurso /></ProtectedRoute>} />
-          <Route path="/supervisor/gestion-recursos" element={<ProtectedRoute userData={userData} allowedRoles={["supervisor", "unidad_operativa", "admin"]}><GestionRecurso /></ProtectedRoute>} />
+          <Route path="/supervisor" element={
+            <ProtectedRoute userData={userData} allowedRoles="supervisor">
+              <DashboardSupervisor />
+            </ProtectedRoute>
+          } />
+          <Route path="/supervisor/hoja-servicio" element={
+            <ProtectedRoute userData={userData} allowedRoles={["supervisor", "unidad_operativa"]}>
+              <CrearHojaServicio />
+            </ProtectedRoute>
+          } />
+          <Route path="/supervisor/hojas-hoy" element={
+            <ProtectedRoute userData={userData} allowedRoles={["supervisor", "unidad_operativa"]}>
+              <ListaHojasHoy />
+            </ProtectedRoute>
+          } />
+          <Route path="/supervisor/hoja-servicio/:id" element={
+            <ProtectedRoute userData={userData} allowedRoles={["supervisor", "unidad_operativa"]}>
+              <VerHojaServicio />
+            </ProtectedRoute>
+          } />
+          <Route path="/supervisor/recursos" element={
+            <ProtectedRoute userData={userData} allowedRoles={["supervisor", "unidad_operativa", "admin"]}>
+              <CrearRecurso />
+            </ProtectedRoute>
+          } />
+          <Route path="/supervisor/gestion-recursos" element={
+            <ProtectedRoute userData={userData} allowedRoles={["supervisor", "unidad_operativa", "admin"]}>
+              <GestionRecurso />
+            </ProtectedRoute>
+          } />
 
           {/* 🏢 UNIDAD OPERATIVA */}
-          <Route path="/unidad_operativa" element={<ProtectedRoute userData={userData} allowedRoles="unidad_operativa"><DashboardUnidadOperativa /></ProtectedRoute>} />
-          <Route path="/unidad_operativa/ordenes/crear" element={<ProtectedRoute userData={userData} allowedRoles="unidad_operativa"><CrearOrden /></ProtectedRoute>} />
-          <Route path="/unidad_operativa/ordenes" element={<ProtectedRoute userData={userData} allowedRoles="unidad_operativa"><ListaOrdenes /></ProtectedRoute>} />
-          <Route path="/unidad_operativa/orden/:id" element={<ProtectedRoute userData={userData} allowedRoles="unidad_operativa"><DetalleOrden /></ProtectedRoute>} />
-          <Route path="/unidad_operativa/planificacion/crear" element={<ProtectedRoute userData={userData} allowedRoles="unidad_operativa"><CrearPlanificacion /></ProtectedRoute>} />
-          <Route path="/unidad_operativa/planificacion/:id" element={<ProtectedRoute userData={userData} allowedRoles="unidad_operativa"><VerPlanificacion /></ProtectedRoute>} />
+          <Route path="/unidad_operativa" element={
+            <ProtectedRoute userData={userData} allowedRoles="unidad_operativa">
+              <DashboardUnidadOperativa />
+            </ProtectedRoute>
+          } />
+          <Route path="/unidad_operativa/ordenes/crear" element={
+            <ProtectedRoute userData={userData} allowedRoles="unidad_operativa">
+              <CrearOrden />
+            </ProtectedRoute>
+          } />
+          <Route path="/unidad_operativa/ordenes" element={
+            <ProtectedRoute userData={userData} allowedRoles="unidad_operativa">
+              <ListaOrdenes />
+            </ProtectedRoute>
+          } />
+          <Route path="/unidad_operativa/orden/:id" element={
+            <ProtectedRoute userData={userData} allowedRoles="unidad_operativa">
+              <DetalleOrden />
+            </ProtectedRoute>
+          } />
+          <Route path="/unidad_operativa/planificacion/crear" element={
+            <ProtectedRoute userData={userData} allowedRoles="unidad_operativa">
+              <CrearPlanificacion />
+            </ProtectedRoute>
+          } />
+          <Route path="/unidad_operativa/planificacion/:id" element={
+            <ProtectedRoute userData={userData} allowedRoles="unidad_operativa">
+              <VerPlanificacion />
+            </ProtectedRoute>
+          } />
 
           {/* 🛡️ ADMIN */}
-          <Route path="/admin" element={<ProtectedRoute userData={userData} allowedRoles="admin"><DashboardAdmin /></ProtectedRoute>} />
-          <Route path="/admin/regiones" element={<ProtectedRoute userData={userData} allowedRoles="admin"><CrearRegion /></ProtectedRoute>} />
-          <Route path="/admin/delegaciones" element={<ProtectedRoute userData={userData} allowedRoles="admin"><CrearDelegacion /></ProtectedRoute>} />
-          <Route path="/admin/escuadras" element={<ProtectedRoute userData={userData} allowedRoles={["unidad_operativa", "admin"]}><CrearEscuadra /></ProtectedRoute>} />
-          <Route path="/admin/usuarios" element={<ProtectedRoute userData={userData} allowedRoles="admin"><CrearUsuario /></ProtectedRoute>} />
-          <Route path="/admin/gestion-usuarios" element={<ProtectedRoute userData={userData} allowedRoles="admin"><GestionUsuarios /></ProtectedRoute>} />
-          <Route path="/admin/gestion-escuadras" element={<ProtectedRoute userData={userData} allowedRoles={["unidad_operativa", "admin"]}><GestionEscuadra /></ProtectedRoute>} />
-          <Route path="/admin/tipos-recurso" element={<ProtectedRoute userData={userData} allowedRoles="admin"><GestionTiposRecurso /></ProtectedRoute>} />
-          <Route path="/admin/rangos-usuario" element={<ProtectedRoute userData={userData} allowedRoles="admin"><GestionRangosUsuario /></ProtectedRoute>} />
-          <Route path="/admin/condiciones-usuario" element={<ProtectedRoute userData={userData} allowedRoles="admin"><GestionCondicionesUsuario /></ProtectedRoute>} />
+          <Route path="/admin" element={
+            <ProtectedRoute userData={userData} allowedRoles="admin">
+              <DashboardAdmin />
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/regiones" element={
+            <ProtectedRoute userData={userData} allowedRoles="admin">
+              <CrearRegion />
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/delegaciones" element={
+            <ProtectedRoute userData={userData} allowedRoles="admin">
+              <CrearDelegacion />
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/escuadras" element={
+            <ProtectedRoute userData={userData} allowedRoles={["unidad_operativa", "admin"]}>
+              <CrearEscuadra />
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/usuarios" element={
+            <ProtectedRoute userData={userData} allowedRoles="admin">
+              <CrearUsuario />
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/gestion-usuarios" element={
+            <ProtectedRoute userData={userData} allowedRoles="admin">
+              <GestionUsuarios />
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/gestion-escuadras" element={
+            <ProtectedRoute userData={userData} allowedRoles={["unidad_operativa", "admin"]}>
+              <GestionEscuadra />
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/tipos-recurso" element={
+            <ProtectedRoute userData={userData} allowedRoles="admin">
+              <GestionTiposRecurso />
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/rangos-usuario" element={
+            <ProtectedRoute userData={userData} allowedRoles="admin">
+              <GestionRangosUsuario />
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/condiciones-usuario" element={
+            <ProtectedRoute userData={userData} allowedRoles="admin">
+              <GestionCondicionesUsuario />
+            </ProtectedRoute>
+          } />
 
           {/* 🌟 JEFATURA */}
-          <Route path="/jefatura" element={<ProtectedRoute userData={userData} allowedRoles="jefatura"><DashboardJefatura /></ProtectedRoute>} />
+          <Route path="/jefatura" element={
+            <ProtectedRoute userData={userData} allowedRoles="jefatura">
+              <DashboardJefatura />
+            </ProtectedRoute>
+          } />
 
-          {/* 🔁 Wildcard — redirige al dashboard del rol sin loop */}
-          <Route path="*" element={<RolRedirect userData={userData} />} />
+          {/* Sin ruta wildcard — Login.jsx ya maneja la redirección inicial */}
 
         </Routes>
       </Suspense>
