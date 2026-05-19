@@ -374,6 +374,15 @@ export class SupabaseProvider extends BaseProvider {
       return new Error(`Registro no encontrado en ${table}`);
     }
 
+    // Tipo inválido (ej: string de Firebase UID en columna UUID de PostgreSQL)
+    if (code === "22P02") {
+      return new Error(
+        `Tipo de dato inválido en ${table}.${operation}. ` +
+        `Verifique que ACTIVE_PROVIDER en authAdapter.js coincide con providerRegistry.js. ` +
+        `Detalle: ${msg}`
+      );
+    }
+
     console.error(`[SupabaseProvider] Error en ${operation}(${table}):`, error);
     return new Error(msg);
   }
