@@ -34,11 +34,27 @@ class UserRepositoryClass extends BaseRepository {
   }
 
   /**
-   * Obtener usuario por UID (Firestore docId = Firebase Auth uid).
-   * @param {string} uid
+   * Obtener usuario por ID interno de PostgreSQL (users.id).
+   * En Firestore era equivalente al UID de Auth porque el docId = uid.
+   * En Supabase/PostgreSQL son campos distintos — usar getByAuthId() para sesiones.
+   * @param {string} id - UUID interno de PostgreSQL
    */
-  async getById(uid) {
-    return getProvider().fetchById(COLLECTION, uid);
+  async getById(id) {
+    return getProvider().fetchById(COLLECTION, id);
+  }
+
+  /**
+   * Obtener usuario por auth_id (UUID de Supabase Auth / Firebase UID).
+   * Este es el método correcto para lookups de sesión en AuthContext.
+   * @param {string} authId - UID de Supabase Auth
+   */
+  async getByAuthId(authId) {
+    const results = await getProvider().fetchCollection(
+      COLLECTION,
+      { auth_id: authId },
+      { includeInactive: true, limitToFirst: 1 },
+    );
+    return results[0] ?? null;
   }
 
   /**
@@ -116,12 +132,16 @@ class UserRepositoryClass extends BaseRepository {
    * Patrón actual en AuthContext.
    * @param {{ uid, email }} firebaseUser
    */
-  async createIfNotExists(firebaseUser) {
-    const existing = await this.getById(firebaseUser.uid);
+  async createIfNotExists(session) {
+    // CRÍTICO: buscar por auth_id, no por id interno de PostgreSQL.
+    // session.uid = UUID de Supabase Auth (auth.users.id)
+    //            = columna auth_id en la tabla users
+    // session.uid ≠ columna id (UUID interno generado por PostgreSQL)
+    const existing = await this.getByAuthId(session.uid);
     if (existing) return existing;
 
-    await this.create(firebaseUser.uid, {
-      email: firebaseUser.email ?? "",
+    await this.create(session.uid, {
+      email: session.email ?? "",
       nombre: "",
       apellido1: "",
       apellido2: "",
@@ -132,21 +152,10 @@ class UserRepositoryClass extends BaseRepository {
       fecha_alta: null,
       rol: "agente",
       estado_usuario: "activo",
-      region_id: "",
-      region_nombre: "",
-      delegacion_id: "",
-      delegacion_nombre: "",
-      escuadra_id: "",
-      escuadra_nombre: "",
-      recurso_id: "",
-      recurso_nombre: "",
-      rango_id: "",
-      rango_nombre: "",
-      rango_siglas: "",
-      rango_orden: 0,
-      condicion_id: "",
-      condicion_nombre: "",
-      condicion_bloquea_operaciones: false,
+      delegation_id: null,
+      squad_id: null,
+      rank_id: null,
+      condition_id: null,
       ultimo_login: getProvider().now(),
     });
 

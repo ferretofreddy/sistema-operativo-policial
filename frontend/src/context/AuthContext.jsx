@@ -60,7 +60,8 @@ export function AuthProvider({ children }) {
 
           // 2. Cargar datos del perfil institucional
           try {
-            const data = await UserRepository.getById(currentSession.uid);
+            // getByAuthId busca por auth_id (UID de Auth), no por id interno de PostgreSQL
+          const data = await UserRepository.getByAuthId(currentSession.uid);
             setUserData(data);
           } catch (profileError) {
             console.error("[AuthContext] Error cargando perfil:", profileError);
@@ -111,7 +112,7 @@ export function AuthProvider({ children }) {
         refreshUserData: async () => {
           if (!session?.uid) return;
           try {
-            const data = await UserRepository.getById(session.uid);
+            const data = await UserRepository.getByAuthId(session.uid);
             setUserData(data);
           } catch (error) {
             console.error("[AuthContext] Error refrescando perfil:", error);
