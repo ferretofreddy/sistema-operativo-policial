@@ -1,20 +1,19 @@
 // frontend/src/modules/auth/Login.jsx
 import { useState, useContext, useEffect } from "react";
-import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth } from "../../services/firebase";
-import { useNavigate } from "react-router-dom";
-import { AuthContext } from "../../context/AuthContext";
+import { useNavigate }   from "react-router-dom";
+import { AuthContext }   from "../../context/AuthContext";
+import { AuthService }   from "../../core/adapters/authAdapter";
 
 // =========================================
 // CONSTANTES
 // =========================================
 
 const ROLE_ROUTES = {
-  admin: "/admin",
+  admin:            "/admin",
   unidad_operativa: "/unidad_operativa",
-  supervisor: "/supervisor",
-  agente: "/agente",
-  jefatura: "/jefatura",
+  supervisor:       "/supervisor",
+  agente:           "/agente",
+  jefatura:         "/jefatura",
 };
 
 // =========================================
@@ -22,12 +21,12 @@ const ROLE_ROUTES = {
 // =========================================
 
 function Login() {
-  const navigate = useNavigate();
+  const navigate             = useNavigate();
   const { user, userData, loading } = useContext(AuthContext);
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
+  const [email,      setEmail]      = useState("");
+  const [password,   setPassword]   = useState("");
+  const [error,      setError]      = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   // =========================================
@@ -42,7 +41,7 @@ function Login() {
   }, [user, userData, loading, navigate]);
 
   // =========================================
-  // SUBMIT
+  // SUBMIT — usa AuthService, sin Firebase directo
   // =========================================
 
   const handleLogin = async () => {
@@ -56,37 +55,25 @@ function Login() {
     try {
       setSubmitting(true);
 
-      // BUG FIX: await ANTES de navigate
-      // Antes: navigate("/") se llamaba inmediatamente, sin esperar auth
-      // Ahora: esperamos la respuesta de Firebase Auth
-      // La navegación al dashboard ocurre en el useEffect cuando
-      // AuthContext actualiza user + userData
-      await signInWithEmailAndPassword(auth, email.trim(), password);
-
-      // No llamamos navigate() aquí.
-      // El useEffect de arriba se dispara cuando AuthContext
-      // actualiza user y userData, y redirige al rol correcto.
+      // AuthService.login() delega a Supabase Auth o Firebase según ACTIVE_PROVIDER.
+      // La navegación ocurre en el useEffect cuando AuthContext detecta
+      // el cambio de sesión vía onSessionChange.
+      await AuthService.login(email.trim(), password);
 
     } catch (err) {
-      console.error("[Login] Error:", err.code, err.message);
-      setError(getErrorMessage(err.code));
+      console.error("[Login] Error:", err.message);
+      setError(err.message || "Error al iniciar sesión. Intente nuevamente.");
     } finally {
       setSubmitting(false);
     }
   };
 
-  // =========================================
-  // ENTER KEY
-  // =========================================
-
   const handleKeyDown = (e) => {
-    if (e.key === "Enter" && !submitting) {
-      handleLogin();
-    }
+    if (e.key === "Enter" && !submitting) handleLogin();
   };
 
   // =========================================
-  // LOADING INICIAL (AuthContext cargando sesión)
+  // LOADING INICIAL
   // =========================================
 
   if (loading) {
@@ -148,10 +135,7 @@ function Login() {
           <button
             onClick={handleLogin}
             disabled={submitting}
-            style={{
-              ...buttonStyle,
-              ...(submitting ? buttonDisabledStyle : {}),
-            }}
+            style={{ ...buttonStyle, ...(submitting ? buttonDisabledStyle : {}) }}
           >
             {submitting ? "Verificando..." : "Ingresar"}
           </button>
@@ -159,29 +143,6 @@ function Login() {
       </div>
     </div>
   );
-}
-
-// =========================================
-// HELPER — MENSAJES DE ERROR
-// =========================================
-
-function getErrorMessage(code) {
-  switch (code) {
-    case "auth/invalid-credential":
-    case "auth/user-not-found":
-    case "auth/wrong-password":
-      return "Credenciales incorrectas. Verifique correo y contraseña.";
-    case "auth/invalid-email":
-      return "Formato de correo inválido.";
-    case "auth/user-disabled":
-      return "Esta cuenta ha sido deshabilitada. Contacte al administrador.";
-    case "auth/too-many-requests":
-      return "Demasiados intentos fallidos. Intente más tarde.";
-    case "auth/network-request-failed":
-      return "Error de conexión. Verifique su red.";
-    default:
-      return "Error al iniciar sesión. Intente nuevamente.";
-  }
 }
 
 // =========================================
@@ -207,41 +168,12 @@ const cardStyle = {
   maxWidth: "400px",
 };
 
-const headerStyle = {
-  marginBottom: "32px",
-  textAlign: "center",
-};
-
-const titleStyle = {
-  margin: "0 0 8px 0",
-  fontSize: "22px",
-  fontWeight: "600",
-  color: "#1e293b",
-};
-
-const subtitleStyle = {
-  margin: 0,
-  fontSize: "14px",
-  color: "#64748b",
-};
-
-const formStyle = {
-  display: "flex",
-  flexDirection: "column",
-  gap: "20px",
-};
-
-const fieldStyle = {
-  display: "flex",
-  flexDirection: "column",
-  gap: "6px",
-};
-
-const labelStyle = {
-  fontSize: "14px",
-  fontWeight: "500",
-  color: "#334155",
-};
+const headerStyle  = { marginBottom: "32px", textAlign: "center" };
+const titleStyle   = { margin: "0 0 8px 0", fontSize: "22px", fontWeight: "600", color: "#1e293b" };
+const subtitleStyle = { margin: 0, fontSize: "14px", color: "#64748b" };
+const formStyle    = { display: "flex", flexDirection: "column", gap: "20px" };
+const fieldStyle   = { display: "flex", flexDirection: "column", gap: "6px" };
+const labelStyle   = { fontSize: "14px", fontWeight: "500", color: "#334155" };
 
 const inputStyle = {
   width: "100%",
@@ -252,7 +184,6 @@ const inputStyle = {
   color: "#1e293b",
   outline: "none",
   boxSizing: "border-box",
-  transition: "border-color 0.15s",
 };
 
 const errorStyle = {
@@ -274,7 +205,6 @@ const buttonStyle = {
   fontSize: "15px",
   fontWeight: "500",
   cursor: "pointer",
-  transition: "background 0.15s",
   marginTop: "4px",
 };
 
