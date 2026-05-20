@@ -1,37 +1,31 @@
 // frontend/src/App.jsx
 import { Routes, Route, Navigate } from "react-router-dom";
 
-import Login from "./pages/Login";
+// Auth
+import Login from "./modules/auth/Login";
 
 // Dashboards
-import DashboardAdmin from "./pages/admin/DashboardAdmin";
-
-// Auth
-import ProtectedRoute from "./components/auth/ProtectedRoute";
+import DashboardAdmin from "./modules/admin/DashboardAdmin";
+import DashboardSupervisor from "./modules/supervisor/DashboardSupervisor";
+import DashboardUnidadOperativa from "./modules/unidad_operativa/DashboardUnidadOperativa";
+import DashboardJefatura from "./modules/jefatura/DashboardJefatura";
+import DashboardAgente from "./modules/agente/DashboardAgente";
 
 function App() {
   return (
     <Routes>
-
-      {/* Ruta raíz */}
-      <Route path="/" element={<Navigate to="/login" replace />} />
-
-      {/* Login */}
+      {/* Auth */}
       <Route path="/login" element={<Login />} />
 
-      {/* ADMIN */}
-      <Route
-        path="/admin"
-        element={
-          <ProtectedRoute allowedRoles={["admin"]}>
-            <DashboardAdmin />
-          </ProtectedRoute>
-        }
-      />
+      {/* Dashboards */}
+      <Route path="/admin" element={<DashboardAdmin />} />
+      <Route path="/supervisor" element={<DashboardSupervisor />} />
+      <Route path="/unidad-operativa" element={<DashboardUnidadOperativa />} />
+      <Route path="/jefatura" element={<DashboardJefatura />} />
+      <Route path="/agente" element={<DashboardAgente />} />
 
-      {/* Fallback */}
+      {/* Default */}
       <Route path="*" element={<Navigate to="/login" replace />} />
-
     </Routes>
   );
 }
