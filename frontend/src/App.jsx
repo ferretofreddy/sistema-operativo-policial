@@ -1,211 +1,38 @@
 // frontend/src/App.jsx
-import { useContext, lazy, Suspense } from "react";
-import { Routes, Route } from "react-router-dom";
-import { AuthContext } from "./context/AuthContext";
-import { ProtectedRoute } from "./shared/components/ProtectedRoute";
-import { LoadingFallback } from "./shared/components/LoadingFallback";
-import { ErrorBoundary } from "./shared/components/ErrorBoundary";
+import { Routes, Route, Navigate } from "react-router-dom";
 
-// 🔹 Auth & Dashboards
-const Login = lazy(() => import("./modules/auth/Login"));
-const DashboardAgente = lazy(() => import("./modules/agente/DashboardAgente"));
-const DashboardSupervisor = lazy(() => import("./modules/supervisor/DashboardSupervisor"));
-const DashboardAdmin = lazy(() => import("./modules/admin/DashboardAdmin"));
-const DashboardUnidadOperativa = lazy(() => import("./modules/unidad_operativa/DashboardUnidadOperativa"));
-const DashboardJefatura = lazy(() => import("./modules/jefatura/DashboardJefatura"));
+import Login from "./pages/Login";
 
-// 🔹 Módulos Supervisor
-const CrearHojaServicio = lazy(() => import("./modules/supervisor/hoja_servicio/CrearHojaServicio"));
-const ListaHojasHoy = lazy(() => import("./modules/supervisor/hoja_servicio/ListaHojasHoy"));
-const VerHojaServicio = lazy(() => import("./modules/supervisor/hoja_servicio/VerHojaServicio"));
-const CrearRecurso = lazy(() => import("./modules/supervisor/recursos/CrearRecurso"));
-const GestionRecurso = lazy(() => import("./modules/supervisor/recursos/GestionRecurso"));
+// Dashboards
+import DashboardAdmin from "./pages/admin/DashboardAdmin";
 
-// 🔹 Módulos Unidad Operativa
-const DetalleOrden = lazy(() => import("./modules/unidad_operativa/ordenes/DetalleOrden"));
-const CrearOrden = lazy(() => import("./modules/unidad_operativa/ordenes/CrearOrden"));
-const ListaOrdenes = lazy(() => import("./modules/unidad_operativa/ordenes/ListaOrdenes"));
-const CrearPlanificacion = lazy(() => import("./modules/unidad_operativa/planificacion/CrearPlanificacion"));
-const VerPlanificacion = lazy(() => import("./modules/unidad_operativa/planificacion/VerPlanificacion"));
-
-// 🔹 Módulos Administración
-const CrearRegion = lazy(() => import("./modules/administracion/regiones/CrearRegion"));
-const CrearDelegacion = lazy(() => import("./modules/administracion/delegaciones/CrearDelegacion"));
-const CrearEscuadra = lazy(() => import("./modules/administracion/escuadras/CrearEscuadra"));
-const GestionEscuadra = lazy(() => import("./modules/administracion/escuadras/GestionEscuadra"));
-const CrearUsuario = lazy(() => import("./modules/administracion/usuarios/CrearUsuario"));
-const GestionUsuarios = lazy(() => import("./modules/administracion/usuarios/GestionUsuarios"));
-const GestionTiposRecurso = lazy(() => import("./modules/administracion/configuracion/GestionTiposRecurso"));
-const GestionRangosUsuario = lazy(() => import("./modules/administracion/configuracion/GestionRangosUsuario"));
-const GestionCondicionesUsuario = lazy(() => import("./modules/administracion/configuracion/GestionCondicionesUsuario"));
-
-// =========================================
-// APP
-// =========================================
+// Auth
+import ProtectedRoute from "./components/auth/ProtectedRoute";
 
 function App() {
-  const { user, userData, loading } = useContext(AuthContext);
-
-  // 1️⃣ Carga inicial — esperar resolución de sesión
-  if (loading) return <LoadingFallback />;
-
-  // 2️⃣ No autenticado → mostrar Login en cualquier ruta
-  // Login.jsx maneja la redirección post-login con su propio useEffect.
-  // App.jsx NO redirige — evita el loop de Navigate.
-  if (!user) {
-    return (
-      <Suspense fallback={<LoadingFallback />}>
-        <Login />
-      </Suspense>
-    );
-  }
-
-  // 3️⃣ Autenticado pero perfil no cargado aún
-  if (!userData) return <LoadingFallback />;
-
-  // 4️⃣ Rutas protegidas
-  // NO hay ruta wildcard con Navigate — Login.jsx ya redirigió al dashboard.
-  // Si el usuario escribe una ruta inválida, simplemente no renderiza nada.
   return (
-    <ErrorBoundary>
-      <Suspense fallback={<LoadingFallback />}>
-        <Routes>
+    <Routes>
 
-          {/* 👤 AGENTE */}
-          <Route path="/agente" element={
-            <ProtectedRoute userData={userData} allowedRoles="agente">
-              <DashboardAgente />
-            </ProtectedRoute>
-          } />
+      {/* Ruta raíz */}
+      <Route path="/" element={<Navigate to="/login" replace />} />
 
-          {/* 👮 SUPERVISOR */}
-          <Route path="/supervisor" element={
-            <ProtectedRoute userData={userData} allowedRoles="supervisor">
-              <DashboardSupervisor />
-            </ProtectedRoute>
-          } />
-          <Route path="/supervisor/hoja-servicio" element={
-            <ProtectedRoute userData={userData} allowedRoles={["supervisor", "unidad_operativa"]}>
-              <CrearHojaServicio />
-            </ProtectedRoute>
-          } />
-          <Route path="/supervisor/hojas-hoy" element={
-            <ProtectedRoute userData={userData} allowedRoles={["supervisor", "unidad_operativa"]}>
-              <ListaHojasHoy />
-            </ProtectedRoute>
-          } />
-          <Route path="/supervisor/hoja-servicio/:id" element={
-            <ProtectedRoute userData={userData} allowedRoles={["supervisor", "unidad_operativa"]}>
-              <VerHojaServicio />
-            </ProtectedRoute>
-          } />
-          <Route path="/supervisor/recursos" element={
-            <ProtectedRoute userData={userData} allowedRoles={["supervisor", "unidad_operativa", "admin"]}>
-              <CrearRecurso />
-            </ProtectedRoute>
-          } />
-          <Route path="/supervisor/gestion-recursos" element={
-            <ProtectedRoute userData={userData} allowedRoles={["supervisor", "unidad_operativa", "admin"]}>
-              <GestionRecurso />
-            </ProtectedRoute>
-          } />
+      {/* Login */}
+      <Route path="/login" element={<Login />} />
 
-          {/* 🏢 UNIDAD OPERATIVA */}
-          <Route path="/unidad_operativa" element={
-            <ProtectedRoute userData={userData} allowedRoles="unidad_operativa">
-              <DashboardUnidadOperativa />
-            </ProtectedRoute>
-          } />
-          <Route path="/unidad_operativa/ordenes/crear" element={
-            <ProtectedRoute userData={userData} allowedRoles="unidad_operativa">
-              <CrearOrden />
-            </ProtectedRoute>
-          } />
-          <Route path="/unidad_operativa/ordenes" element={
-            <ProtectedRoute userData={userData} allowedRoles="unidad_operativa">
-              <ListaOrdenes />
-            </ProtectedRoute>
-          } />
-          <Route path="/unidad_operativa/orden/:id" element={
-            <ProtectedRoute userData={userData} allowedRoles="unidad_operativa">
-              <DetalleOrden />
-            </ProtectedRoute>
-          } />
-          <Route path="/unidad_operativa/planificacion/crear" element={
-            <ProtectedRoute userData={userData} allowedRoles="unidad_operativa">
-              <CrearPlanificacion />
-            </ProtectedRoute>
-          } />
-          <Route path="/unidad_operativa/planificacion/:id" element={
-            <ProtectedRoute userData={userData} allowedRoles="unidad_operativa">
-              <VerPlanificacion />
-            </ProtectedRoute>
-          } />
+      {/* ADMIN */}
+      <Route
+        path="/admin"
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <DashboardAdmin />
+          </ProtectedRoute>
+        }
+      />
 
-          {/* 🛡️ ADMIN */}
-          <Route path="/admin" element={
-            <ProtectedRoute userData={userData} allowedRoles="admin">
-              <DashboardAdmin />
-            </ProtectedRoute>
-          } />
-          <Route path="/admin/regiones" element={
-            <ProtectedRoute userData={userData} allowedRoles="admin">
-              <CrearRegion />
-            </ProtectedRoute>
-          } />
-          <Route path="/admin/delegaciones" element={
-            <ProtectedRoute userData={userData} allowedRoles="admin">
-              <CrearDelegacion />
-            </ProtectedRoute>
-          } />
-          <Route path="/admin/escuadras" element={
-            <ProtectedRoute userData={userData} allowedRoles={["unidad_operativa", "admin"]}>
-              <CrearEscuadra />
-            </ProtectedRoute>
-          } />
-          <Route path="/admin/usuarios" element={
-            <ProtectedRoute userData={userData} allowedRoles="admin">
-              <CrearUsuario />
-            </ProtectedRoute>
-          } />
-          <Route path="/admin/gestion-usuarios" element={
-            <ProtectedRoute userData={userData} allowedRoles="admin">
-              <GestionUsuarios />
-            </ProtectedRoute>
-          } />
-          <Route path="/admin/gestion-escuadras" element={
-            <ProtectedRoute userData={userData} allowedRoles={["unidad_operativa", "admin"]}>
-              <GestionEscuadra />
-            </ProtectedRoute>
-          } />
-          <Route path="/admin/tipos-recurso" element={
-            <ProtectedRoute userData={userData} allowedRoles="admin">
-              <GestionTiposRecurso />
-            </ProtectedRoute>
-          } />
-          <Route path="/admin/rangos-usuario" element={
-            <ProtectedRoute userData={userData} allowedRoles="admin">
-              <GestionRangosUsuario />
-            </ProtectedRoute>
-          } />
-          <Route path="/admin/condiciones-usuario" element={
-            <ProtectedRoute userData={userData} allowedRoles="admin">
-              <GestionCondicionesUsuario />
-            </ProtectedRoute>
-          } />
+      {/* Fallback */}
+      <Route path="*" element={<Navigate to="/login" replace />} />
 
-          {/* 🌟 JEFATURA */}
-          <Route path="/jefatura" element={
-            <ProtectedRoute userData={userData} allowedRoles="jefatura">
-              <DashboardJefatura />
-            </ProtectedRoute>
-          } />
-
-          {/* Sin ruta wildcard — Login.jsx ya maneja la redirección inicial */}
-
-        </Routes>
-      </Suspense>
-    </ErrorBoundary>
+    </Routes>
   );
 }
 
