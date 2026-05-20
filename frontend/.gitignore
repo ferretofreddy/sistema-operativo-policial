@@ -11,6 +11,10 @@ node_modules
 dist
 dist-ssr
 
+# Unix core dumps
+core
+core.*
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
