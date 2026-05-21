@@ -5,7 +5,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { ConditionRepository } from "../../../core";
-import { CatalogoSimpleLayout } from "../../../shared/layouts/CatalogoSimpleLayout";
+import CatalogoSimpleLayout from "../../../shared/layouts/CatalogoSimpleLayout";
 
 function GestionCondicionesUsuario() {
   const [condiciones, setCondiciones] = useState([]);

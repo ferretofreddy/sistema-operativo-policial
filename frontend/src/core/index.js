@@ -3,6 +3,7 @@
 //
 // USO CORRECTO en componentes:
 //   import { UserRepository, RegionRepository } from "../../core";
+//   import { formatDate, toDate } from "../../core";
 //
 // NUNCA importar Supabase o Firebase directamente en componentes.
 
@@ -14,8 +15,6 @@ export { UserRepository }         from "./repositories/UserRepository";
 export { OrderRepository }        from "./repositories/OrderRepository";
 export { PlanningRepository }     from "./repositories/PlanningRepository";
 export { ServiceSheetRepository } from "./repositories/ServiceSheetRepository";
-
-// Nuevos — FASE 1 migración
 export { ResourceRepository }     from "./repositories/ResourceRepository";
 export { RegionRepository }       from "./repositories/RegionRepository";
 export { DelegationRepository }   from "./repositories/DelegationRepository";
@@ -28,14 +27,31 @@ export { ResourceTypeRepository } from "./repositories/ResourceTypeRepository";
 // ADAPTERS
 // =========================================
 
-export { AuthService }            from "./adapters/authAdapter";
-export { DateAdapter }            from "./adapters/dateAdapter";
-export { StorageAdapter }         from "./adapters/storageAdapter";
-export { getTerritoryScope,
-         getUserQueryFilters }    from "./adapters/territoryAdapter";
+// Auth
+export { AuthService } from "./adapters/authAdapter";
+
+// Fechas — funciones individuales (no hay objeto DateAdapter)
+export {
+  toDate,
+  formatDate,
+  formatDateTime,
+  formatTime,
+  toInputDate,
+  fromInputDate,
+  isPast,
+  isToday,
+  todayString,
+} from "./adapters/dateAdapter";
+
+// Storage — exportar cuando se necesite en componentes
+// (estrategia actual: descarga local en cliente, sin Firebase Storage)
+export * from "./adapters/storageAdapter";
+
+// Territory — exportar cuando se confirmen los nombres exactos de export
+export * from "./adapters/territoryAdapter";
 
 // =========================================
 // VALIDATORS
 // =========================================
 
-export { usuarioValidator }       from "./validators/usuarioValidator";
+export { validateCrearUsuario } from "./validators/usuarioValidator";

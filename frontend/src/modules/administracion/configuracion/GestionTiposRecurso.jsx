@@ -5,7 +5,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { ResourceTypeRepository } from "../../../core";
-import { CatalogoSimpleLayout }   from "../../../shared/layouts/CatalogoSimpleLayout";
+import CatalogoSimpleLayout from "../../../shared/layouts/CatalogoSimpleLayout";
 
 function GestionTiposRecurso() {
   const [tipos,     setTipos]     = useState([]);

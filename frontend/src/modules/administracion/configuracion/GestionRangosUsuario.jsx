@@ -5,7 +5,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { RankRepository } from "../../../core";
-import { CatalogoSimpleLayout } from "../../../shared/layouts/CatalogoSimpleLayout";
+import CatalogoSimpleLayout from "../../../shared/layouts/CatalogoSimpleLayout";
 
 function GestionRangosUsuario() {
   const [rangos,    setRangos]    = useState([]);
