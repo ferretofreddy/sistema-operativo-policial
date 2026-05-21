@@ -1,56 +1,60 @@
 // src/core/repositories/ResourceTypeRepository.js
-//
-// Repository de tipos de recurso operativo.
-// Tabla SQL: resource_types
-// En Firestore era: tipos_recurso
-//
-// Catálogo read-heavy (patrulla, moto, cuadraciclo, etc.)
+// Tabla SQL: resource_types | Firestore: tipos_recurso
 
 import { BaseRepository } from "./BaseRepository";
+import { getProvider }    from "../providers/providerRegistry";
 
 const COLLECTION = "resource_types";
 
 class ResourceTypeRepositoryClass extends BaseRepository {
-  constructor() {
-    super(COLLECTION);
+
+  async getAll(filters = {}, options = {}) {
+    return getProvider().fetchCollection(COLLECTION, this._cleanFilters(filters), {
+      orderByField:    options.orderByField    ?? "nombre",
+      orderByDir:      options.orderByDir      ?? "asc",
+      includeInactive: options.includeInactive ?? false,
+    });
   }
 
-  /**
-   * Tipos activos.
-   * Usado en selectores de CrearRecurso.
-   */
+  async getById(id) {
+    return getProvider().fetchById(COLLECTION, id);
+  }
+
+  async create(id, data) {
+    return getProvider().insert(COLLECTION, data);
+  }
+
+  async update(id, data) {
+    return getProvider().patch(COLLECTION, id, data);
+  }
+
+  async softDelete(id) {
+    return getProvider().patch(COLLECTION, id, { estado: "inactivo" });
+  }
+
+  // =========================================
+  // DOMINIO
+  // =========================================
+
+  /** Tipos activos — para selectores en CrearRecurso. */
   async getActivos() {
-    return this.getAll({ estado: "activo" }, {});
+    return this.getAll({ estado: "activo" });
   }
 
-  /**
-   * Todos los tipos (incluyendo inactivos).
-   * Solo para panel admin de gestión de catálogo.
-   */
+  /** Todos incluyendo inactivos (panel admin). */
   async getTodos() {
-    return this.getAll({}, {});
+    return this.getAll({}, { includeInactive: true });
   }
 
-  /**
-   * Crear tipo de recurso.
-   */
+  /** Crear tipo de recurso. */
   async crear(data) {
-    return this.create(null, {
+    return getProvider().insert(COLLECTION, {
       ...data,
       estado: data.estado ?? "activo",
     });
   }
 
-  /**
-   * Soft delete — implementa contrato de BaseRepository.
-   * Nunca DELETE físico. Solo cambia estado a inactivo.
-   * Alias semántico: desactivar() → softDelete()
-   */
-  async softDelete(id) {
-    return this.update(id, { estado: "inactivo" });
-  }
-
-  /** Alias semántico en español para softDelete(). */
+  /** Alias semántico. */
   async desactivar(id) {
     return this.softDelete(id);
   }

@@ -1,57 +1,60 @@
 // src/core/repositories/DelegationRepository.js
-//
-// Repository de delegaciones territoriales.
-// Tabla SQL: delegations
-// En Firestore era: delegaciones
-//
-// RELACIÓN: delegations.region_id → regions.id
-// region_id NO existe en users — se obtiene vía JOIN
+// Tabla SQL: delegations | Firestore: delegaciones
 
 import { BaseRepository } from "./BaseRepository";
+import { getProvider }    from "../providers/providerRegistry";
 
 const COLLECTION = "delegations";
 
 class DelegationRepositoryClass extends BaseRepository {
-  constructor() {
-    super(COLLECTION);
+
+  async getAll(filters = {}, options = {}) {
+    return getProvider().fetchCollection(COLLECTION, this._cleanFilters(filters), {
+      orderByField:    options.orderByField    ?? "nombre",
+      orderByDir:      options.orderByDir      ?? "asc",
+      includeInactive: options.includeInactive ?? false,
+    });
   }
 
-  /**
-   * Delegaciones de una región específica.
-   * Usado en selectores cuando el usuario selecciona una región primero.
-   */
-  async getByRegion(regionId, options = {}) {
-    return this.getAll({ region_id: regionId, estado: "activo" }, options);
+  async getById(id) {
+    return getProvider().fetchById(COLLECTION, id);
   }
 
-  /**
-   * Todas las delegaciones activas.
-   * Usado en panel admin para ver todo el territorio.
-   */
+  async create(id, data) {
+    return getProvider().insert(COLLECTION, data);
+  }
+
+  async update(id, data) {
+    return getProvider().patch(COLLECTION, id, data);
+  }
+
+  async softDelete(id) {
+    return getProvider().patch(COLLECTION, id, { estado: "inactivo" });
+  }
+
+  // =========================================
+  // DOMINIO
+  // =========================================
+
+  /** Delegaciones de una región — flujo natural del selector territorial. */
+  async getByRegion(regionId) {
+    return this.getAll({ region_id: regionId, estado: "activo" });
+  }
+
+  /** Todas las delegaciones activas. */
   async getActivas() {
-    return this.getAll({ estado: "activo" }, {});
+    return this.getAll({ estado: "activo" });
   }
 
-  /**
-   * Crear delegación.
-   */
+  /** Crear delegación. */
   async crear(data) {
-    return this.create(null, {
+    return getProvider().insert(COLLECTION, {
       ...data,
       estado: data.estado ?? "activo",
     });
   }
 
-  /**
-   * Soft delete — implementa contrato de BaseRepository.
-   * Nunca DELETE físico. Solo cambia estado a inactivo.
-   * Alias semántico: desactivar() → softDelete()
-   */
-  async softDelete(id) {
-    return this.update(id, { estado: "inactivo" });
-  }
-
-  /** Alias semántico en español para softDelete(). */
+  /** Alias semántico. */
   async desactivar(id) {
     return this.softDelete(id);
   }

@@ -1,71 +1,67 @@
 // src/core/repositories/SquadRepository.js
-//
-// Repository de escuadras operativas.
-// Tabla SQL: squads
-// En Firestore era: escuadras
-//
-// RELACIONES:
-//   squads.delegation_id → delegations.id
-//   squads.supervisor_id → users.id (FK circular, DEFERRABLE)
+// Tabla SQL: squads | Firestore: escuadras
 
 import { BaseRepository } from "./BaseRepository";
+import { getProvider }    from "../providers/providerRegistry";
 
 const COLLECTION = "squads";
 
 class SquadRepositoryClass extends BaseRepository {
-  constructor() {
-    super(COLLECTION);
+
+  async getAll(filters = {}, options = {}) {
+    return getProvider().fetchCollection(COLLECTION, this._cleanFilters(filters), {
+      orderByField:    options.orderByField    ?? "nombre",
+      orderByDir:      options.orderByDir      ?? "asc",
+      includeInactive: options.includeInactive ?? false,
+    });
   }
 
-  /**
-   * Escuadras de una delegación.
-   * El filtro territorial más frecuente para escuadras.
-   */
-  async getByDelegation(delegationId, options = {}) {
-    return this.getAll(
-      { delegation_id: delegationId, estado: "activo" },
-      options,
-    );
+  async getById(id) {
+    return getProvider().fetchById(COLLECTION, id);
   }
 
-  /**
-   * Todas las escuadras activas.
-   * Usado en panel admin.
-   */
+  async create(id, data) {
+    return getProvider().insert(COLLECTION, data);
+  }
+
+  async update(id, data) {
+    return getProvider().patch(COLLECTION, id, data);
+  }
+
+  async softDelete(id) {
+    return getProvider().patch(COLLECTION, id, { estado: "inactivo" });
+  }
+
+  // =========================================
+  // DOMINIO
+  // =========================================
+
+  /** Escuadras de una delegación. */
+  async getByDelegation(delegationId) {
+    return this.getAll({ delegation_id: delegationId, estado: "activo" });
+  }
+
+  /** Todas las escuadras activas. */
   async getActivas() {
-    return this.getAll({ estado: "activo" }, {});
+    return this.getAll({ estado: "activo" });
   }
 
-  /**
-   * Crear escuadra.
-   * supervisor_id puede ser null al crear — se asigna después.
-   */
+  /** Crear escuadra. */
   async crear(data) {
-    return this.create(null, {
+    return getProvider().insert(COLLECTION, {
       ...data,
       estado: data.estado ?? "activo",
     });
   }
 
-  /**
-   * Asignar supervisor a una escuadra.
-   * @param {string} squadId
-   * @param {string} supervisorUserId - ID interno de users (no auth_id)
-   */
+  /** Asignar supervisor a una escuadra. */
   async asignarSupervisor(squadId, supervisorUserId) {
-    return this.update(squadId, { supervisor_id: supervisorUserId });
+    return getProvider().patch(COLLECTION, squadId, {
+      supervisor_id: supervisorUserId,
+    });
   }
 
-  /**
-   * Soft delete — implementa contrato de BaseRepository.
-   * Nunca DELETE físico. Solo cambia estado a inactivo.
-   * Alias semántico: desactivar() → softDelete()
-   */
-  async softDelete(id) {
-    return this.update(id, { estado: "inactivo" });
-  }
-
-  /** Alias semántico en español para softDelete(). */
+  /** Alias semántico. */
   async desactivar(id) {
     return this.softDelete(id);
   }

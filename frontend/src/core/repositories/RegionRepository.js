@@ -1,46 +1,55 @@
 // src/core/repositories/RegionRepository.js
-//
-// Repository de regiones territoriales.
-// Tabla SQL: regions
-// En Firestore era: regiones
+// Tabla SQL: regions | Firestore: regiones
 
 import { BaseRepository } from "./BaseRepository";
+import { getProvider }    from "../providers/providerRegistry";
 
 const COLLECTION = "regions";
 
 class RegionRepositoryClass extends BaseRepository {
-  constructor() {
-    super(COLLECTION);
+
+  async getAll(filters = {}, options = {}) {
+    return getProvider().fetchCollection(COLLECTION, this._cleanFilters(filters), {
+      orderByField:    options.orderByField    ?? "nombre",
+      orderByDir:      options.orderByDir      ?? "asc",
+      includeInactive: options.includeInactive ?? false,
+    });
   }
 
-  /**
-   * Todas las regiones activas.
-   * Usado en selectores territoriales de cualquier módulo.
-   */
+  async getById(id) {
+    return getProvider().fetchById(COLLECTION, id);
+  }
+
+  async create(id, data) {
+    return getProvider().insert(COLLECTION, data);
+  }
+
+  async update(id, data) {
+    return getProvider().patch(COLLECTION, id, data);
+  }
+
+  async softDelete(id) {
+    return getProvider().patch(COLLECTION, id, { estado: "inactivo" });
+  }
+
+  // =========================================
+  // DOMINIO
+  // =========================================
+
+  /** Regiones activas — para selectores territoriales. */
   async getActivas() {
-    return this.getAll({ estado: "activo" }, {});
+    return this.getAll({ estado: "activo" });
   }
 
-  /**
-   * Crear región.
-   */
+  /** Crear región. */
   async crear(data) {
-    return this.create(null, {
+    return getProvider().insert(COLLECTION, {
       ...data,
       estado: data.estado ?? "activo",
     });
   }
 
-  /**
-   * Soft delete — implementa contrato de BaseRepository.
-   * Nunca DELETE físico. Solo cambia estado a inactivo.
-   * Alias semántico: desactivar() → softDelete()
-   */
-  async softDelete(id) {
-    return this.update(id, { estado: "inactivo" });
-  }
-
-  /** Alias semántico en español para softDelete(). */
+  /** Alias semántico. */
   async desactivar(id) {
     return this.softDelete(id);
   }

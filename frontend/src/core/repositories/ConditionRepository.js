@@ -1,69 +1,66 @@
 // src/core/repositories/ConditionRepository.js
-//
-// Repository de condiciones operativas del personal.
-// Tabla SQL: conditions
-// En Firestore era: condiciones_usuario
-//
-// Catálogo read-heavy. Incluye campo bloquea_operaciones
-// que determina si el personal puede asignarse a hojas de servicio.
+// Tabla SQL: conditions | Firestore: condiciones_usuario
 
 import { BaseRepository } from "./BaseRepository";
+import { getProvider }    from "../providers/providerRegistry";
 
 const COLLECTION = "conditions";
 
 class ConditionRepositoryClass extends BaseRepository {
-  constructor() {
-    super(COLLECTION);
+
+  async getAll(filters = {}, options = {}) {
+    return getProvider().fetchCollection(COLLECTION, this._cleanFilters(filters), {
+      orderByField:    options.orderByField    ?? "nombre",
+      orderByDir:      options.orderByDir      ?? "asc",
+      includeInactive: options.includeInactive ?? false,
+    });
   }
 
-  /**
-   * Condiciones activas.
-   * Usado en selectores de CrearUsuario y GestionUsuarios.
-   */
+  async getById(id) {
+    return getProvider().fetchById(COLLECTION, id);
+  }
+
+  async create(id, data) {
+    return getProvider().insert(COLLECTION, data);
+  }
+
+  async update(id, data) {
+    return getProvider().patch(COLLECTION, id, data);
+  }
+
+  async softDelete(id) {
+    return getProvider().patch(COLLECTION, id, { estado: "inactivo" });
+  }
+
+  // =========================================
+  // DOMINIO
+  // =========================================
+
+  /** Condiciones activas. */
   async getActivas() {
-    return this.getAll({ estado: "activo" }, {});
+    return this.getAll({ estado: "activo" });
   }
 
-  /**
-   * Condiciones que NO bloquean operaciones.
-   * Usado en selectores de personal disponible para hojas de servicio.
-   */
+  /** Condiciones que NO bloquean operaciones — personal disponible para hojas. */
   async getOperativas() {
-    return this.getAll(
-      { estado: "activo", bloquea_operaciones: false },
-      {},
-    );
+    return this.getAll({ estado: "activo", bloquea_operaciones: false });
   }
 
-  /**
-   * Todas las condiciones (incluyendo inactivas).
-   * Solo para panel admin de gestión de catálogo.
-   */
+  /** Todas incluyendo inactivas (panel admin). */
   async getTodas() {
-    return this.getAll({}, {});
+    return this.getAll({}, { includeInactive: true });
   }
 
-  /**
-   * Crear condición.
-   */
+  /** Crear condición nueva. */
   async crear(data) {
-    return this.create(null, {
+    return getProvider().insert(COLLECTION, {
       ...data,
       estado:              data.estado              ?? "activo",
       bloquea_operaciones: data.bloquea_operaciones ?? false,
     });
   }
 
-  /**
-   * Soft delete — implementa contrato de BaseRepository.
-   * Nunca DELETE físico. Solo cambia estado a inactivo.
-   * Alias semántico: desactivar() → softDelete()
-   */
-  async softDelete(id) {
-    return this.update(id, { estado: "inactivo" });
-  }
-
-  /** Alias semántico en español para softDelete(). */
+  /** Alias semántico. */
   async desactivar(id) {
     return this.softDelete(id);
   }

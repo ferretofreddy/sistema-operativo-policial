@@ -1,60 +1,60 @@
 // src/core/repositories/RankRepository.js
-//
-// Repository de rangos institucionales.
-// Tabla SQL: ranks
-// En Firestore era: rangos_usuario
-//
-// Es un catálogo read-heavy — candidato a caché.
-// Cambios muy infrecuentes.
+// Tabla SQL: ranks | Firestore: rangos_usuario
 
 import { BaseRepository } from "./BaseRepository";
+import { getProvider }    from "../providers/providerRegistry";
 
 const COLLECTION = "ranks";
 
 class RankRepositoryClass extends BaseRepository {
-  constructor() {
-    super(COLLECTION);
+
+  async getAll(filters = {}, options = {}) {
+    return getProvider().fetchCollection(COLLECTION, this._cleanFilters(filters), {
+      orderByField:    options.orderByField    ?? "orden_jerarquico",
+      orderByDir:      options.orderByDir      ?? "asc",
+      includeInactive: options.includeInactive ?? false,
+    });
   }
 
-  /**
-   * Todos los rangos activos, ordenados jerárquicamente.
-   * Usado en selectores de CrearUsuario y GestionUsuarios.
-   */
+  async getById(id) {
+    return getProvider().fetchById(COLLECTION, id);
+  }
+
+  async create(id, data) {
+    return getProvider().insert(COLLECTION, data);
+  }
+
+  async update(id, data) {
+    return getProvider().patch(COLLECTION, id, data);
+  }
+
+  async softDelete(id) {
+    return getProvider().patch(COLLECTION, id, { estado: "inactivo" });
+  }
+
+  // =========================================
+  // DOMINIO
+  // =========================================
+
+  /** Todos los rangos activos ordenados jerárquicamente. */
   async getActivos() {
-    return this.getAll(
-      { estado: "activo" },
-      { orderBy: "orden_jerarquico", direction: "asc" },
-    );
+    return this.getAll({ estado: "activo" });
   }
 
-  /**
-   * Todos los rangos (incluyendo inactivos).
-   * Solo para panel admin de gestión de catálogo.
-   */
+  /** Todos los rangos incluyendo inactivos (panel admin). */
   async getTodos() {
-    return this.getAll({}, { orderBy: "orden_jerarquico", direction: "asc" });
+    return this.getAll({}, { includeInactive: true });
   }
 
-  /**
-   * Crear rango.
-   */
+  /** Crear rango nuevo. */
   async crear(data) {
-    return this.create(null, {
+    return getProvider().insert(COLLECTION, {
       ...data,
       estado: data.estado ?? "activo",
     });
   }
 
-  /**
-   * Soft delete — implementa contrato de BaseRepository.
-   * Nunca DELETE físico. Solo cambia estado a inactivo.
-   * Alias semántico: desactivar() → softDelete()
-   */
-  async softDelete(id) {
-    return this.update(id, { estado: "inactivo" });
-  }
-
-  /** Alias semántico en español para softDelete(). */
+  /** Alias semántico. */
   async desactivar(id) {
     return this.softDelete(id);
   }
