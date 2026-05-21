@@ -1,337 +1,205 @@
-import { useEffect, useState } from "react";
+// frontend/src/modules/administracion/configuracion/GestionCondicionesUsuario.jsx
+//
+// Gestión del catálogo de condiciones operativas del personal.
+// MIGRADO: catalogosService (Firebase) → ConditionRepository (Supabase)
 
-import {
-  collection,
-  addDoc,
-  getDocs,
-  updateDoc,
-  doc,
-  Timestamp,
-} from "firebase/firestore";
-
-import { db } from "../../../services/firebase";
-
-import CatalogoSimpleLayout from "../../../shared/layouts/CatalogoSimpleLayout";
+import { useState, useEffect, useCallback } from "react";
+import { ConditionRepository } from "../../../core";
+import { CatalogoSimpleLayout } from "../../../shared/layouts/CatalogoSimpleLayout";
 
 function GestionCondicionesUsuario() {
-  // =========================================
-  // DATA
-  // =========================================
-
   const [condiciones, setCondiciones] = useState([]);
+  const [loading,     setLoading]     = useState(true);
+  const [error,       setError]       = useState("");
+  const [guardando,   setGuardando]   = useState(false);
 
-  // =========================================
-  // FORM
-  // =========================================
-
-  const [formData, setFormData] = useState({
-    nombre: "",
-
-    descripcion: "",
-
-    bloquea_operaciones: false,
-
-    estado: "activo",
-  });
-
-  // =========================================
-  // EDITAR
-  // =========================================
-
-  const [editandoId, setEditandoId] = useState(null);
-
-  // =========================================
-  // LOADING
-  // =========================================
-
-  const [loading, setLoading] = useState(false);
+  // Formulario
+  const [nombre,              setNombre]              = useState("");
+  const [descripcion,         setDescripcion]         = useState("");
+  const [bloqueaOperaciones,  setBloqueaOperaciones]  = useState(false);
 
   // =========================================
   // CARGAR
   // =========================================
 
-  const cargarCondiciones = async () => {
+  const cargar = useCallback(async () => {
+    setLoading(true);
+    setError("");
     try {
-      const snapshot = await getDocs(collection(db, "condiciones_usuario"));
-
-      const lista = snapshot.docs
-        .map((d) => ({
-          id: d.id,
-          ...d.data(),
-        }))
-        .sort((a, b) => a.nombre.localeCompare(b.nombre));
-
-      setCondiciones(lista);
-    } catch (error) {
-      console.error(error);
-    }
-  };
-
-  useEffect(() => {
-    cargarCondiciones();
-  }, []);
-
-  // =========================================
-  // CHANGE
-  // =========================================
-
-  const handleChange = (field, value) => {
-    setFormData({
-      ...formData,
-
-      [field]: field === "bloquea_operaciones" ? value === "true" : value,
-    });
-  };
-
-  // =========================================
-  // LIMPIAR
-  // =========================================
-
-  const limpiarFormulario = () => {
-    setFormData({
-      nombre: "",
-
-      descripcion: "",
-
-      bloquea_operaciones: false,
-
-      estado: "activo",
-    });
-
-    setEditandoId(null);
-  };
-
-  // =========================================
-  // GUARDAR
-  // =========================================
-
-  const guardarCondicion = async () => {
-    try {
-      setLoading(true);
-
-      const nombre = formData.nombre.trim().toUpperCase();
-
-      if (!nombre) {
-        alert("Ingrese el nombre");
-
-        return;
-      }
-
-      // =========================================
-      // VALIDAR
-      // =========================================
-
-      const existe = condiciones.find(
-        (c) => c.nombre === nombre && c.id !== editandoId,
-      );
-
-      if (existe) {
-        alert("Esta condición ya existe");
-
-        return;
-      }
-
-      const datos = {
-        nombre,
-
-        descripcion: formData.descripcion.trim(),
-
-        bloquea_operaciones: formData.bloquea_operaciones,
-
-        estado: formData.estado,
-
-        actualizado: Timestamp.now(),
-      };
-
-      // =========================================
-      // CREAR
-      // =========================================
-
-      if (!editandoId) {
-        await addDoc(
-          collection(db, "condiciones_usuario"),
-
-          {
-            ...datos,
-
-            creado: Timestamp.now(),
-          },
-        );
-
-        alert("Condición creada");
-      } else {
-        // =========================================
-        // ACTUALIZAR
-        // =========================================
-
-        await updateDoc(
-          doc(db, "condiciones_usuario", editandoId),
-
-          datos,
-        );
-
-        alert("Condición actualizada");
-      }
-
-      limpiarFormulario();
-
-      await cargarCondiciones();
-    } catch (error) {
-      console.error(error);
-
-      alert("Error guardando condición");
+      const data = await ConditionRepository.getTodas();
+      setCondiciones(data);
+    } catch (err) {
+      setError("Error al cargar condiciones: " + err.message);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => { cargar(); }, [cargar]);
 
   // =========================================
-  // EDITAR
+  // CREAR
   // =========================================
 
-  const editarCondicion = (condicion) => {
-    setEditandoId(condicion.id);
+  const handleCrear = async () => {
+    if (!nombre.trim()) {
+      setError("El nombre es obligatorio.");
+      return;
+    }
 
-    setFormData({
-      nombre: condicion.nombre || "",
-
-      descripcion: condicion.descripcion || "",
-
-      bloquea_operaciones: condicion.bloquea_operaciones || false,
-
-      estado: condicion.estado || "activo",
-    });
-  };
-
-  // =========================================
-  // ESTADO
-  // =========================================
-
-  const cambiarEstado = async (condicion) => {
+    setGuardando(true);
+    setError("");
     try {
-      const nuevoEstado = condicion.estado === "activo" ? "inactivo" : "activo";
-
-      await updateDoc(
-        doc(db, "condiciones_usuario", condicion.id),
-
-        {
-          estado: nuevoEstado,
-
-          actualizado: Timestamp.now(),
-        },
-      );
-
-      await cargarCondiciones();
-    } catch (error) {
-      console.error(error);
-
-      alert("Error actualizando estado");
+      await ConditionRepository.crear({
+        nombre:               nombre.trim(),
+        descripcion:          descripcion.trim() || null,
+        bloquea_operaciones:  bloqueaOperaciones,
+        estado:               "activo",
+      });
+      setNombre(""); setDescripcion(""); setBloqueaOperaciones(false);
+      await cargar();
+    } catch (err) {
+      setError("Error al crear condición: " + err.message);
+    } finally {
+      setGuardando(false);
     }
   };
 
+  // =========================================
+  // DESACTIVAR
+  // =========================================
+
+  const handleDesactivar = async (id) => {
+    if (!confirm("¿Desactivar esta condición?")) return;
+    try {
+      await ConditionRepository.softDelete(id);
+      await cargar();
+    } catch (err) {
+      setError("Error al desactivar: " + err.message);
+    }
+  };
+
+  // =========================================
+  // RENDER
+  // =========================================
+
   return (
-    <CatalogoSimpleLayout
-      // =========================================
-      // HEADER
-      // =========================================
+    <CatalogoSimpleLayout titulo="Condiciones del Personal" subtitulo="Estados operativos del personal institucional">
 
-      titulo="
-      Gestión Condiciones Usuario
-      "
-      subtitulo="
-      Administración de condiciones operativas del personal
-      "
-      // =========================================
-      // FORM
-      // =========================================
+      {/* Formulario */}
+      <div style={formCardStyle}>
+        <h3 style={{ margin: "0 0 20px 0" }}>Agregar Condición</h3>
 
-      formTitle={editandoId ? "Editar Condición" : "Nueva Condición"}
-      formData={formData}
-      onChange={handleChange}
-      onSubmit={guardarCondicion}
-      onCancel={limpiarFormulario}
-      editando={!!editandoId}
-      loading={loading}
-      fields={[
-        {
-          name: "nombre",
+        <div style={gridStyle}>
+          <div style={fieldStyle}>
+            <label style={labelStyle}>Nombre *</label>
+            <input
+              value={nombre}
+              onChange={(e) => setNombre(e.target.value)}
+              placeholder="Ej: Incapacidad"
+              style={inputStyle}
+            />
+          </div>
+          <div style={fieldStyle}>
+            <label style={labelStyle}>Descripción</label>
+            <input
+              value={descripcion}
+              onChange={(e) => setDescripcion(e.target.value)}
+              placeholder="Descripción opcional"
+              style={inputStyle}
+            />
+          </div>
+        </div>
 
-          label: "Nombre",
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "16px" }}>
+          <input
+            type="checkbox"
+            id="bloqueaOps"
+            checked={bloqueaOperaciones}
+            onChange={(e) => setBloqueaOperaciones(e.target.checked)}
+            style={{ width: "16px", height: "16px", cursor: "pointer" }}
+          />
+          <label htmlFor="bloqueaOps" style={{ ...labelStyle, cursor: "pointer" }}>
+            Bloquea operaciones
+            <span style={{ marginLeft: "8px", fontSize: "12px", color: "#64748b" }}>
+              (el personal con esta condición no puede asignarse a hojas de servicio)
+            </span>
+          </label>
+        </div>
 
-          placeholder: "Ej: Vacaciones",
-        },
+        {error && <div style={errorStyle}>{error}</div>}
 
-        {
-          name: "descripcion",
+        <button onClick={handleCrear} disabled={guardando} style={btnStyle}>
+          {guardando ? "Guardando..." : "Agregar Condición"}
+        </button>
+      </div>
 
-          label: "Descripción",
-
-          placeholder: "Descripción opcional",
-        },
-
-        {
-          name: "bloquea_operaciones",
-
-          label: "Bloquea Operaciones",
-
-          type: "select",
-
-          options: [
-            {
-              label: "No",
-
-              value: "false",
-            },
-
-            {
-              label: "Sí",
-
-              value: "true",
-            },
-          ],
-        },
-
-        {
-          name: "estado",
-
-          label: "Estado",
-
-          type: "select",
-
-          options: [
-            {
-              label: "Activo",
-
-              value: "activo",
-            },
-
-            {
-              label: "Inactivo",
-
-              value: "inactivo",
-            },
-          ],
-        },
-      ]}
-      // =========================================
-      // LISTA
-      // =========================================
-
-      items={condiciones}
-      renderItemTitle={(c) => c.nombre}
-      renderItemSubtitle={(c) =>
-        `
-        ${
-          c.bloquea_operaciones
-            ? "Bloquea operaciones"
-            : "No bloquea operaciones"
-        }
-        `
-      }
-      onEdit={editarCondicion}
-      onToggleEstado={cambiarEstado}
-    />
+      {/* Lista */}
+      {loading ? (
+        <p style={msgStyle}>Cargando condiciones...</p>
+      ) : (
+        <div style={tableWrap}>
+          <table style={tableStyle}>
+            <thead>
+              <tr>
+                {["Nombre", "Descripción", "Bloquea Ops.", "Estado", ""].map((h) => (
+                  <th key={h} style={thStyle}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {condiciones.map((c) => (
+                <tr key={c.id} style={c.estado === "inactivo" ? rowInactiveStyle : {}}>
+                  <td style={tdStyle}>{c.nombre}</td>
+                  <td style={tdStyle}>{c.descripcion || "—"}</td>
+                  <td style={tdStyle}>
+                    <span style={c.bloquea_operaciones ? badgeBlockStyle : badgeOkStyle}>
+                      {c.bloquea_operaciones ? "Sí" : "No"}
+                    </span>
+                  </td>
+                  <td style={tdStyle}>
+                    <span style={c.estado === "activo" ? badgeActiveStyle : badgeInactiveStyle}>
+                      {c.estado}
+                    </span>
+                  </td>
+                  <td style={tdStyle}>
+                    {c.estado === "activo" && (
+                      <button onClick={() => handleDesactivar(c.id)} style={btnSmallStyle}>
+                        Desactivar
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </CatalogoSimpleLayout>
   );
 }
+
+// =========================================
+// ESTILOS
+// =========================================
+
+const formCardStyle      = { background: "white", padding: "24px", borderRadius: "12px", boxShadow: "0 2px 6px rgba(0,0,0,0.08)", marginBottom: "24px" };
+const gridStyle          = { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "16px", marginBottom: "16px" };
+const fieldStyle         = { display: "flex", flexDirection: "column", gap: "6px" };
+const labelStyle         = { fontSize: "13px", fontWeight: "500", color: "#374151" };
+const inputStyle         = { padding: "9px 12px", border: "1px solid #d1d5db", borderRadius: "8px", fontSize: "14px", outline: "none" };
+const errorStyle         = { background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "8px", padding: "10px 14px", fontSize: "13px", color: "#dc2626", marginBottom: "12px" };
+const btnStyle           = { padding: "10px 20px", background: "#1e293b", color: "white", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "500" };
+const btnSmallStyle      = { padding: "5px 10px", background: "#ef4444", color: "white", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "12px" };
+const msgStyle           = { textAlign: "center", color: "#64748b", padding: "20px" };
+const tableWrap          = { background: "white", borderRadius: "12px", boxShadow: "0 2px 6px rgba(0,0,0,0.08)", overflow: "hidden" };
+const tableStyle         = { width: "100%", borderCollapse: "collapse" };
+const thStyle            = { padding: "12px 16px", textAlign: "left", background: "#f8fafc", fontSize: "12px", fontWeight: "600", color: "#64748b", textTransform: "uppercase", borderBottom: "1px solid #e2e8f0" };
+const tdStyle            = { padding: "12px 16px", borderBottom: "1px solid #f1f5f9", fontSize: "14px", color: "#1e293b" };
+const rowInactiveStyle   = { opacity: 0.5 };
+const badgeActiveStyle   = { background: "#dcfce7", color: "#166534", padding: "2px 8px", borderRadius: "12px", fontSize: "12px", fontWeight: "500" };
+const badgeInactiveStyle = { background: "#fee2e2", color: "#991b1b", padding: "2px 8px", borderRadius: "12px", fontSize: "12px", fontWeight: "500" };
+const badgeBlockStyle    = { background: "#fee2e2", color: "#991b1b", padding: "2px 8px", borderRadius: "12px", fontSize: "12px", fontWeight: "500" };
+const badgeOkStyle       = { background: "#dcfce7", color: "#166534", padding: "2px 8px", borderRadius: "12px", fontSize: "12px", fontWeight: "500" };
 
 export default GestionCondicionesUsuario;
