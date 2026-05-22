@@ -1,281 +1,134 @@
-import { useEffect, useState } from "react";
-
-import {
-  collection,
-  addDoc,
-  getDocs,
-  updateDoc,
-  doc,
-  Timestamp,
-} from "firebase/firestore";
-
-import { db } from "../../../services/firebase";
-
+// frontend/src/modules/administracion/regiones/CrearRegion.jsx
+import { useEffect, useState, useCallback } from "react";
+import { RegionRepository } from "../../../core";
 import CatalogoSimpleLayout from "../../../shared/layouts/CatalogoSimpleLayout";
 
 function CrearRegion() {
-  // =========================================
-  // FORM
-  // =========================================
-
-  const [formData, setFormData] = useState({
-    nombre: "",
-
-    codigo: "",
-  });
-
-  // =========================================
-  // DATA
-  // =========================================
-
-  const [regiones, setRegiones] = useState([]);
-
-  // =========================================
-  // EDITAR
-  // =========================================
-
+  const [formData,   setFormData]   = useState({ nombre: "", codigo: "" });
+  const [regiones,   setRegiones]   = useState([]);
   const [editandoId, setEditandoId] = useState(null);
-
-  // =========================================
-  // LOADING
-  // =========================================
-
-  const [loading, setLoading] = useState(false);
+  const [loading,    setLoading]    = useState(false);
+  const [error,      setError]      = useState("");
 
   // =========================================
   // CARGAR
   // =========================================
 
-  const cargarRegiones = async () => {
+  const cargarRegiones = useCallback(async () => {
     try {
-      const snapshot = await getDocs(collection(db, "regiones"));
-
-      const lista = snapshot.docs
-        .map((d) => ({
-          id: d.id,
-          ...d.data(),
-        }))
-        .sort((a, b) => a.nombre.localeCompare(b.nombre));
-
-      setRegiones(lista);
-    } catch (error) {
-      console.error(error);
+      const data = await RegionRepository.getAll({}, { includeInactive: true });
+      setRegiones(data.sort((a, b) => a.nombre.localeCompare(b.nombre)));
+    } catch (err) {
+      setError("Error al cargar regiones: " + err.message);
     }
-  };
-
-  useEffect(() => {
-    cargarRegiones();
   }, []);
 
+  useEffect(() => { cargarRegiones(); }, [cargarRegiones]);
+
   // =========================================
-  // CHANGE
+  // HANDLERS
   // =========================================
 
   const handleChange = (field, value) => {
-    setFormData({
-      ...formData,
-
-      [field]: value,
-    });
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
-
-  // =========================================
-  // LIMPIAR
-  // =========================================
 
   const limpiarFormulario = () => {
-    setFormData({
-      nombre: "",
-
-      codigo: "",
-    });
-
+    setFormData({ nombre: "", codigo: "" });
     setEditandoId(null);
+    setError("");
   };
 
-  // =========================================
-  // GUARDAR
-  // =========================================
-
   const guardarRegion = async () => {
+    const nombre = formData.nombre.trim().toUpperCase();
+    const codigo = formData.codigo.trim().toUpperCase();
+
+    if (!nombre || !codigo) {
+      setError("Complete todos los campos.");
+      return;
+    }
+
+    // Validar duplicados localmente
+    const nombreExiste = regiones.find(
+      (r) => r.nombre === nombre && r.id !== editandoId,
+    );
+    if (nombreExiste) { setError("Ya existe una región con ese nombre."); return; }
+
+    const codigoExiste = regiones.find(
+      (r) => r.codigo === codigo && r.id !== editandoId,
+    );
+    if (codigoExiste) { setError("Ya existe una región con ese código."); return; }
+
+    setLoading(true);
+    setError("");
     try {
-      setLoading(true);
-
-      const nombre = formData.nombre.trim().toUpperCase();
-
-      const codigo = formData.codigo.trim().toUpperCase();
-
-      if (!nombre || !codigo) {
-        alert("Complete todos los campos");
-
-        return;
-      }
-
-      // =========================================
-      // VALIDAR
-      // =========================================
-
-      const nombreExiste = regiones.find(
-        (r) => r.nombre === nombre && r.id !== editandoId,
-      );
-
-      if (nombreExiste) {
-        alert("Ya existe una región con ese nombre");
-
-        return;
-      }
-
-      const codigoExiste = regiones.find(
-        (r) => r.codigo === codigo && r.id !== editandoId,
-      );
-
-      if (codigoExiste) {
-        alert("Ya existe una región con ese código");
-
-        return;
-      }
-
-      const datos = {
-        nombre,
-
-        codigo,
-
-        actualizado: Timestamp.now(),
-      };
-
-      // =========================================
-      // CREAR
-      // =========================================
-
       if (!editandoId) {
-        await addDoc(
-          collection(db, "regiones"),
-
-          {
-            ...datos,
-
-            estado: "activo",
-
-            creado: Timestamp.now(),
-          },
-        );
-
-        alert("Región creada correctamente");
+        await RegionRepository.crear({ nombre, codigo, estado: "activo" });
       } else {
-        // =========================================
-        // UPDATE
-        // =========================================
-
-        await updateDoc(
-          doc(db, "regiones", editandoId),
-
-          datos,
-        );
-
-        alert("Región actualizada");
+        await RegionRepository.update(editandoId, { nombre, codigo });
       }
-
       limpiarFormulario();
-
       await cargarRegiones();
-    } catch (error) {
-      console.error(error);
-
-      alert("Error guardando región");
+    } catch (err) {
+      setError("Error al guardar: " + err.message);
     } finally {
       setLoading(false);
     }
   };
 
-  // =========================================
-  // EDITAR
-  // =========================================
-
   const editarRegion = (region) => {
     setEditandoId(region.id);
-
-    setFormData({
-      nombre: region.nombre || "",
-
-      codigo: region.codigo || "",
-    });
+    setFormData({ nombre: region.nombre || "", codigo: region.codigo || "" });
+    setError("");
   };
-
-  // =========================================
-  // ESTADO
-  // =========================================
 
   const cambiarEstado = async (region) => {
     try {
       const nuevoEstado = region.estado === "activo" ? "inactivo" : "activo";
-
-      await updateDoc(
-        doc(db, "regiones", region.id),
-
-        {
-          estado: nuevoEstado,
-
-          actualizado: Timestamp.now(),
-        },
-      );
-
+      await RegionRepository.update(region.id, { estado: nuevoEstado });
       await cargarRegiones();
-    } catch (error) {
-      console.error(error);
-
-      alert("Error actualizando estado");
+    } catch (err) {
+      setError("Error actualizando estado: " + err.message);
     }
   };
 
   return (
-    <CatalogoSimpleLayout
-      // =========================================
-      // HEADER
-      // =========================================
-
-      titulo="Gestión Regiones"
-      subtitulo="
-      Administración de regiones operativas
-      "
-      // =========================================
-      // FORM
-      // =========================================
-
-      formTitle={editandoId ? "Editar Región" : "Nueva Región"}
-      formData={formData}
-      onChange={handleChange}
-      onSubmit={guardarRegion}
-      onCancel={limpiarFormulario}
-      editando={!!editandoId}
-      loading={loading}
-      fields={[
-        {
-          name: "nombre",
-
-          label: "Nombre Región",
-
-          placeholder: "Ej: Pacífico Sur",
-        },
-
-        {
-          name: "codigo",
-
-          label: "Código",
-
-          placeholder: "Ej: PS",
-        },
-      ]}
-      // =========================================
-      // LISTA
-      // =========================================
-
-      items={regiones}
-      renderItemTitle={(r) => r.nombre}
-      renderItemSubtitle={(r) => `Código: ${r.codigo}`}
-      onEdit={editarRegion}
-      onToggleEstado={cambiarEstado}
-    />
+    <>
+      {error && (
+        <div style={errorBannerStyle}>{error}</div>
+      )}
+      <CatalogoSimpleLayout
+        titulo="Gestión Regiones"
+        subtitulo="Administración de regiones operativas"
+        formTitle={editandoId ? "Editar Región" : "Nueva Región"}
+        formData={formData}
+        onChange={handleChange}
+        onSubmit={guardarRegion}
+        onCancel={limpiarFormulario}
+        editando={!!editandoId}
+        loading={loading}
+        fields={[
+          { name: "nombre", label: "Nombre Región", placeholder: "Ej: Pacífico Sur" },
+          { name: "codigo", label: "Código",         placeholder: "Ej: PS" },
+        ]}
+        items={regiones}
+        renderItemTitle={(r) => r.nombre}
+        renderItemSubtitle={(r) => `Código: ${r.codigo}`}
+        onEdit={editarRegion}
+        onToggleEstado={cambiarEstado}
+      />
+    </>
   );
 }
+
+const errorBannerStyle = {
+  background: "#fef2f2",
+  border: "1px solid #fecaca",
+  borderRadius: "8px",
+  padding: "10px 16px",
+  fontSize: "13px",
+  color: "#dc2626",
+  margin: "16px 20px 0",
+};
 
 export default CrearRegion;

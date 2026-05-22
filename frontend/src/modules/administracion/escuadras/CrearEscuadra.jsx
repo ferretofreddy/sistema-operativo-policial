@@ -1,821 +1,385 @@
 // frontend/src/modules/administracion/escuadras/CrearEscuadra.jsx
-
-import { useContext, useEffect, useMemo, useState } from "react";
-
+import { useContext, useEffect, useMemo, useState, useCallback } from "react";
+import { AuthContext } from "../../../context/AuthContext";
 import {
-  collection,
-  getDocs,
-  addDoc,
-  updateDoc,
-  doc,
-  Timestamp,
-  query,
-  where,
-} from "firebase/firestore";
-
-import { db } from "../../../services/firebase";
-
+  RegionRepository,
+  DelegationRepository,
+  SquadRepository,
+  UserRepository,
+} from "../../../core";
 import GestionLayout from "../../../shared/layouts/GestionLayout";
 
-import { AuthContext } from "../../../context/AuthContext";
-
 function CrearEscuadra() {
-  // =========================================
-  // AUTH
-  // =========================================
-
   const { userData } = useContext(AuthContext);
 
-  const esAdmin = userData?.rol === "admin";
-
+  const esAdmin           = userData?.rol === "admin";
   const esUnidadOperativa = userData?.rol === "unidad_operativa";
 
-  // =========================================
-  // DATA
-  // =========================================
-
-  const [regiones, setRegiones] = useState([]);
-
+  const [regiones,     setRegiones]     = useState([]);
   const [delegaciones, setDelegaciones] = useState([]);
-
-  const [escuadras, setEscuadras] = useState([]);
-
-  // =========================================
-  // FILTROS
-  // =========================================
+  const [escuadras,    setEscuadras]    = useState([]);
+  const [editandoId,   setEditandoId]   = useState(null);
+  const [loading,      setLoading]      = useState(false);
+  const [error,        setError]        = useState("");
 
   const [filtros, setFiltros] = useState({
-    region_id: "",
-
+    region_id:     "",
     delegacion_id: "",
-
-    busqueda: "",
+    busqueda:      "",
   });
-
-  // =========================================
-  // FORM
-  // =========================================
 
   const [formData, setFormData] = useState({
-    region_id: "",
-
+    region_id:     "",
     delegacion_id: "",
-
-    nombre: "",
-
-    codigo: "",
-
-    estado: "activo",
+    nombre:        "",
+    codigo:        "",
+    estado:        "activo",
   });
 
   // =========================================
-  // EDITANDO
-  // =========================================
-
-  const [editandoId, setEditandoId] = useState(null);
-
-  // =========================================
-  // LOADING
-  // =========================================
-
-  const [loading, setLoading] = useState(false);
-
-  // =========================================
-  // INIT USER FILTERS
+  // INIT FILTROS TERRITORIALES (unidad_operativa)
+  // NOTA: en PostgreSQL no existe userData.region_id
+  // La región se obtiene vía JOIN delegation → region
+  // Para unidad_operativa usamos su delegation_id directamente
   // =========================================
 
   useEffect(() => {
-    if (esUnidadOperativa && userData) {
-      setFiltros({
-        region_id: userData.region_id || "",
-
-        delegacion_id: userData.delegacion_id || "",
-
-        busqueda: "",
-      });
-
+    if (esUnidadOperativa && userData?.delegation_id) {
+      setFiltros((prev) => ({
+        ...prev,
+        delegacion_id: userData.delegation_id,
+      }));
       setFormData((prev) => ({
         ...prev,
-
-        region_id: userData.region_id || "",
-
-        delegacion_id: userData.delegacion_id || "",
+        delegacion_id: userData.delegation_id,
       }));
     }
   }, [esUnidadOperativa, userData]);
 
   // =========================================
-  // CARGAR REGIONES
+  // CARGAR
   // =========================================
 
-  const cargarRegiones = async () => {
+  const cargarRegiones = useCallback(async () => {
     try {
-      const snapshot = await getDocs(collection(db, "regiones"));
-
-      const lista = snapshot.docs
-        .map((d) => ({
-          id: d.id,
-          ...d.data(),
-        }))
-        .sort((a, b) => a.nombre.localeCompare(b.nombre));
-
-      setRegiones(lista);
-    } catch (error) {
-      console.error(error);
+      const data = await RegionRepository.getActivas();
+      setRegiones(data.sort((a, b) => a.nombre.localeCompare(b.nombre)));
+    } catch (err) {
+      setError("Error al cargar regiones: " + err.message);
     }
-  };
+  }, []);
 
-  // =========================================
-  // CARGAR DELEGACIONES
-  // =========================================
-
-  const cargarDelegaciones = async () => {
+  const cargarDelegaciones = useCallback(async () => {
     try {
-      const snapshot = await getDocs(collection(db, "delegaciones"));
-
-      const lista = snapshot.docs
-        .map((d) => ({
-          id: d.id,
-          ...d.data(),
-        }))
-        .sort((a, b) => a.nombre.localeCompare(b.nombre));
-
-      setDelegaciones(lista);
-    } catch (error) {
-      console.error(error);
+      const data = await DelegationRepository.getActivas();
+      setDelegaciones(data.sort((a, b) => a.nombre.localeCompare(b.nombre)));
+    } catch (err) {
+      setError("Error al cargar delegaciones: " + err.message);
     }
-  };
+  }, []);
 
-  // =========================================
-  // CARGAR ESCUADRAS
-  // =========================================
-
-  const cargarEscuadras = async () => {
+  const cargarEscuadras = useCallback(async () => {
+    if (!userData) return;
     try {
-      const snapshot = await getDocs(collection(db, "escuadras"));
-
-      let lista = snapshot.docs.map((d) => ({
-        id: d.id,
-        ...d.data(),
-      }));
-
-      // =========================================
-      // FILTRO TERRITORIAL
-      // =========================================
-
-      if (esUnidadOperativa && userData) {
-        lista = lista.filter(
-          (e) =>
-            e.region_id === userData.region_id &&
-            e.delegacion_id === userData.delegacion_id,
-        );
+      let filtrosQuery = {};
+      // unidad_operativa solo ve escuadras de su delegación
+      if (esUnidadOperativa && userData.delegation_id) {
+        filtrosQuery = { delegation_id: userData.delegation_id };
       }
-
-      lista.sort((a, b) => a.nombre.localeCompare(b.nombre));
-
-      setEscuadras(lista);
-    } catch (error) {
-      console.error(error);
+      const data = await SquadRepository.getAll(filtrosQuery, { includeInactive: true });
+      setEscuadras(data.sort((a, b) => a.nombre.localeCompare(b.nombre)));
+    } catch (err) {
+      setError("Error al cargar escuadras: " + err.message);
     }
-  };
-
-  // =========================================
-  // INIT
-  // =========================================
+  }, [userData, esUnidadOperativa]);
 
   useEffect(() => {
     cargarRegiones();
-
     cargarDelegaciones();
-  }, []);
+  }, [cargarRegiones, cargarDelegaciones]);
 
   useEffect(() => {
-    if (userData) {
-      cargarEscuadras();
-    }
-  }, [userData]);
+    cargarEscuadras();
+  }, [cargarEscuadras]);
 
   // =========================================
-  // DELEGACIONES FORM
+  // DELEGACIONES FILTRADAS PARA FORM Y FILTROS
+  // JOIN local: delegar → region
   // =========================================
 
-  const delegacionesFiltradas = useMemo(() => {
-    if (!formData.region_id) {
-      return [];
-    }
-
+  const delegacionesParaForm = useMemo(() => {
+    if (!formData.region_id) return [];
     return delegaciones.filter((d) => d.region_id === formData.region_id);
   }, [delegaciones, formData.region_id]);
 
-  // =========================================
-  // DELEGACIONES FILTRO
-  // =========================================
-
-  const delegacionesFiltro = useMemo(() => {
-    if (!filtros.region_id) {
-      return [];
-    }
-
+  const delegacionesParaFiltro = useMemo(() => {
+    if (!filtros.region_id) return [];
     return delegaciones.filter((d) => d.region_id === filtros.region_id);
   }, [delegaciones, filtros.region_id]);
 
-  // =========================================
-  // ESCUADRAS FILTRADAS
-  // =========================================
-
   const escuadrasFiltradas = useMemo(() => {
     return escuadras.filter((e) => {
-      const filtroRegion =
-        !filtros.region_id || e.region_id === filtros.region_id;
-
-      const filtroDelegacion =
-        !filtros.delegacion_id || e.delegacion_id === filtros.delegacion_id;
-
-      const texto = filtros.busqueda.toLowerCase().trim();
-
-      const filtroBusqueda =
-        !texto ||
+      const filtroDeleg   = !filtros.delegacion_id || e.delegation_id === filtros.delegacion_id;
+      const texto         = filtros.busqueda.toLowerCase().trim();
+      const filtroBusq    = !texto ||
         e.nombre?.toLowerCase().includes(texto) ||
         e.codigo?.toLowerCase().includes(texto);
 
-      return filtroRegion && filtroDelegacion && filtroBusqueda;
+      // Para admin: también filtrar por región (JOIN local)
+      let filtroRegion = true;
+      if (filtros.region_id) {
+        const delega = delegaciones.find((d) => d.id === e.delegation_id);
+        filtroRegion = delega?.region_id === filtros.region_id;
+      }
+
+      return filtroRegion && filtroDeleg && filtroBusq;
     });
-  }, [escuadras, filtros]);
+  }, [escuadras, filtros, delegaciones]);
+
+  // Helpers JOIN local para mostrar nombres en tabla
+  const getNombreDeleg  = (id) => delegaciones.find((d) => d.id === id)?.nombre ?? "—";
+  const getNombreRegion = (delegId) => {
+    const deleg = delegaciones.find((d) => d.id === delegId);
+    return regiones.find((r) => r.id === deleg?.region_id)?.nombre ?? "—";
+  };
 
   // =========================================
-  // CHANGE FILTROS
+  // HANDLERS
   // =========================================
 
   const handleFiltroChange = (field, value) => {
-    const nuevos = {
-      ...filtros,
-
-      [field]: value,
-    };
-
-    if (field === "region_id") {
-      nuevos.delegacion_id = "";
-    }
-
-    setFiltros(nuevos);
-  };
-
-  // =========================================
-  // CHANGE FORM
-  // =========================================
-
-  const handleFormChange = (field, value) => {
-    const nuevos = {
-      ...formData,
-
-      [field]: value,
-    };
-
-    if (field === "region_id") {
-      nuevos.delegacion_id = "";
-    }
-
-    setFormData(nuevos);
-  };
-
-  // =========================================
-  // LIMPIAR FORM
-  // =========================================
-
-  const limpiarFormulario = () => {
-    setEditandoId(null);
-
-    setFormData({
-      region_id: esUnidadOperativa ? userData.region_id : "",
-
-      delegacion_id: esUnidadOperativa ? userData.delegacion_id : "",
-
-      nombre: "",
-
-      codigo: "",
-
-      estado: "activo",
+    setFiltros((prev) => {
+      const next = { ...prev, [field]: value };
+      if (field === "region_id") next.delegacion_id = "";
+      return next;
     });
   };
 
-  // =========================================
-  // GUARDAR
-  // =========================================
+  const handleFormChange = (field, value) => {
+    setFormData((prev) => {
+      const next = { ...prev, [field]: value };
+      if (field === "region_id") next.delegacion_id = "";
+      return next;
+    });
+  };
+
+  const limpiarFormulario = () => {
+    setEditandoId(null);
+    setFormData({
+      region_id:     esUnidadOperativa ? "" : "",
+      delegacion_id: esUnidadOperativa ? (userData?.delegation_id ?? "") : "",
+      nombre:        "",
+      codigo:        "",
+      estado:        "activo",
+    });
+    setError("");
+  };
 
   const guardarEscuadra = async () => {
+    if (!formData.delegacion_id)    { setError("Seleccione una delegación."); return; }
+    if (!formData.nombre.trim())    { setError("Ingrese el nombre.");         return; }
+    if (!formData.codigo.trim())    { setError("Ingrese el código.");         return; }
+
+    const nombre = formData.nombre.trim().toUpperCase();
+    const codigo = formData.codigo.trim().toUpperCase();
+
+    const delegacion = delegaciones.find((d) => d.id === formData.delegacion_id);
+    if (!delegacion) { setError("Delegación inválida."); return; }
+
+    // Código único solo dentro de la misma delegación
+    const codigoExiste = escuadras.find(
+      (e) => e.codigo === codigo &&
+             e.delegation_id === delegacion.id &&
+             e.id !== editandoId,
+    );
+    if (codigoExiste) {
+      setError("Ese código ya existe en esta delegación.");
+      return;
+    }
+
+    // Nombre único solo dentro de la misma delegación
+    const nombreExiste = escuadras.find(
+      (e) => e.nombre === nombre &&
+             e.delegation_id === delegacion.id &&
+             e.id !== editandoId,
+    );
+    if (nombreExiste) {
+      setError("Ya existe una escuadra con ese nombre en esta delegación.");
+      return;
+    }
+
+    setLoading(true);
+    setError("");
     try {
-      setLoading(true);
-
-      // =========================================
-      // VALIDAR
-      // =========================================
-
-      if (!formData.region_id) {
-        alert("Seleccione región");
-
-        return;
-      }
-
-      if (!formData.delegacion_id) {
-        alert("Seleccione delegación");
-
-        return;
-      }
-
-      if (!formData.nombre.trim()) {
-        alert("Ingrese nombre");
-
-        return;
-      }
-
-      if (!formData.codigo.trim()) {
-        alert("Ingrese código");
-
-        return;
-      }
-
-      // =========================================
-      // REGION
-      // =========================================
-
-      const region = regiones.find((r) => r.id === formData.region_id);
-
-      if (!region) {
-        alert("Región inválida");
-
-        return;
-      }
-
-      // =========================================
-      // DELEGACION
-      // =========================================
-
-      const delegacion = delegaciones.find(
-        (d) => d.id === formData.delegacion_id,
-      );
-
-      if (!delegacion) {
-        alert("Delegación inválida");
-
-        return;
-      }
-
-      // =========================================
-      // VALIDAR RELACION
-      // =========================================
-
-      if (delegacion.region_id !== region.id) {
-        alert("La delegación no pertenece a la región seleccionada");
-
-        return;
-      }
-
-      // =========================================
-      // NORMALIZAR
-      // =========================================
-
-      const nombre = formData.nombre.trim().toUpperCase();
-
-      const codigo = formData.codigo.trim().toUpperCase();
-
-      // =========================================
-      // DUPLICADOS
-      // =========================================
-
-      const codigoExiste = escuadras.find(
-        (e) => e.codigo === codigo && e.id !== editandoId,
-      );
-
-      if (codigoExiste) {
-        alert("Ese código ya existe");
-
-        return;
-      }
-
-      const nombreExiste = escuadras.find(
-        (e) =>
-          e.nombre === nombre &&
-          e.delegacion_id === delegacion.id &&
-          e.id !== editandoId,
-      );
-
-      if (nombreExiste) {
-        alert("Ya existe una escuadra con ese nombre en esa delegación");
-
-        return;
-      }
-
-      // =========================================
-      // DATA
-      // =========================================
-
+      // CRÍTICO: NO guardar region_nombre ni delegacion_nombre
+      // En PostgreSQL se obtienen vía JOIN
       const datos = {
         nombre,
-
         codigo,
-
-        estado: formData.estado,
-
-        region_id: region.id,
-
-        region_nombre: region.nombre,
-
-        delegacion_id: delegacion.id,
-
-        delegacion_nombre: delegacion.nombre,
-
-        actualizado: Timestamp.now(),
+        estado:        formData.estado,
+        delegation_id: delegacion.id,
       };
 
-      // =========================================
-      // CREATE
-      // =========================================
-
       if (!editandoId) {
-        await addDoc(
-          collection(db, "escuadras"),
-
-          {
-            ...datos,
-
-            creado: Timestamp.now(),
-
-            oficiales: [],
-
-            supervisor_uid: "",
-
-            supervisor_nombre: "",
-          },
-        );
-
-        alert("Escuadra creada");
+        await SquadRepository.crear(datos);
       } else {
-        await updateDoc(
-          doc(db, "escuadras", editandoId),
-
-          datos,
-        );
-
-        alert("Escuadra actualizada");
+        await SquadRepository.update(editandoId, datos);
       }
-
       limpiarFormulario();
-
       await cargarEscuadras();
-    } catch (error) {
-      console.error(error);
-
-      alert("Error guardando escuadra");
+    } catch (err) {
+      setError("Error al guardar: " + err.message);
     } finally {
       setLoading(false);
     }
   };
 
-  // =========================================
-  // EDITAR
-  // =========================================
-
   const editarEscuadra = (escuadra) => {
     setEditandoId(escuadra.id);
 
+    // Resolver region_id desde delegation_id (JOIN local)
+    const deleg = delegaciones.find((d) => d.id === escuadra.delegation_id);
+
     setFormData({
-      region_id: escuadra.region_id,
-
-      delegacion_id: escuadra.delegacion_id,
-
-      nombre: escuadra.nombre,
-
-      codigo: escuadra.codigo,
-
-      estado: escuadra.estado,
+      region_id:     deleg?.region_id    ?? "",
+      delegacion_id: escuadra.delegation_id ?? "",
+      nombre:        escuadra.nombre     ?? "",
+      codigo:        escuadra.codigo     ?? "",
+      estado:        escuadra.estado     ?? "activo",
     });
+    setError("");
   };
 
-  // =========================================
-  // CAMBIAR ESTADO
-  // =========================================
-
   const cambiarEstado = async (escuadra) => {
+    setLoading(true);
+    setError("");
     try {
-      setLoading(true);
-
       const nuevoEstado = escuadra.estado === "activo" ? "inactivo" : "activo";
 
-      // =========================================
-      // SI SE INACTIVA
-      // =========================================
-
       if (nuevoEstado === "inactivo") {
-        // =========================================
-        // OBTENER USUARIOS
-        // =========================================
-
-        const q = query(
-          collection(db, "usuarios"),
-
-          where("escuadra_id", "==", escuadra.id),
-        );
-
-        const snapshot = await getDocs(q);
-
-        // =========================================
-        // LIMPIAR USERS
-        // =========================================
-
-        for (const d of snapshot.docs) {
-          await updateDoc(
-            doc(db, "usuarios", d.id),
-
-            {
-              escuadra_id: "",
-
-              escuadra_nombre: "",
-
-              actualizado: Timestamp.now(),
-            },
-          );
+        // Limpiar usuarios asignados a esta escuadra
+        // Reemplaza: query(collection(db, "usuarios"), where("escuadra_id", "==", id))
+        const usuarios = await UserRepository.getAll({ squad_id: escuadra.id });
+        for (const usuario of usuarios) {
+          await UserRepository.update(usuario.id, { squad_id: null });
         }
 
-        // =========================================
-        // LIMPIAR ESCUADRA
-        // =========================================
-
-        await updateDoc(
-          doc(db, "escuadras", escuadra.id),
-
-          {
-            estado: "inactivo",
-
-            oficiales: [],
-
-            supervisor_uid: "",
-
-            supervisor_nombre: "",
-
-            actualizado: Timestamp.now(),
-          },
-        );
+        // Inactivar escuadra y limpiar supervisor
+        await SquadRepository.update(escuadra.id, {
+          estado:        "inactivo",
+          supervisor_id: null,
+        });
       } else {
-        // =========================================
-        // ACTIVAR
-        // =========================================
-
-        await updateDoc(
-          doc(db, "escuadras", escuadra.id),
-
-          {
-            estado: "activo",
-
-            actualizado: Timestamp.now(),
-          },
-        );
+        await SquadRepository.update(escuadra.id, { estado: "activo" });
       }
 
       await cargarEscuadras();
-    } catch (error) {
-      console.error(error);
-
-      alert("Error actualizando estado");
+    } catch (err) {
+      setError("Error actualizando estado: " + err.message);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <GestionLayout
-      // =========================================
-      // HEADER
-      // =========================================
-
-      titulo="
-      Gestión Escuadras
-      "
-      subtitulo="
-      Administración estructural de escuadras institucionales
-      "
-      // =========================================
-      // FILTROS
-      // =========================================
-
-      filtros={[
-        {
-          name: "region_id",
-
-          label: "Región",
-
-          type: "select",
-
-          hidden: !esAdmin,
-
-          options: [
-            {
-              label: "Todas",
-
-              value: "",
-            },
-
-            ...regiones.map((r) => ({
-              label: `${r.codigo} - ${r.nombre}`,
-
-              value: r.id,
-            })),
-          ],
-        },
-
-        {
-          name: "delegacion_id",
-
-          label: "Delegación",
-
-          type: "select",
-
-          hidden: !esAdmin,
-
-          disabled: !filtros.region_id,
-
-          options: [
-            {
-              label: "Todas",
-
-              value: "",
-            },
-
-            ...delegacionesFiltro.map((d) => ({
-              label: `${d.codigo} - ${d.nombre}`,
-
-              value: d.id,
-            })),
-          ],
-        },
-
-        {
-          name: "busqueda",
-
-          label: "Buscar",
-
-          placeholder: "Nombre o código",
-        },
-      ]}
-      filtrosData={filtros}
-      onFiltroChange={handleFiltroChange}
-      // =========================================
-      // TABLA
-      // =========================================
-
-      columnas={["Código", "Escuadra", "Delegación", "Región", "Estado"]}
-      items={escuadrasFiltradas}
-      renderCelda={(item, columna) => {
-        switch (columna) {
-          case "Código":
-            return item.codigo;
-
-          case "Escuadra":
-            return item.nombre;
-
-          case "Delegación":
-            return item.delegacion_nombre;
-
-          case "Región":
-            return item.region_nombre;
-
-          case "Estado":
-            return (
-              <span
-                style={{
-                  background: item.estado === "activo" ? "#dcfce7" : "#fee2e2",
-
-                  color: item.estado === "activo" ? "#166534" : "#991b1b",
-
-                  padding: "4px 10px",
-
-                  borderRadius: "20px",
-
-                  fontSize: "12px",
-
-                  fontWeight: "bold",
-
-                  textTransform: "uppercase",
-                }}
-              >
+    <>
+      {error && <div style={errorBannerStyle}>{error}</div>}
+      <GestionLayout
+        titulo="Gestión Escuadras"
+        subtitulo="Administración estructural de escuadras institucionales"
+        filtros={[
+          {
+            name: "region_id",
+            label: "Región",
+            type: "select",
+            hidden: !esAdmin,
+            options: [
+              { label: "Todas", value: "" },
+              ...regiones.map((r) => ({ label: `${r.codigo} - ${r.nombre}`, value: r.id })),
+            ],
+          },
+          {
+            name: "delegacion_id",
+            label: "Delegación",
+            type: "select",
+            hidden: !esAdmin,
+            disabled: !filtros.region_id,
+            options: [
+              { label: "Todas", value: "" },
+              ...delegacionesParaFiltro.map((d) => ({ label: `${d.codigo} - ${d.nombre}`, value: d.id })),
+            ],
+          },
+          { name: "busqueda", label: "Buscar", placeholder: "Nombre o código" },
+        ]}
+        filtrosData={filtros}
+        onFiltroChange={handleFiltroChange}
+        columnas={["Código", "Escuadra", "Delegación", "Región", "Estado"]}
+        items={escuadrasFiltradas}
+        renderCelda={(item, columna) => {
+          switch (columna) {
+            case "Código":     return item.codigo;
+            case "Escuadra":   return item.nombre;
+            case "Delegación": return getNombreDeleg(item.delegation_id);
+            case "Región":     return getNombreRegion(item.delegation_id);
+            case "Estado":     return (
+              <span style={item.estado === "activo" ? badgeActiveStyle : badgeInactiveStyle}>
                 {item.estado}
               </span>
             );
-
-          default:
-            return "";
-        }
-      }}
-      // =========================================
-      // ACTIONS
-      // =========================================
-
-      onEditar={editarEscuadra}
-      onCambiarEstado={cambiarEstado}
-      // =========================================
-      // FORM
-      // =========================================
-
-      formTitle={editandoId ? "Editar Escuadra" : "Nueva Escuadra"}
-      formFields={[
-        {
-          name: "region_id",
-
-          label: "Región",
-
-          type: "select",
-
-          hidden: !esAdmin,
-
-          disabled: esUnidadOperativa,
-
-          options: [
-            {
-              label: "Seleccione región",
-
-              value: "",
-            },
-
-            ...regiones.map((r) => ({
-              label: `${r.codigo} - ${r.nombre}`,
-
-              value: r.id,
-            })),
-          ],
-        },
-
-        {
-          name: "delegacion_id",
-
-          label: "Delegación",
-
-          type: "select",
-
-          hidden: !esAdmin,
-
-          disabled: !formData.region_id || esUnidadOperativa,
-
-          options: [
-            {
-              label: "Seleccione delegación",
-
-              value: "",
-            },
-
-            ...delegacionesFiltradas.map((d) => ({
-              label: `${d.codigo} - ${d.nombre}`,
-
-              value: d.id,
-            })),
-          ],
-        },
-
-        {
-          name: "nombre",
-
-          label: "Nombre",
-
-          placeholder: "Ej: PON1",
-        },
-
-        {
-          name: "codigo",
-
-          label: "Código",
-
-          placeholder: "Ej: PON1",
-        },
-
-        {
-          name: "estado",
-
-          label: "Estado",
-
-          type: "select",
-
-          options: [
-            {
-              label: "Activo",
-
-              value: "activo",
-            },
-
-            {
-              label: "Inactivo",
-
-              value: "inactivo",
-            },
-          ],
-        },
-      ]}
-      formData={formData}
-      onFormChange={handleFormChange}
-      onSubmit={guardarEscuadra}
-      onCancel={limpiarFormulario}
-      editando={!!editandoId}
-      loading={loading}
-      panelWidth={430}
-    />
+            default: return "";
+          }
+        }}
+        onEditar={editarEscuadra}
+        onCambiarEstado={cambiarEstado}
+        formTitle={editandoId ? "Editar Escuadra" : "Nueva Escuadra"}
+        formFields={[
+          {
+            name: "region_id",
+            label: "Región",
+            type: "select",
+            hidden: !esAdmin,
+            disabled: esUnidadOperativa,
+            options: [
+              { label: "Seleccione región", value: "" },
+              ...regiones.map((r) => ({ label: `${r.codigo} - ${r.nombre}`, value: r.id })),
+            ],
+          },
+          {
+            name: "delegacion_id",
+            label: "Delegación",
+            type: "select",
+            disabled: !formData.region_id || esUnidadOperativa,
+            options: [
+              { label: "Seleccione delegación", value: "" },
+              ...delegacionesParaForm.map((d) => ({ label: `${d.codigo} - ${d.nombre}`, value: d.id })),
+            ],
+          },
+          { name: "nombre", label: "Nombre", placeholder: "Ej: Escuadra Norte" },
+          { name: "codigo", label: "Código", placeholder: "Ej: EN1" },
+          {
+            name: "estado",
+            label: "Estado",
+            type: "select",
+            options: [
+              { label: "Activo",   value: "activo" },
+              { label: "Inactivo", value: "inactivo" },
+            ],
+          },
+        ]}
+        formData={formData}
+        onFormChange={handleFormChange}
+        onSubmit={guardarEscuadra}
+        onCancel={limpiarFormulario}
+        editando={!!editandoId}
+        loading={loading}
+        panelWidth={430}
+      />
+    </>
   );
 }
+
+const errorBannerStyle   = { background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "8px", padding: "10px 16px", fontSize: "13px", color: "#dc2626", margin: "16px 20px 0" };
+const badgeActiveStyle   = { background: "#dcfce7", color: "#166534", padding: "2px 8px", borderRadius: "12px", fontSize: "12px", fontWeight: "500" };
+const badgeInactiveStyle = { background: "#fee2e2", color: "#991b1b", padding: "2px 8px", borderRadius: "12px", fontSize: "12px", fontWeight: "500" };
 
 export default CrearEscuadra;
