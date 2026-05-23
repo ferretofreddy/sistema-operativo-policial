@@ -348,6 +348,7 @@ function CrearEscuadra() {
             name: "delegacion_id",
             label: "Delegación",
             type: "select",
+            hidden: !esAdmin,
             disabled: !formData.region_id || esUnidadOperativa,
             options: [
               { label: "Seleccione delegación", value: "" },

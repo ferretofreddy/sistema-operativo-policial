@@ -1,7 +1,6 @@
 // frontend/src/modules/admin/DashboardAdmin.jsx
-import { signOut } from "firebase/auth";
-import { auth } from "../../services/firebase";
 import { useNavigate } from "react-router-dom";
+import { AuthService } from "../../core";
 import { useContext } from "react";
 import { AuthContext } from "../../context/AuthContext";
 import DesktopLayout from "../../shared/layouts/DesktopLayout";
@@ -11,7 +10,7 @@ function DashboardAdmin() {
   const { userData } = useContext(AuthContext);
 
   const handleLogout = async () => {
-    await signOut(auth);
+    await AuthService.logout();
     navigate("/login");
   };
 

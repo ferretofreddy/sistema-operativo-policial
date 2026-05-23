@@ -1,7 +1,6 @@
 // frontend/src/modules/unidad_operativa/DashboardUnidadOperativa.jsx
-import { signOut } from "firebase/auth";
-import { auth } from "../../services/firebase";
 import { useNavigate } from "react-router-dom";
+import { AuthService } from "../../core";
 import { useContext } from "react";
 import { AuthContext } from "../../context/AuthContext";
 import DesktopLayout from "../../shared/layouts/DesktopLayout";
@@ -11,7 +10,7 @@ function DashboardUnidadOperativa() {
   const { userData } = useContext(AuthContext);
 
   const handleLogout = async () => {
-    await signOut(auth);
+    await AuthService.logout();
     navigate("/login");
   };
 
@@ -39,7 +38,7 @@ function DashboardUnidadOperativa() {
     },
     {
       label: "👤 Supervisores",
-      onClick: () => navigate("/admin/gestion-usuarios"),
+      onClick: () => navigate("/gestion-personal"),
     },
     { label: "🚪 Cerrar Sesión", onClick: handleLogout },
   ];

@@ -1,8 +1,7 @@
 // frontend/src/modules/supervisor/DashboardSupervisor.jsx
 import { useContext } from "react";
 import { useNavigate } from "react-router-dom";
-import { signOut } from "firebase/auth";
-import { auth } from "../../services/firebase";
+import { AuthService } from "../../core";
 import { AuthContext } from "../../context/AuthContext";
 import { useResponsive } from "../../hooks/useResponsive";
 import DesktopLayout from "../../shared/layouts/DesktopLayout";
@@ -14,7 +13,7 @@ function DashboardSupervisor() {
   const { isMobile } = useResponsive();
 
   const handleLogout = async () => {
-    await signOut(auth);
+    await AuthService.logout();
     navigate("/login");
   };
 

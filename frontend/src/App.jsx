@@ -38,6 +38,7 @@ const GestionUsuarios = lazy(() => import("./modules/administracion/usuarios/Ges
 const GestionTiposRecurso = lazy(() => import("./modules/administracion/configuracion/GestionTiposRecurso"));
 const GestionRangosUsuario = lazy(() => import("./modules/administracion/configuracion/GestionRangosUsuario"));
 const GestionCondicionesUsuario = lazy(() => import("./modules/administracion/configuracion/GestionCondicionesUsuario"));
+const GestionPersonal = lazy(() => import("./modules/administracion/usuarios/GestionPersonal"));
 
 // =========================================
 // WILDCARD SEGURO — sin loop infinito
@@ -213,6 +214,12 @@ function App() {
           <Route path="/jefatura" element={
             <ProtectedRoute userData={userData} allowedRoles="jefatura">
               <DashboardJefatura />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/gestion-personal" element={
+            <ProtectedRoute userData={userData} allowedRoles={["unidad_operativa", "jefatura"]}>
+              <GestionPersonal />
             </ProtectedRoute>
           } />
 

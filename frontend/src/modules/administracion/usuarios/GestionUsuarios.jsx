@@ -173,9 +173,6 @@ function GestionUsuarios() {
     return delegaciones.filter((d) => d.region_id === formData.region_id);
   }, [delegaciones, formData.region_id]);
 
-  const requiereTerritorial = ["unidad_operativa", "jefatura", "supervisor", "agente"].includes(formData.rol);
-  const requiereEscuadra    = ["supervisor", "agente"].includes(formData.rol);
-
   // =========================================
   // USUARIOS FILTRADOS — filtros locales
   // Región se resuelve por JOIN local delegation → region
@@ -293,15 +290,6 @@ function GestionUsuarios() {
       setError("Seleccione un rol.");
       return;
     }
-    if (requiereTerritorial && !formData.delegation_id) {
-      setError("Seleccione una delegación para este rol.");
-      return;
-    }
-    if (requiereEscuadra && !formData.squad_id) {
-      setError("Seleccione una escuadra para este rol.");
-      return;
-    }
-
     setLoading(true);
     setError("");
     try {
@@ -466,6 +454,35 @@ function GestionUsuarios() {
             options: ESTADOS_OPCIONES,
           },
           {
+            name: "region_id",
+            label: "Región",
+            type: "select",
+            options: [
+              { label: "Seleccione región", value: "" },
+              ...regiones.map((r) => ({ label: `${r.codigo} - ${r.nombre}`, value: r.id })),
+            ],
+          },
+          {
+            name: "delegation_id",
+            label: "Delegación",
+            type: "select",
+            disabled: !formData.region_id,
+            options: [
+              { label: "Seleccione delegación", value: "" },
+              ...delegacionesForm.map((d) => ({ label: `${d.codigo} - ${d.nombre}`, value: d.id })),
+            ],
+          },
+          {
+            name: "squad_id",
+            label: "Escuadra",
+            type: "select",
+            disabled: !formData.delegation_id,
+            options: [
+              { label: "Sin escuadra", value: "" },
+              ...escuadras.map((e) => ({ label: e.nombre, value: e.id })),
+            ],
+          },
+          {
             name: "rank_id",
             label: "Rango",
             type: "select",
@@ -483,45 +500,6 @@ function GestionUsuarios() {
               ...condiciones.map((c) => ({ label: c.nombre, value: c.id })),
             ],
           },
-          ...(requiereTerritorial
-            ? [
-                {
-                  name: "region_id",
-                  label: "Región",
-                  type: "select",
-                  hidden: !esAdmin,
-                  options: [
-                    { label: "Seleccione región", value: "" },
-                    ...regiones.map((r) => ({ label: `${r.codigo} - ${r.nombre}`, value: r.id })),
-                  ],
-                },
-                {
-                  name: "delegation_id",
-                  label: "Delegación",
-                  type: "select",
-                  hidden: !esAdmin,
-                  disabled: !formData.region_id,
-                  options: [
-                    { label: "Seleccione delegación", value: "" },
-                    ...delegacionesForm.map((d) => ({ label: `${d.codigo} - ${d.nombre}`, value: d.id })),
-                  ],
-                },
-              ]
-            : []),
-          ...(requiereEscuadra
-            ? [
-                {
-                  name: "squad_id",
-                  label: "Escuadra",
-                  type: "select",
-                  disabled: !formData.delegation_id,
-                  options: [
-                    { label: "Seleccione escuadra", value: "" },
-                    ...escuadras.map((e) => ({ label: e.nombre, value: e.id })),
-                  ],
-                },
-              ]
-            : []),
         ]}
         formData={formData}
         onFormChange={handleFormChange}
