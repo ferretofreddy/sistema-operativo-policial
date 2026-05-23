@@ -1,3 +1,4 @@
+// frontend/src/utils/generarPDFHojaServicio.js
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 

@@ -190,7 +190,7 @@ function App() {
             </ProtectedRoute>
           } />
           <Route path="/admin/gestion-escuadras" element={
-            <ProtectedRoute userData={userData} allowedRoles={["unidad_operativa", "admin"]}>
+            <ProtectedRoute userData={userData} allowedRoles={["admin", "unidad_operativa", "supervisor"]}>
               <GestionEscuadra />
             </ProtectedRoute>
           } />

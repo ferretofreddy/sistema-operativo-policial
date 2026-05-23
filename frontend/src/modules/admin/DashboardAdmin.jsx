@@ -35,6 +35,10 @@ function DashboardAdmin() {
       onClick: () => navigate("/supervisor/gestion-recursos"),
     },
     {
+      label: "🚗 Crear Recurso",
+      onClick: () => navigate("/supervisor/recursos"),
+    },
+    {
       label: "🔧 Tipos Recurso",
       onClick: () => navigate("/admin/tipos-recurso"),
     },
@@ -79,6 +83,9 @@ function DashboardAdmin() {
               onClick={() => navigate("/supervisor/gestion-recursos")}
             >
               Gestión Recursos
+            </ActionButton>
+            <ActionButton onClick={() => navigate("/supervisor/recursos")}>
+              Crear Recurso
             </ActionButton>
           </ButtonGrid>
         </Section>

@@ -167,7 +167,7 @@ function GestionLayout({
         </div>
 
         {/* RIGHT PANEL */}
-        <div
+        {formFields.length > 0 && <div
           style={
             isMobile
               ? {
@@ -244,7 +244,7 @@ function GestionLayout({
               )}
             </div>
           </div>
-        </div>
+        </div>}
       </div>
     </div>
   );

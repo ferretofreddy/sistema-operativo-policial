@@ -39,6 +39,14 @@ function DashboardSupervisor() {
       label: "🗓️ Planificación",
       onClick: () => navigate("/unidad_operativa/planificacion/crear"),
     },
+    {
+      label: "👥 Gestión Escuadra",
+      onClick: () => navigate("/admin/gestion-escuadras"),
+    },
+    {
+      label: "🚗 Ver Recursos",
+      onClick: () => navigate("/supervisor/recursos"),
+    },
     { label: "🚪 Cerrar Sesión", onClick: handleLogout },
   ];
 
@@ -87,6 +95,14 @@ function DashboardSupervisor() {
             {
               label: "Gestión Recursos",
               onClick: () => navigate("/supervisor/gestion-recursos"),
+            },
+            {
+              label: "Gestión Escuadra",
+              onClick: () => navigate("/admin/gestion-escuadras"),
+            },
+            {
+              label: "Ver Recursos",
+              onClick: () => navigate("/supervisor/recursos"),
             },
           ]}
         />

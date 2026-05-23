@@ -199,10 +199,13 @@ function GestionPersonal() {
     setReasignando(true);
     setErrorReasig("");
     try {
-      await UserRepository.update(resultadoReasig.id, {
-        delegation_id: reasigDelegId,
-        squad_id: reasigSquadId || null,
+      const { supabase } = await import("../../../core/providers/supabase/SupabaseProvider");
+      const { error } = await supabase.rpc("reasignar_usuario", {
+        usuario_id:     resultadoReasig.id,
+        nueva_deleg:    reasigDelegId,
+        nueva_escuadra: reasigSquadId || null,
       });
+      if (error) throw new Error(error.message);
       setSuccessReasig(
         `${resultadoReasig.nombre} ${resultadoReasig.apellido1} fue reasignado a ${nombreDeleg} correctamente.`,
       );
@@ -286,7 +289,6 @@ function GestionPersonal() {
     setLoading(true);
     setError("");
     try {
-      console.log("[GestionPersonal] Guardando:", editandoId, formData);
       await UserRepository.update(editandoId, {
         nombre: formData.nombre.trim().toUpperCase(),
         apellido1: formData.apellido1.trim().toUpperCase(),
@@ -322,7 +324,6 @@ function GestionPersonal() {
 
   const cambiarEstado = async (u) => {
     const nuevoEstado = u.estado_usuario === "activo" ? "inactivo" : "activo";
-    console.log("[GestionPersonal] CambiarEstado:", u.id, nuevoEstado);
     if (
       !confirm(
         `¿${nuevoEstado === "inactivo" ? "Inactivar" : "Activar"} a ${u.nombre} ${u.apellido1}?`,

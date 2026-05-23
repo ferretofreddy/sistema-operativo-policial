@@ -1,4 +1,4 @@
-// front
+// frontend/src/modules/supervisor/hoja_servicio/VerHojaServicio.jsx
 import { useEffect, useState } from "react";
 
 import { useParams } from "react-router-dom";
