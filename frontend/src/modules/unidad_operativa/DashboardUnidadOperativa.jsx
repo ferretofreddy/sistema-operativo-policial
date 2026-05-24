@@ -110,6 +110,10 @@ function DashboardUnidadOperativa() {
               description="Control y planificación operativa"
               actions={[
                 {
+                  label: "Crear Hoja",
+                  onClick: () => navigate("/supervisor/hoja-servicio"),
+                },
+                {
                   label: "Hojas de Hoy",
                   onClick: () => navigate("/supervisor/hojas-hoy"),
                 },

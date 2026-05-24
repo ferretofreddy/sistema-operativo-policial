@@ -101,17 +101,17 @@ function App() {
             </ProtectedRoute>
           } />
           <Route path="/supervisor/hoja-servicio" element={
-            <ProtectedRoute userData={userData} allowedRoles={["supervisor", "unidad_operativa"]}>
+            <ProtectedRoute userData={userData} allowedRoles={["supervisor", "unidad_operativa", "jefatura"]}>
               <CrearHojaServicio />
             </ProtectedRoute>
           } />
           <Route path="/supervisor/hojas-hoy" element={
-            <ProtectedRoute userData={userData} allowedRoles={["supervisor", "unidad_operativa"]}>
+            <ProtectedRoute userData={userData} allowedRoles={["supervisor", "unidad_operativa", "jefatura"]}>
               <ListaHojasHoy />
             </ProtectedRoute>
           } />
           <Route path="/supervisor/hoja-servicio/:id" element={
-            <ProtectedRoute userData={userData} allowedRoles={["supervisor", "unidad_operativa"]}>
+            <ProtectedRoute userData={userData} allowedRoles={["supervisor", "unidad_operativa", "jefatura"]}>
               <VerHojaServicio />
             </ProtectedRoute>
           } />

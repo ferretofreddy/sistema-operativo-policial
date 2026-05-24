@@ -22,6 +22,10 @@ function DashboardJefatura() {
     },
     { label: "📈 Reportes", onClick: () => navigate("/jefatura/reportes") },
     {
+      label: "📋 Hojas Servicio",
+      onClick: () => navigate("/supervisor/hojas-hoy"),
+    },
+    {
       label: "🗓️ Planificación",
       onClick: () => navigate("/unidad_operativa/planificacion/crear"),
     },
@@ -67,6 +71,9 @@ function DashboardJefatura() {
           <ButtonGrid>
             <ActionButton onClick={() => navigate("/jefatura/reportes")}>
               📄 Generar Reporte Institucional
+            </ActionButton>
+            <ActionButton onClick={() => navigate("/supervisor/hojas-hoy")}>
+              📋 Hojas de Servicio
             </ActionButton>
             <ActionButton onClick={() => navigate("/unidad_operativa/ordenes")}>
               📋 Ver Órdenes Ejecución
