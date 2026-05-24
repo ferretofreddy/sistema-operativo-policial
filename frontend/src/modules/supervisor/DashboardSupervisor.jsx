@@ -111,7 +111,7 @@ function DashboardSupervisor() {
           description="Consulta de planificación operativa"
           actions={[
             {
-              label: "Ver Planificación",
+              label: "Mis Planificaciones",
               onClick: () => navigate("/unidad_operativa/planificacion/crear"),
             },
           ]}

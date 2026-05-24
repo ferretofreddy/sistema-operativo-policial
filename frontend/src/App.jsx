@@ -148,12 +148,12 @@ function App() {
             </ProtectedRoute>
           } />
           <Route path="/unidad_operativa/planificacion/crear" element={
-            <ProtectedRoute userData={userData} allowedRoles="unidad_operativa">
+            <ProtectedRoute userData={userData} allowedRoles={["unidad_operativa", "supervisor"]}>
               <CrearPlanificacion />
             </ProtectedRoute>
           } />
           <Route path="/unidad_operativa/planificacion/:id" element={
-            <ProtectedRoute userData={userData} allowedRoles="unidad_operativa">
+            <ProtectedRoute userData={userData} allowedRoles={["unidad_operativa", "supervisor"]}>
               <VerPlanificacion />
             </ProtectedRoute>
           } />
