@@ -339,7 +339,7 @@ function VerHojaServicio() {
   // Sectores dinámicos únicos
   const sectoresDinamicos = [
     ...new Set(
-      actividades.map((a) => a.sector_dinamico || a.sector).filter(Boolean),
+      actividades.map((a) => a.sector_dinamico).filter(Boolean),
     ),
   ];
 
@@ -668,21 +668,7 @@ function VerHojaServicio() {
                       {fmt(act.hora_fin)}
                     </td>
                     <td style={tdStyle}>
-                      <strong style={{ fontSize: "12px" }}>
-                        {act.accion_nombre}
-                      </strong>
-                      {act.accion_detalle && (
-                        <p
-                          style={{
-                            margin: "3px 0 0 0",
-                            fontSize: "11px",
-                            color: "#64748b",
-                            lineHeight: "1.4",
-                          }}
-                        >
-                          {act.accion_detalle}
-                        </p>
-                      )}
+                      {act.accion_detalle || "—"}
                     </td>
                     <td style={tdStyle}>{act.sector || "—"}</td>
                   </tr>

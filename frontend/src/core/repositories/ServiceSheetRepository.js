@@ -89,6 +89,7 @@ class ServiceSheetRepositoryClass extends BaseRepository {
         hora_inicio:       actividad.hora_inicio        ?? null,
         hora_fin:          actividad.hora_fin           ?? null,
         sector:            actividad.sector             ?? null,
+        sector_dinamico:   actividad.sector_dinamico   ?? null,
         posicion,
       });
     if (error) throw new Error(error.message);

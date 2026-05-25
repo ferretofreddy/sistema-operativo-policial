@@ -4,6 +4,7 @@
 
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import escudoSrc from "../assets/escudo.png";
 
 const fmt = (t) => (t ?? "").substring(0, 5);
 
@@ -76,6 +77,15 @@ export const generarPDFHojaServicio = (hoja) => {
       ],
     ],
     theme: "grid", margin: { left: 8, right: 8 }, styles: base,
+    didDrawCell: (data) => {
+      if (data.section === "body" && data.column.index === 0 && data.row.index === 0) {
+        const { x, y: cy, width, height } = data.cell;
+        const pad = 2;
+        const img = new Image();
+        img.src = escudoSrc;
+        doc.addImage(img, "PNG", x + pad, cy + pad, width - pad * 2, height - pad * 2);
+      }
+    },
   });
   y = doc.lastAutoTable.finalY;
 
@@ -168,7 +178,7 @@ export const generarPDFHojaServicio = (hoja) => {
     `${i + 1}.`,
     fmt(a.hora_inicio),
     fmt(a.hora_fin),
-    `${a.accion_nombre ?? ""}${a.accion_detalle ? "\n" + a.accion_detalle : ""}`,
+    a.accion_detalle ?? "",
     a.sector ?? "",
   ]);
 
