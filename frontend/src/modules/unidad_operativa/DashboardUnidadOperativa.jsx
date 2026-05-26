@@ -1,13 +1,19 @@
 // frontend/src/modules/unidad_operativa/DashboardUnidadOperativa.jsx
+import { useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthService } from "../../core";
-import { useContext } from "react";
 import { AuthContext } from "../../context/AuthContext";
+import { useResponsive } from "../../hooks/useResponsive";
+import { usePerfilUsuario } from "../../hooks/usePerfilUsuario";
+import { TarjetaPerfil } from "../../shared/components/TarjetaPerfil";
 import DesktopLayout from "../../shared/layouts/DesktopLayout";
+import MobileLayout from "../../shared/layouts/MobileLayout";
 
 function DashboardUnidadOperativa() {
   const navigate = useNavigate();
   const { userData } = useContext(AuthContext);
+  const { isMobile } = useResponsive();
+  const { perfil, loadingPerfil } = usePerfilUsuario(userData);
 
   const handleLogout = async () => {
     await AuthService.logout();
@@ -15,222 +21,149 @@ function DashboardUnidadOperativa() {
   };
 
   const menuItems = [
-    {
-      label: "📋 Crear Órden",
-      onClick: () => navigate("/unidad_operativa/ordenes/crear"),
-      active: true,
-    },
-    {
-      label: "🗓️ Planificación",
-      onClick: () => navigate("/unidad_operativa/planificacion/crear"),
-    },
-    {
-      label: "📊 Hojas Servicio",
-      onClick: () => navigate("/supervisor/hojas-hoy"),
-    },
-    {
-      label: "👥 Escuadras",
-      onClick: () => navigate("/admin/gestion-escuadras"),
-    },
-    {
-      label: "🚓 Recursos",
-      onClick: () => navigate("/supervisor/gestion-recursos"),
-    },
-    {
-      label: "👤 Supervisores",
-      onClick: () => navigate("/gestion-personal"),
-    },
-    { label: "🚪 Cerrar Sesión", onClick: handleLogout },
+    { label: "📋 Crear Orden",    onClick: () => navigate("/unidad_operativa/ordenes/crear"),       active: true },
+    { label: "🗓️ Planificación",  onClick: () => navigate("/unidad_operativa/planificacion/crear") },
+    { label: "📊 Hojas Servicio", onClick: () => navigate("/supervisor/hojas-hoy") },
+    { label: "👥 Escuadras",      onClick: () => navigate("/admin/gestion-escuadras") },
+    { label: "🚓 Recursos",       onClick: () => navigate("/supervisor/gestion-recursos") },
+    { label: "👤 Supervisores",   onClick: () => navigate("/gestion-personal") },
+    { label: "🚪 Cerrar Sesión",  onClick: handleLogout },
   ];
 
-  return (
-    <DesktopLayout
-      title="Unidad Operativa"
-      menuItems={menuItems}
-      user={userData}
-      onLogout={handleLogout}
-    >
-      <div style={containerStyle}>
-        {/* Header operativo */}
-        <div style={headerCardStyle}>
-          <h1 style={headerTitleStyle}>Centro Operativo</h1>
-          <p style={headerSubtitleStyle}>
-            Coordinación territorial • {userData?.region_nombre} •{" "}
-            {userData?.delegacion_nombre}
-          </p>
-        </div>
+  const DashboardContent = () => (
+    <div style={containerStyle}>
+      {/* Tarjeta de perfil — unidad_operativa no tiene escuadra */}
+      <TarjetaPerfil
+        perfil={perfil}
+        loadingPerfil={loadingPerfil}
+        mostrarEscuadra={false}
+      />
 
-        {/* Resumen operativo */}
-        <Section title="Resumen Operativo">
-          <div style={summaryGridStyle}>
-            <SummaryCard
-              title="Órdenes"
-              description="Gestión de órdenes operativas"
-              actions={[
-                {
-                  label: "Crear Órden",
-                  onClick: () => navigate("/unidad_operativa/ordenes/crear"),
-                },
-                {
-                  label: "Ver Órdenes",
-                  onClick: () => navigate("/unidad_operativa/ordenes"),
-                },
-              ]}
-            />
-            <SummaryCard
-              title="Recursos"
-              description="Administración de recursos operativos"
-              actions={[
-                {
-                  label: "Crear Recurso",
-                  onClick: () => navigate("/supervisor/recursos"),
-                },
-                {
-                  label: "Gestión Recursos",
-                  onClick: () => navigate("/supervisor/gestion-recursos"),
-                },
-              ]}
-            />
-            <SummaryCard
-              title="Supervisión"
-              description="Gestión de escuadras y supervisores"
-              actions={[
-                {
-                  label: "Escuadras",
-                  onClick: () => navigate("/admin/escuadras"),
-                },
-                {
-                  label: "Gestionar Escuadras",
-                  onClick: () => navigate("/admin/gestion-escuadras"),
-                },
-              ]}
-            />
-            <SummaryCard
-              title="Hojas Servicio"
-              description="Control y planificación operativa"
-              actions={[
-                {
-                  label: "Crear Hoja",
-                  onClick: () => navigate("/supervisor/hoja-servicio"),
-                },
-                {
-                  label: "Hojas de Hoy",
-                  onClick: () => navigate("/supervisor/hojas-hoy"),
-                },
-              ]}
-            />
-          </div>
-        </Section>
+      {/* Módulos operativos */}
+      <div style={modulesGridStyle}>
+        <ModuleCard
+          title="📋 Órdenes de Ejecución"
+          description="Gestión de órdenes operativas"
+          color="#1e293b"
+          actions={[
+            { label: "Crear Orden", onClick: () => navigate("/unidad_operativa/ordenes/crear") },
+            { label: "Ver Órdenes", onClick: () => navigate("/unidad_operativa/ordenes") },
+          ]}
+        />
+        <ModuleCard
+          title="🗓️ Planificación"
+          description="Control y planificación de operativos"
+          color="#0f766e"
+          actions={[
+            { label: "Gestionar Planificación", onClick: () => navigate("/unidad_operativa/planificacion/crear") },
+          ]}
+        />
+        <ModuleCard
+          title="🚓 Recursos"
+          description="Administración de recursos operativos"
+          color="#0369a1"
+          actions={[
+            { label: "Crear Recurso",    onClick: () => navigate("/supervisor/recursos") },
+            { label: "Gestión Recursos", onClick: () => navigate("/supervisor/gestion-recursos") },
+          ]}
+        />
+        <ModuleCard
+          title="👥 Supervisión"
+          description="Gestión de escuadras y hojas de servicio"
+          color="#7c3aed"
+          actions={[
+            { label: "Gestionar Escuadras", onClick: () => navigate("/admin/gestion-escuadras") },
+            { label: "Hojas de Hoy",        onClick: () => navigate("/supervisor/hojas-hoy") },
+            { label: "Crear Hoja",          onClick: () => navigate("/supervisor/hoja-servicio") },
+          ]}
+        />
       </div>
+    </div>
+  );
+
+  if (isMobile) {
+    return (
+      <MobileLayout title="Unidad Operativa" menuItems={menuItems} user={userData} onLogout={handleLogout}>
+        <DashboardContent />
+      </MobileLayout>
+    );
+  }
+
+  return (
+    <DesktopLayout title="Unidad Operativa" menuItems={menuItems} user={userData} onLogout={handleLogout}>
+      <DashboardContent />
     </DesktopLayout>
   );
 }
 
 // ─────────────────────────────────────────
-// Estilos Unidad Operativa
+// Componentes y estilos
 // ─────────────────────────────────────────
 const containerStyle = { padding: "20px" };
 
-const headerCardStyle = {
-  background: "white",
-  padding: "20px",
-  borderRadius: "12px",
-  marginBottom: "20px",
-  boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
-  borderLeft: "4px solid #3b82f6",
-};
-
-const headerTitleStyle = {
-  margin: "0 0 4px 0",
-  fontSize: "20px",
-  fontWeight: "600",
-  color: "#1e293b",
-};
-
-const headerSubtitleStyle = {
-  margin: 0,
-  fontSize: "14px",
-  color: "#64748b",
-};
-
-const Section = ({ title, children }) => (
-  <div style={sectionStyle}>
-    <h2 style={sectionTitleStyle}>{title}</h2>
-    {children}
-  </div>
-);
-
-const sectionStyle = {
-  background: "white",
-  padding: "20px",
-  borderRadius: "12px",
-  boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
-  marginBottom: "20px",
-};
-
-const sectionTitleStyle = {
-  margin: "0 0 15px 0",
-  fontSize: "18px",
-  fontWeight: "600",
-  color: "#1e293b",
-};
-
-const summaryGridStyle = {
+const modulesGridStyle = {
   display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-  gap: "15px",
+  gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+  gap: "20px",
 };
 
-const SummaryCard = ({ title, description, actions = [] }) => (
+const ModuleCard = ({ title, description, color = "#1e293b", actions = [] }) => (
   <div style={cardStyle}>
-    <h3 style={cardTitleStyle}>{title}</h3>
-    <p style={cardDescriptionStyle}>{description}</p>
-    <div style={actionsStyle}>
-      {actions.map((action, index) => (
-        <button key={index} onClick={action.onClick} style={actionButtonStyle}>
-          {action.label}
-        </button>
-      ))}
+    <div style={{ ...cardAccentStyle, background: color }} />
+    <div style={cardBodyStyle}>
+      <h2 style={cardTitleStyle}>{title}</h2>
+      <p style={cardDescStyle}>{description}</p>
+      <div style={actionsStyle}>
+        {actions.map((a, i) => (
+          <button key={i} onClick={a.onClick} style={{ ...actionBtnStyle, background: color }}>
+            {a.label}
+          </button>
+        ))}
+      </div>
     </div>
   </div>
 );
 
 const cardStyle = {
-  background: "#f8fafc",
-  padding: "16px",
-  borderRadius: "10px",
-  border: "1px solid #e2e8f0",
+  background: "white",
+  borderRadius: "12px",
+  boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
+  overflow: "hidden",
+  display: "flex",
+  flexDirection: "column",
 };
 
-const cardTitleStyle = {
-  margin: "0 0 8px 0",
-  fontSize: "16px",
-  fontWeight: "600",
-  color: "#1e293b",
+const cardAccentStyle = { height: "4px", width: "100%" };
+
+const cardBodyStyle = {
+  padding: "18px 20px 20px 20px",
+  display: "flex",
+  flexDirection: "column",
+  gap: "10px",
+  flex: 1,
 };
 
-const cardDescriptionStyle = {
-  margin: "0 0 12px 0",
-  fontSize: "14px",
-  color: "#64748b",
-};
+const cardTitleStyle = { margin: 0, fontSize: "15px", fontWeight: "600", color: "#1e293b" };
+const cardDescStyle  = { margin: 0, fontSize: "13px", color: "#64748b" };
 
 const actionsStyle = {
   display: "flex",
   flexDirection: "column",
   gap: "8px",
+  marginTop: "auto",
+  paddingTop: "8px",
 };
 
-const actionButtonStyle = {
+const actionBtnStyle = {
   width: "100%",
-  padding: "10px",
+  padding: "11px 14px",
   border: "none",
   borderRadius: "8px",
-  background: "#1e293b",
   color: "white",
   cursor: "pointer",
   fontWeight: "500",
   fontSize: "13px",
+  textAlign: "left",
 };
 
 export default DashboardUnidadOperativa;

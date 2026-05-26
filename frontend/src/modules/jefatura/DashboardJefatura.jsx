@@ -1,13 +1,19 @@
 // frontend/src/modules/jefatura/DashboardJefatura.jsx
+import { useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthService } from "../../core";
-import { useContext } from "react";
 import { AuthContext } from "../../context/AuthContext";
+import { useResponsive } from "../../hooks/useResponsive";
+import { usePerfilUsuario } from "../../hooks/usePerfilUsuario";
+import { TarjetaPerfil } from "../../shared/components/TarjetaPerfil";
 import DesktopLayout from "../../shared/layouts/DesktopLayout";
+import MobileLayout from "../../shared/layouts/MobileLayout";
 
 function DashboardJefatura() {
   const navigate = useNavigate();
   const { userData } = useContext(AuthContext);
+  const { isMobile } = useResponsive();
+  const { perfil, loadingPerfil } = usePerfilUsuario(userData);
 
   const handleLogout = async () => {
     await AuthService.logout();
@@ -15,197 +21,183 @@ function DashboardJefatura() {
   };
 
   const menuItems = [
-    {
-      label: "📊 Dashboard",
-      onClick: () => navigate("/jefatura"),
-      active: true,
-    },
-    { label: "📈 Reportes", onClick: () => navigate("/jefatura/reportes") },
-    {
-      label: "📋 Hojas Servicio",
-      onClick: () => navigate("/supervisor/hojas-hoy"),
-    },
-    {
-      label: "🗓️ Planificación",
-      onClick: () => navigate("/unidad_operativa/planificacion/crear"),
-    },
-    {
-      label: "👥 Personal",
-      onClick: () => navigate("/gestion-personal"),
-    },
-    {
-      label: "🚓 Recursos",
-      onClick: () => navigate("/supervisor/gestion-recursos"),
-    },
-    { label: "⚙️ Configuración", onClick: () => navigate("/admin") },
-    { label: "🚪 Cerrar Sesión", onClick: handleLogout },
+    { label: "📊 Dashboard",      onClick: () => navigate("/jefatura"),                              active: true },
+    { label: "📈 Reportes",        onClick: () => navigate("/jefatura/reportes") },
+    { label: "📋 Hojas Servicio",  onClick: () => navigate("/supervisor/hojas-hoy") },
+    { label: "🗓️ Planificación",   onClick: () => navigate("/unidad_operativa/planificacion/crear") },
+    { label: "👥 Personal",        onClick: () => navigate("/gestion-personal") },
+    { label: "🚓 Recursos",        onClick: () => navigate("/supervisor/gestion-recursos") },
+    { label: "⚙️ Configuración",   onClick: () => navigate("/admin") },
+    { label: "🚪 Cerrar Sesión",   onClick: handleLogout },
   ];
 
-  return (
-    <DesktopLayout
-      title="Jefatura"
-      menuItems={menuItems}
-      user={userData}
-      onLogout={handleLogout}
-    >
-      <div style={containerStyle}>
-        {/* Header institucional */}
-        <div style={headerCardStyle}>
-          <h1 style={headerTitleStyle}>Centro de Mando Institucional</h1>
-          <p style={headerSubtitleStyle}>
-            Supervisión estratégica • {userData?.region_nombre} •{" "}
-            {userData?.delegacion_nombre}
-          </p>
-        </div>
+  const DashboardContent = () => (
+    <div style={containerStyle}>
+      {/* Tarjeta de perfil — jefatura no tiene escuadra */}
+      <TarjetaPerfil
+        perfil={perfil}
+        loadingPerfil={loadingPerfil}
+        mostrarEscuadra={false}
+      />
 
-        {/* Métricas clave (placeholders para futura implementación) */}
-        <div style={metricsGridStyle}>
-          <MetricCard label="Operativos Activos" value="—" trend="neutral" />
-          <MetricCard label="Recursos Disponibles" value="—" trend="neutral" />
-          <MetricCard label="Órdenes Hoy" value="—" trend="neutral" />
-          <MetricCard label="Reportes Pendientes" value="—" trend="alert" />
-        </div>
-
-        {/* Accesos rápidos */}
-        <Section title="Accesos Rápidos">
-          <ButtonGrid>
-            <ActionButton onClick={() => navigate("/jefatura/reportes")}>
-              📄 Generar Reporte Institucional
-            </ActionButton>
-            <ActionButton onClick={() => navigate("/supervisor/hojas-hoy")}>
-              📋 Hojas de Servicio
-            </ActionButton>
-            <ActionButton onClick={() => navigate("/unidad_operativa/ordenes")}>
-              📋 Ver Órdenes Ejecución
-            </ActionButton>
-            <ActionButton onClick={() => navigate("/admin/gestion-usuarios")}>
-              👥 Gestionar Personal
-            </ActionButton>
-            <ActionButton
-              onClick={() => navigate("/supervisor/gestion-recursos")}
-            >
-              🚓 Administrar Recursos
-            </ActionButton>
-          </ButtonGrid>
-        </Section>
+      {/* Métricas */}
+      <div style={metricsGridStyle}>
+        <MetricCard label="Operativos Activos"   value="—" />
+        <MetricCard label="Recursos Disponibles" value="—" />
+        <MetricCard label="Órdenes Hoy"          value="—" />
+        <MetricCard label="Reportes Pendientes"  value="—" alerta />
       </div>
+
+      {/* Accesos rápidos */}
+      <div style={modulesGridStyle}>
+        <ModuleCard
+          title="📈 Reportes"
+          description="Reportes institucionales de la delegación"
+          color="#1e40af"
+          actions={[
+            { label: "Generar Reporte", onClick: () => navigate("/jefatura/reportes") },
+          ]}
+        />
+        <ModuleCard
+          title="📋 Hojas de Servicio"
+          description="Supervisión de operación diaria"
+          color="#1e293b"
+          actions={[
+            { label: "Ver Hojas del Día", onClick: () => navigate("/supervisor/hojas-hoy") },
+            { label: "Ver Órdenes",       onClick: () => navigate("/unidad_operativa/ordenes") },
+          ]}
+        />
+        <ModuleCard
+          title="👥 Personal y Recursos"
+          description="Administración operativa de la delegación"
+          color="#0369a1"
+          actions={[
+            { label: "Gestionar Personal",   onClick: () => navigate("/admin/gestion-usuarios") },
+            { label: "Administrar Recursos", onClick: () => navigate("/supervisor/gestion-recursos") },
+          ]}
+        />
+      </div>
+    </div>
+  );
+
+  if (isMobile) {
+    return (
+      <MobileLayout title="Jefatura" menuItems={menuItems} user={userData} onLogout={handleLogout}>
+        <DashboardContent />
+      </MobileLayout>
+    );
+  }
+
+  return (
+    <DesktopLayout title="Jefatura" menuItems={menuItems} user={userData} onLogout={handleLogout}>
+      <DashboardContent />
     </DesktopLayout>
   );
 }
 
 // ─────────────────────────────────────────
-// Estilos Jefatura (Desktop institucional)
+// Componentes y estilos
 // ─────────────────────────────────────────
 const containerStyle = { padding: "20px" };
 
-const headerCardStyle = {
-  background: "linear-gradient(135deg, #1e293b 0%, #334155 100%)",
-  color: "white",
-  padding: "24px",
-  borderRadius: "12px",
-  marginBottom: "20px",
-};
-
-const headerTitleStyle = {
-  margin: "0 0 8px 0",
-  fontSize: "20px",
-  fontWeight: "600",
-};
-
-const headerSubtitleStyle = {
-  margin: 0,
-  fontSize: "14px",
-  opacity: 0.9,
-};
-
 const metricsGridStyle = {
   display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-  gap: "15px",
+  gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+  gap: "14px",
   marginBottom: "20px",
 };
 
-const MetricCard = ({ label, value, trend = "neutral" }) => {
-  const trendColors = {
-    neutral: { bg: "#f1f5f9", text: "#64748b" },
-    alert: { bg: "#fef2f2", text: "#dc2626" },
-    success: { bg: "#f0fdf4", text: "#16a34a" },
-  };
-  const colors = trendColors[trend];
-
-  return (
-    <div style={{ ...metricCardStyle, background: colors.bg }}>
-      <div style={{ ...metricLabelStyle, color: colors.text }}>{label}</div>
-      <div style={metricValueStyle}>{value}</div>
-    </div>
-  );
-};
+const MetricCard = ({ label, value, alerta = false }) => (
+  <div style={{ ...metricCardStyle, background: alerta ? "#fef2f2" : "#f8fafc" }}>
+    <span style={{ ...metricLabelStyle, color: alerta ? "#dc2626" : "#64748b" }}>{label}</span>
+    <span style={metricValueStyle}>{value}</span>
+  </div>
+);
 
 const metricCardStyle = {
   padding: "16px",
   borderRadius: "10px",
-  textAlign: "center",
+  display: "flex",
+  flexDirection: "column",
+  gap: "6px",
 };
 
 const metricLabelStyle = {
-  fontSize: "13px",
-  fontWeight: "500",
-  marginBottom: "8px",
+  fontSize: "12px",
+  fontWeight: "600",
+  textTransform: "uppercase",
+  letterSpacing: "0.04em",
 };
 
 const metricValueStyle = {
-  fontSize: "24px",
+  fontSize: "26px",
   fontWeight: "700",
   color: "#1e293b",
 };
 
-const Section = ({ title, children }) => (
-  <div style={sectionStyle}>
-    <h2 style={sectionTitleStyle}>{title}</h2>
-    {children}
+const modulesGridStyle = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+  gap: "20px",
+};
+
+const ModuleCard = ({ title, description, color = "#1e293b", actions = [] }) => (
+  <div style={cardStyle}>
+    <div style={{ ...cardAccentStyle, background: color }} />
+    <div style={cardBodyStyle}>
+      <h2 style={cardTitleStyle}>{title}</h2>
+      <p style={cardDescStyle}>{description}</p>
+      <div style={actionsStyle}>
+        {actions.map((a, i) => (
+          <button key={i} onClick={a.onClick} style={{ ...actionBtnStyle, background: color }}>
+            {a.label}
+          </button>
+        ))}
+      </div>
+    </div>
   </div>
 );
 
-const sectionStyle = {
+const cardStyle = {
   background: "white",
-  padding: "20px",
   borderRadius: "12px",
   boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
-  marginBottom: "20px",
-};
-
-const sectionTitleStyle = {
-  margin: "0 0 15px 0",
-  fontSize: "18px",
-  fontWeight: "600",
-  color: "#1e293b",
-};
-
-const ButtonGrid = ({ children }) => (
-  <div style={buttonGridStyle}>{children}</div>
-);
-
-const buttonGridStyle = {
+  overflow: "hidden",
   display: "flex",
-  flexWrap: "wrap",
-  gap: "10px",
+  flexDirection: "column",
 };
 
-const ActionButton = ({ children, onClick }) => (
-  <button onClick={onClick} style={buttonStyle}>
-    {children}
-  </button>
-);
+const cardAccentStyle = { height: "4px", width: "100%" };
 
-const buttonStyle = {
-  padding: "12px 18px",
+const cardBodyStyle = {
+  padding: "18px 20px 20px 20px",
+  display: "flex",
+  flexDirection: "column",
+  gap: "10px",
+  flex: 1,
+};
+
+const cardTitleStyle = { margin: 0, fontSize: "15px", fontWeight: "600", color: "#1e293b" };
+const cardDescStyle  = { margin: 0, fontSize: "13px", color: "#64748b" };
+
+const actionsStyle = {
+  display: "flex",
+  flexDirection: "column",
+  gap: "8px",
+  marginTop: "auto",
+  paddingTop: "8px",
+};
+
+const actionBtnStyle = {
+  width: "100%",
+  padding: "11px 14px",
   border: "none",
   borderRadius: "8px",
-  background: "#1e293b",
   color: "white",
   cursor: "pointer",
   fontWeight: "500",
-  fontSize: "14px",
+  fontSize: "13px",
+  textAlign: "left",
 };
 
 export default DashboardJefatura;
