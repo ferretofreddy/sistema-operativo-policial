@@ -3,6 +3,7 @@
 // Validaciones de dominio para usuarios.
 // Extraído de: CrearUsuario.jsx, GestionUsuarios.jsx
 // Los componentes llaman estas funciones — no contienen lógica de validación propia.
+import { validateRangeInTurno } from "../../utils/timeUtils";
 
 /**
  * Resultado de validación estándar.
@@ -205,8 +206,12 @@ export function validateHojaServicio(data) {
   if (!data.recursosSeleccionados?.length) errors.push("Seleccione al menos un recurso");
   if (!data.horaInicio) errors.push("Defina la hora de inicio");
   if (!data.horaFin) errors.push("Defina la hora de fin");
-  if (data.horaInicio && data.horaFin && data.horaInicio >= data.horaFin) {
-    errors.push("La hora de inicio debe ser menor a la hora de fin");
+  if (data.horaInicio && data.horaFin) {
+    const turno = data.turnoOperativo || "00:00-23:59";
+    const rango = validateRangeInTurno(data.horaInicio, data.horaFin, turno);
+    if (!rango.valid) {
+      errors.push("Rango horario inválido para el turno operativo");
+    }
   }
   if (!data.numeroHoja?.trim()) errors.push("El número de hoja es obligatorio");
   if (!data.turnoOperativo?.trim()) errors.push("El turno operativo es obligatorio");
@@ -226,8 +231,12 @@ export function validateActividad(form) {
   if (!form.accion_id) errors.push("Seleccione una acción");
   if (!form.hora_inicio) errors.push("Defina la hora de inicio");
   if (!form.hora_fin) errors.push("Defina la hora de fin");
-  if (form.hora_inicio && form.hora_fin && form.hora_inicio >= form.hora_fin) {
-    errors.push("La hora de inicio debe ser menor a la de fin");
+  if (form.hora_inicio && form.hora_fin) {
+    const turno = form.turno || "00:00-23:59";
+    const rango = validateRangeInTurno(form.hora_inicio, form.hora_fin, turno);
+    if (!rango.valid) {
+      errors.push("La actividad tiene un rango horario inválido para el turno");
+    }
   }
   if (!form.sector?.trim()) errors.push("El sector es obligatorio");
   if (!form.detalle?.trim()) errors.push("El detalle es obligatorio");

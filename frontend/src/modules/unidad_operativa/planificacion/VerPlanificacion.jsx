@@ -16,6 +16,11 @@ import {
   UserRepository,
 } from "../../../core";
 import DesktopLayout from "../../../shared/layouts/DesktopLayout";
+import {
+  parseTurno,
+  validateRangeInTurno,
+  rangesOverlap,
+} from "../../../utils/timeUtils";
 
 const TURNOS = ["05:00-17:00", "17:00-05:00", "00:00-23:59"];
 
@@ -194,6 +199,57 @@ function VerPlanificacion() {
       setError("Seleccione orden y acción.");
       return;
     }
+    if (!actForm.hora_inicio || !actForm.hora_fin) {
+      setError("Defina hora de inicio y fin.");
+      return;
+    }
+
+    const dia = dias.find((d) => d.id === diaId);
+    const turnoDia = dia?.turno;
+    if (!parseTurno(turnoDia)) {
+      setError("El turno del día es inválido. Verifique formato HH:MM-HH:MM.");
+      return;
+    }
+
+    const rangoNuevo = validateRangeInTurno(
+      actForm.hora_inicio,
+      actForm.hora_fin,
+      turnoDia,
+    );
+    if (!rangoNuevo.valid) {
+      if (rangoNuevo.reason === "fuera_turno") {
+        setError("El horario de la actividad está fuera del turno del día.");
+      } else if (rangoNuevo.reason === "rango_invalido") {
+        setError("La hora fin debe ser posterior a la hora inicio.");
+      } else {
+        setError("Horario inválido para la actividad.");
+      }
+      return;
+    }
+
+    // Validar solapamiento dentro del mismo día.
+    const actsDelDia = actividades[diaId] ?? [];
+    for (const actExistente of actsDelDia) {
+      if (!actExistente.hora_inicio || !actExistente.hora_fin) continue;
+      const rangoExistente = validateRangeInTurno(
+        actExistente.hora_inicio,
+        actExistente.hora_fin,
+        turnoDia,
+      );
+      if (!rangoExistente.valid) continue;
+      if (
+        rangesOverlap(
+          rangoNuevo.start,
+          rangoNuevo.end,
+          rangoExistente.start,
+          rangoExistente.end,
+        )
+      ) {
+        setError("La actividad se solapa con otra actividad del mismo día.");
+        return;
+      }
+    }
+
     setGuardando(true);
     setError("");
     try {
