@@ -26,11 +26,14 @@ function ListaHojasHoy() {
   const [loading,    setLoading]    = useState(true);
   const [busqueda,   setBusqueda]   = useState("");
   const [filtroEstado, setFiltroEstado] = useState("todos");
+  const [fechaFiltro, setFechaFiltro] = useState(
+    new Date().toISOString().split("T")[0]
+  );
 
   const cargar = useCallback(async () => {
     if (!userData) return;
     try {
-      const hoy = new Date().toISOString().split("T")[0];
+      const hoy = fechaFiltro;
       const [hojasData, escuadrasData] = await Promise.all([
         ServiceSheetRepository.getByFecha(
           userData.delegation_id,
@@ -46,7 +49,7 @@ function ListaHojasHoy() {
     } finally {
       setLoading(false);
     }
-  }, [userData, esSupervisor]);
+  }, [userData, esSupervisor, fechaFiltro]);
 
   useEffect(() => { cargar(); }, [cargar]);
 
@@ -71,19 +74,37 @@ function ListaHojasHoy() {
 
   if (loading) {
     return (
-      <DesktopLayout title="Hojas de Servicio" menuItems={menuItems} user={userData}>
+      <DesktopLayout title="Hojas de Hoy" menuItems={menuItems} user={userData}>
         <p style={msgStyle}>Cargando hojas...</p>
       </DesktopLayout>
     );
   }
 
+  const titleDinamico = fechaFiltro === new Date().toISOString().split("T")[0]
+    ? "Hojas de Hoy"
+    : `Hojas — ${fechaFiltro}`;
+
   return (
-    <DesktopLayout title="Hojas de Servicio" menuItems={menuItems} user={userData}>
+    <DesktopLayout title={titleDinamico} menuItems={menuItems} user={userData}>
       <div style={pageStyle}>
 
         {/* FILTROS */}
         <div style={cardStyle}>
           <div style={filtersStyle}>
+            <input
+              type="date"
+              value={fechaFiltro}
+              onChange={e => setFechaFiltro(e.target.value)}
+              style={{
+                padding: "9px 12px",
+                border: "1px solid #d1d5db",
+                borderRadius: "8px",
+                fontSize: "14px",
+                outline: "none",
+                color: "#1e293b",
+                cursor: "pointer",
+              }}
+            />
             <input
               placeholder="Buscar por número, escuadra o supervisor..."
               value={busqueda}

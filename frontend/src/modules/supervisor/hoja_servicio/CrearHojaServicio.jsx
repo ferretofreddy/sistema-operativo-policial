@@ -421,16 +421,24 @@ function CrearHojaServicio() {
         recursos_snapshot: recursosSnapshot,
       });
 
-      // Guardar SOLO las actividades seleccionadas
+      // Guardar SOLO las actividades seleccionadas — con snapshots (Fase 6A.1)
       for (const act of actividadesElegidas) {
+        const accion = getAccion(act.order_id, act.order_action_id);
+        const orden  = getOrden(act.order_id);
+
         await ServiceSheetRepository.addActividad(hojaId, {
-          order_id: act.order_id,
-          order_action_id: act.order_action_id,
-          hora_inicio: act.hora_inicio,
-          hora_fin: act.hora_fin,
-          sector:          act.sector          ?? "",
-          sector_dinamico: act.sector_dinamico ?? "",
-          posicion: act.posicion,
+          order_id:          act.order_id,
+          order_action_id:   act.order_action_id,
+          hora_inicio:       act.hora_inicio,
+          hora_fin:          act.hora_fin,
+          sector:            act.sector          ?? "",
+          sector_dinamico:   act.sector_dinamico ?? "",
+          posicion:          act.posicion,
+          // Snapshots inmutables — Fase 6A.1
+          accion_nombre:     accion?.nombre      ?? "",
+          accion_detalle:    accion?.detalle     ?? "",
+          orden_consecutivo: orden?.consecutivo  ?? "",
+          orden_nombre:      orden?.nombre       ?? "",
         });
       }
 

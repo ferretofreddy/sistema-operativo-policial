@@ -46,6 +46,17 @@ NO modificar:
 - formato,
 - diseño operacional.
 
+## ListaHojasHoy — Comportamiento por rol
+
+| Rol | Filtro | Fechas visibles |
+|-----|--------|-----------------|
+| supervisor | squad_id del usuario | Selector de fecha (default: hoy) |
+| unidad_operativa | delegation_id completa | Selector de fecha (default: hoy) |
+| jefatura | delegation_id completa | Selector de fecha (default: hoy) |
+| agente | Solo sus hojas (módulo futuro) | Solo hoy — sin selector |
+
+El agente tendrá su propio módulo separado sin selector de fecha.
+
 ---
 
 # PLANIFICACIÓN

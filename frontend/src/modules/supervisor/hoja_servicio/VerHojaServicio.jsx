@@ -81,18 +81,34 @@ function VerHojaServicio() {
         }),
       );
 
-      const actsEnriquecidas = actsData.map((a) => ({
-        ...a,
-        accion_nombre:
-          (newAccMap[a.order_id] ?? []).find(
-            (ac) => ac.id === a.order_action_id,
-          )?.nombre ?? "—",
-        accion_detalle:
-          (newAccMap[a.order_id] ?? []).find(
-            (ac) => ac.id === a.order_action_id,
-          )?.detalle ?? "",
-        orden_consecutivo: newOrdMap[a.order_id]?.consecutivo ?? "",
-      }));
+      const actsEnriquecidas = actsData.map((a) => {
+        if (!a.accion_nombre_snapshot) {
+          console.warn(
+            "[SNAPSHOT_FALLBACK] sheet_activity sin snapshot:",
+            a.id,
+            "order_action_id:", a.order_action_id,
+          );
+        }
+        return {
+          ...a,
+          accion_nombre:
+            a.accion_nombre_snapshot
+            ?? (newAccMap[a.order_id] ?? []).find(ac => ac.id === a.order_action_id)?.nombre
+            ?? "—",
+          accion_detalle:
+            a.accion_detalle_snapshot
+            ?? (newAccMap[a.order_id] ?? []).find(ac => ac.id === a.order_action_id)?.detalle
+            ?? "",
+          orden_consecutivo:
+            a.orden_consecutivo_snapshot
+            ?? newOrdMap[a.order_id]?.consecutivo
+            ?? "",
+          orden_nombre:
+            a.orden_nombre_snapshot
+            ?? newOrdMap[a.order_id]?.nombre
+            ?? "",
+        };
+      });
 
       setHoja(hojaData);
       setActividades(actsEnriquecidas);
