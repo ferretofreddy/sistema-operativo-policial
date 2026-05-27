@@ -58,6 +58,31 @@ class DelegationRepositoryClass extends BaseRepository {
   async desactivar(id) {
     return this.softDelete(id);
   }
+
+  // =========================================
+  // V2.1A — MODELO JERÁRQUICO
+  // =========================================
+
+  async getByType(delegationType) {
+    return getProvider().fetchCollection('delegations', {
+      delegation_type: delegationType,
+    });
+  }
+
+  async getDistritalesByParent(parentDelegationId) {
+    return getProvider().fetchCollection('delegations', {
+      parent_delegation_id: parentDelegationId,
+      delegation_type: 'distrital',
+    });
+  }
+
+  async getScope(delegationId) {
+    const { supabase } = await import('../providers/supabase/SupabaseProvider');
+    const { data, error } = await supabase
+      .rpc('get_delegation_scope', { p_delegation_id: delegationId });
+    if (error) throw error;
+    return data ?? [];
+  }
 }
 
 export const DelegationRepository = new DelegationRepositoryClass();

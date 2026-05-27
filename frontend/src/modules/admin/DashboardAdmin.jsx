@@ -22,7 +22,8 @@ function DashboardAdmin() {
 
   const menuItems = [
     { label: "🗺️ Regiones",         onClick: () => navigate("/admin/regiones") },
-    { label: "🏢 Delegaciones",      onClick: () => navigate("/admin/delegaciones") },
+    { label: "🏢 Delegaciones Cantonales",  onClick: () => navigate("/admin/delegaciones") },
+    { label: "🏘️ Delegaciones Distritales", onClick: () => navigate("/admin/delegaciones-distritales") },
     { label: "👥 Escuadras",         onClick: () => navigate("/admin/escuadras") },
     { label: "👤 Usuarios",          onClick: () => navigate("/admin/usuarios") },
     { label: "⚙️ Gestión Usuarios",  onClick: () => navigate("/admin/gestion-usuarios") },
@@ -48,7 +49,8 @@ function DashboardAdmin() {
       <Section title="🏗️ Estructura Organizacional" color="#7c3aed">
         <ButtonGrid>
           <ActionButton color="#7c3aed" onClick={() => navigate("/admin/regiones")}>Regiones</ActionButton>
-          <ActionButton color="#7c3aed" onClick={() => navigate("/admin/delegaciones")}>Delegaciones</ActionButton>
+          <ActionButton color="#7c3aed" onClick={() => navigate("/admin/delegaciones")}>Delegaciones Cantonales</ActionButton>
+          <ActionButton color="#7c3aed" onClick={() => navigate("/admin/delegaciones-distritales")}>Delegaciones Distritales</ActionButton>
           <ActionButton color="#7c3aed" onClick={() => navigate("/admin/escuadras")}>Escuadras</ActionButton>
           <ActionButton color="#7c3aed" onClick={() => navigate("/admin/usuarios")}>Usuarios</ActionButton>
           <ActionButton color="#7c3aed" onClick={() => navigate("/admin/gestion-usuarios")}>Gestión Usuarios</ActionButton>

@@ -31,6 +31,7 @@ const VerPlanificacion = lazy(() => import("./modules/unidad_operativa/planifica
 // 🔹 Módulos Administración
 const CrearRegion = lazy(() => import("./modules/administracion/regiones/CrearRegion"));
 const CrearDelegacion = lazy(() => import("./modules/administracion/delegaciones/CrearDelegacion"));
+const GestionDelegacionesDistritales = lazy(() => import("./modules/administracion/delegaciones/GestionDelegacionesDistritales"));
 const CrearEscuadra = lazy(() => import("./modules/administracion/escuadras/CrearEscuadra"));
 const GestionEscuadra = lazy(() => import("./modules/administracion/escuadras/GestionEscuadra"));
 const CrearUsuario = lazy(() => import("./modules/administracion/usuarios/CrearUsuario"));
@@ -172,6 +173,11 @@ function App() {
           <Route path="/admin/delegaciones" element={
             <ProtectedRoute userData={userData} allowedRoles="admin">
               <CrearDelegacion />
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/delegaciones-distritales" element={
+            <ProtectedRoute userData={userData} allowedRoles="admin">
+              <GestionDelegacionesDistritales />
             </ProtectedRoute>
           } />
           <Route path="/admin/escuadras" element={

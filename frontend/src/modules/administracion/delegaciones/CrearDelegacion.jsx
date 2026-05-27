@@ -29,7 +29,7 @@ function CrearDelegacion() {
 
   const cargarDelegaciones = useCallback(async () => {
     try {
-      const data = await DelegationRepository.getAll({}, { includeInactive: true });
+      const data = await DelegationRepository.getAll({ delegation_type: 'cantonal' }, { includeInactive: true });
       setDelegaciones(data.sort((a, b) => a.nombre.localeCompare(b.nombre)));
     } catch (err) {
       setError("Error al cargar delegaciones: " + err.message);
@@ -100,7 +100,7 @@ function CrearDelegacion() {
     setError("");
     try {
       // CRÍTICO: NO guardar region_nombre — en PostgreSQL se obtiene vía JOIN
-      const datos = { nombre, codigo, region_id: region.id };
+      const datos = { nombre, codigo, region_id: region.id, delegation_type: 'cantonal' };
 
       if (!editandoId) {
         await DelegationRepository.crear({ ...datos, estado: "activo" });
@@ -135,8 +135,8 @@ function CrearDelegacion() {
     <>
       {error && <div style={errorBannerStyle}>{error}</div>}
       <GestionLayout
-        titulo="Gestión Delegaciones"
-        subtitulo="Administración territorial de delegaciones operativas"
+        titulo="Delegaciones Cantonales"
+        subtitulo="Gestión de delegaciones cantonales"
         filtros={[
           {
             name: "region_id",
@@ -181,7 +181,7 @@ function CrearDelegacion() {
             setError("Error actualizando estado: " + err.message);
           }
         }}
-        formTitle={editandoId ? "Editar Delegación" : "Nueva Delegación"}
+        formTitle={editandoId ? "Editar Delegación Cantonal" : "Nueva Delegación Cantonal"}
         formFields={[
           {
             name: "region_id",

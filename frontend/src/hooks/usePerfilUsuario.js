@@ -92,6 +92,8 @@ export function usePerfilUsuario(userData) {
 
           regionNombre:     region?.nombre       ?? "—",
           delegacionNombre: delegacion?.nombre   ?? "—",
+          delegacionTipo:   delegacion?.delegation_type ?? 'cantonal',
+          esDistrital:      delegacion?.delegation_type === 'distrital',
 
           // null → rol sin escuadra (jefatura, unidad_operativa, admin)
           escuadraNombre: userData.squad_id
