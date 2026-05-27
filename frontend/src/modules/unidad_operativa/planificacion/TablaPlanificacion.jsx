@@ -1,5 +1,4 @@
 // frontend/src/modules/unidad_operativa/planificacion/TablaPlanificacion.jsx
-// MIGRADO de Firebase → Mayo 2026
 //
 // Tabla de visualización de la planificación operativa.
 // Ahora recibe la estructura relacional:

@@ -1,5 +1,4 @@
 // frontend/src/modules/unidad_operativa/ordenes/CrearOrden.jsx
-// MIGRADO de Firebase → Mayo 2026
 //
 // Crea una ORECPO con sus acciones operativas.
 // El estado (programada/vigente/vencida) se calcula dinámicamente por fecha.

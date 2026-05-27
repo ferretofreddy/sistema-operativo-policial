@@ -1,65 +1,8 @@
 // src/core/adapters/authAdapter.js
 //
-// Adaptador de autenticación.
-// ACTIVE_PROVIDER controla qué sistema de auth se usa.
-// Cambiar este valor es el único cambio necesario para migrar auth.
-//
-// IMPORTANTE: NO hay imports estáticos de Firebase ni Supabase aquí.
-// Todo se carga dinámicamente según el provider activo.
-// Esto evita que Firebase se inicialice cuando usamos Supabase y viceversa.
-
-const ACTIVE_PROVIDER = "supabase"; // "firebase" | "supabase"
+// Adaptador de autenticación — Supabase.
 
 /** @typedef {{ uid: string, email: string|null, emailVerified: boolean }} AuthSession */
-
-// =========================================
-// FIREBASE IMPL (carga dinámica)
-// =========================================
-
-async function buildFirebaseImpl() {
-  const [firebaseAuth, { auth, app }] = await Promise.all([
-    import("firebase/auth"),
-    import("../../services/firebase"),
-  ]);
-
-  const {
-    signInWithEmailAndPassword,
-    signOut,
-    onAuthStateChanged,
-    sendPasswordResetEmail,
-    createUserWithEmailAndPassword,
-    getAuth,
-    initializeApp,
-  } = firebaseAuth;
-
-  const norm = (u) =>
-    u ? { uid: u.uid, email: u.email, emailVerified: u.emailVerified } : null;
-
-  return {
-    async login(email, password) {
-      const c = await signInWithEmailAndPassword(auth, email.trim(), password);
-      return norm(c.user);
-    },
-    async logout() {
-      await signOut(auth);
-    },
-    onSessionChange(cb) {
-      return onAuthStateChanged(auth, (u) => cb(norm(u)));
-    },
-    async sendPasswordReset(email) {
-      await sendPasswordResetEmail(auth, email);
-    },
-    async createUser(email, password) {
-      const secApp  = initializeApp(app.options, `sec-${Date.now()}`);
-      const secAuth = getAuth(secApp);
-      const c = await createUserWithEmailAndPassword(secAuth, email.trim(), password);
-      return norm(c.user);
-    },
-    getCurrentSession() {
-      return norm(auth.currentUser);
-    },
-  };
-}
 
 // =========================================
 // SUPABASE IMPL (carga dinámica)
@@ -157,9 +100,7 @@ async function getImpl() {
   _loading = true;
 
   try {
-    _impl = ACTIVE_PROVIDER === "supabase"
-      ? await buildSupabaseImpl()
-      : await buildFirebaseImpl();
+    _impl = await buildSupabaseImpl();
 
     // Resolver waiters
     _waiters.forEach((resolve) => resolve(_impl));

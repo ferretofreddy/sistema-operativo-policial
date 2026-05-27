@@ -3,7 +3,9 @@
     "allow": [
       "Bash(xargs grep -l \"hora\\\\|time\\\\|horario\")",
       "mcp__claude_ai_Supabase__list_projects",
-      "mcp__claude_ai_Supabase__execute_sql"
+      "mcp__claude_ai_Supabase__execute_sql",
+      "Bash(npm run *)",
+      "Bash(npm uninstall *)"
     ]
   }
 }

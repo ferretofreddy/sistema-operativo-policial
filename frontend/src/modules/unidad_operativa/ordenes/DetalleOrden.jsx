@@ -1,5 +1,4 @@
 // frontend/src/modules/unidad_operativa/ordenes/DetalleOrden.jsx
-// MIGRADO de Firebase → Mayo 2026
 //
 // Vista detallada de una ORECPO con sus acciones operativas.
 // Acciones via tabla order_actions (no array JSON).

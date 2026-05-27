@@ -1,5 +1,4 @@
 // frontend/src/modules/supervisor/recursos/CrearRecurso.jsx
-// Migrado de Firebase a Supabase — Mayo 2026
 //
 // CRUD de recursos operativos.
 // nombre_recurso se genera automáticamente: TIPO-DELEGACION-UNIDAD

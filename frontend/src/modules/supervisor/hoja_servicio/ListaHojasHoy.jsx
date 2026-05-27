@@ -1,5 +1,4 @@
 // frontend/src/modules/supervisor/hoja_servicio/ListaHojasHoy.jsx
-// MIGRADO de Firebase — Mayo 2026
 //
 // Lista hojas del día actual para la delegación.
 // Supervisor ve solo su escuadra; unidad_operativa y jefatura ven toda la delegación.

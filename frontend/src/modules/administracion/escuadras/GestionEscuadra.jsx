@@ -1,5 +1,4 @@
 // frontend/src/modules/administracion/escuadras/GestionEscuadra.jsx
-// Migrado de Firebase a Supabase — Mayo 2026
 //
 // Asignación de personal a escuadras.
 // Personal disponible = usuarios de la delegación con squad_id IS NULL

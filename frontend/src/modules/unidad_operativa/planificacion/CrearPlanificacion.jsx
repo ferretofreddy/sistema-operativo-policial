@@ -1,5 +1,4 @@
 // frontend/src/modules/unidad_operativa/planificacion/CrearPlanificacion.jsx
-// MIGRADO de Firebase — Mayo 2026
 //
 // Crea una planificación operativa vinculada a una escuadra.
 // Los días son DINÁMICOS — el usuario los agrega uno por uno.

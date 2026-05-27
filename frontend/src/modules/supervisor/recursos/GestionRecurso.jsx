@@ -1,5 +1,4 @@
 // frontend/src/modules/supervisor/recursos/GestionRecurso.jsx
-// Migrado de Firebase a Supabase — Mayo 2026
 //
 // Asignación de personal a recursos operativos.
 // Usa la vista resources_con_oficiales para cargar recursos con sus oficiales activos.

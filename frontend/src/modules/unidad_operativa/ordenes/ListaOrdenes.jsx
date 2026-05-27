@@ -1,5 +1,4 @@
 // frontend/src/modules/unidad_operativa/ordenes/ListaOrdenes.jsx
-// MIGRADO de Firebase → Mayo 2026
 //
 // Lista de ORECPO con estados calculados dinámicamente por fecha.
 // Estado: programada / vigente / vencida (no guardado en BD)

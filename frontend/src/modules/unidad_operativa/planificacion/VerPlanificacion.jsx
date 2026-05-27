@@ -1,5 +1,4 @@
 // frontend/src/modules/unidad_operativa/planificacion/VerPlanificacion.jsx
-// MIGRADO de Firebase — Mayo 2026
 // Excel con formato institucional exacto:
 //   ORDEN | SECTOR DINÁMICO | ACCIÓN | DETALLE | HORA INICIO | HORA FIN | SECTOR | ENCARGADO | CÓDIGO
 
