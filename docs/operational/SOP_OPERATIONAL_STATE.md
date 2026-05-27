@@ -1,217 +1,152 @@
 # SOP_OPERATIONAL_STATE.md
+## Estado Operativo Actual — SOP V2
+## Mayo 2026
 
-```md
 ---
-name: sop-operational-state
-description: >
-  Estado operativo y técnico ACTUAL del Sistema Operativo Policial.
-  Cargar cuando el usuario pregunte:
-  qué está pendiente, estado actual, avances,
-  bugs recientes, Fase 5, hojas de servicio,
-  órdenes, planificación o problemas activos.
----
-
-# SOP — Operational State
 
 ## Estado Global
 
-Migración Firebase → Supabase:
-✅ Arquitectura desacoplada
-✅ Login Supabase
-✅ PostgreSQL operativo
-✅ RLS territorial
-✅ Gestión usuarios
-✅ Gestión recursos
-✅ Gestión territorial
-✅ CRUD administrativos
-✅ Relaciones operativas
+| Campo | Valor |
+|-------|-------|
+| **Versión activa** | V2.1A |
+| **Paradigma** | Plataforma Institucional Operacional |
+| **Firebase** | ✅ Eliminado completamente |
+| **PostgreSQL-first** | ✅ Consolidado |
 
 ---
 
-# Estado por Fases
+## Infraestructura
 
-| Fase | Estado |
-|------|--------|
-| Fase 1–4B | ✅ Completa |
-| Fase 5A — Órdenes | ✅ Completa |
-| Fase 5B — Planificación | ✅ Completa, validada y estabilizada |
-| Fase 5C — Hojas Servicio | 🔄 En progreso |
-| Fase 6 — Limpieza Firebase | ⏳ Pendiente |
-
----
-
-# Pendientes Críticos
-
-## 1. RLS desactivada en service_sheets
-
-Estado actual:
-ALTER TABLE service_sheets DISABLE ROW LEVEL SECURITY;
-
-Motivo:
-Recursión infinita en políticas agente.
-
-Pendiente:
-reescribir políticas correctamente.
+| Componente | Estado |
+|------------|--------|
+| Supabase PostgreSQL 17 | ✅ Operativo |
+| RLS territorial base | ✅ Activa |
+| Snapshots institucionales | ✅ Estables |
+| Motor temporal (planning + sheets) | ✅ Estable 14/14 PASS |
+| PDF institucional | ✅ Estable |
+| Firebase código | ✅ Eliminado |
+| Firebase dependencias npm | ✅ Eliminado (69 paquetes) |
+| `ACTIVE_PROVIDER` | ✅ `'supabase'` |
 
 ---
 
-## 2. Snapshots incompletos
+## V1 — Cerrada ✅
 
-Actualmente:
-- sheet_activities
-- order_actions
-- planning_activities
+Todo lo construido en V1 es base sólida de V2:
 
-todavía dependen parcialmente de relaciones vivas.
-
-Debe definirse:
-- snapshot completo
-o
-- modelo híbrido controlado.
-
----
-
-## 3. Firebase residual
-
-Todavía existen:
-- imports Firebase
-- servicios legacy
-- rastros Firebase Storage
-
-Pendiente:
-Fase 6 cleanup.
+| Módulo | Estado |
+|--------|--------|
+| Arquitectura desacoplada | ✅ |
+| Login + Auth Supabase | ✅ |
+| CRUD administrativos | ✅ |
+| Gestión territorial | ✅ |
+| Gestión usuarios y recursos | ✅ |
+| Órdenes de Ejecución (ORECPO) | ✅ |
+| Planificación operativa + Excel | ✅ |
+| Hojas de Servicio + PDF | ✅ |
+| Snapshots completos | ✅ |
+| RLS `service_sheets` activa | ✅ |
+| Dashboards 5 roles estandarizados | ✅ |
+| TarjetaPerfil con datos reales | ✅ |
+| Responsive Mobile + Desktop | ✅ |
 
 ---
 
-## 4. Audit Logs
+## V2 — Estado por Etapa
 
-NO implementado todavía.
+### V2.1A — ACTIVA 🔄
 
-Debe registrar:
-- actor
-- acción
-- entidad
-- valores anteriores
-- timestamp
-- scope territorial
+**Objetivo:** Implementar modelo organizacional multinivel.
 
----
+**Pendiente:**
+- Migración SQL: `parent_delegation_id` + `delegation_type` en `delegations`
+- Función `get_delegation_scope()` en PostgreSQL
+- Actualizar `DelegationRepository` con soporte `delegation_type`
+- Actualizar `usePerfilUsuario` con `delegation_type`
+- Crear delegación distrital de prueba subordinada a Puerto Jiménez
+- Validar visibilidad jerárquica cantonal → distrital
 
-# Estado Operacional Actual
-
-## Dominio Temporal Operacional Estabilizado
-
-Estado:
-✅ COMPLETADO Y VALIDADO (Fase 5B cerrada formalmente)
-
-Alcance validado:
-- `planning_activities` estabilizado con motor temporal operacional SQL.
-- `sheet_activities` alineado bajo el mismo criterio temporal compartido.
-- validación frontend + backend consistente para nocturnidad.
-- integración estable planificación → hoja → PDF.
-
-Pruebas realizadas:
-- harness SQL operacional:
-  - `database/tests/planning_activities_temporal_validation.sql`
-- cobertura:
-  - turnos diurnos, nocturnos y 24h
-  - cruces medianoche
-  - solapamientos
-  - frontera `00:00`
-  - igualdad inicio/fin
-  - fuera de turno
-
-Resultado final validado:
-- `total_cases: 14`
-- `passed_cases: 14`
-- `failed_cases: 0`
-
-Módulos/artefactos validados:
-- migración `004_fix_operational_time_validation.sql`
-- migración `005_fix_sheet_activities_operational_time.sql`
-- `frontend/src/utils/timeUtils.js`
-- `VerPlanificacion.jsx`
-- `CrearHojaServicio.jsx`
-- `ServiceSheetRepository.js`
-- `generarPDFHojaServicio.js`
-
-Referencia institucional:
-- `docs/database/SOP_OPERATIONAL_TIME_ENGINE.md`
-
-## GestionEscuadra
-
-Ya maneja:
-- exclusividad operacional
-- consistencia territorial
-- composición táctica
+**Documentos base:**
+- `SOP_ORGANIZATIONAL_MODEL.md` — Aprobado
+- `SOP_RLS_ACCESS_MATRIX.md` v1.0 — Base provisional
 
 ---
 
-## GestionRecurso
+### V2.1B — Pendiente ⏳
 
-Ya maneja:
-- asignaciones multi-entidad
-- historial operacional
-- liberación automática
-- coordinación users/resources
-
----
-
-# Hojas de Servicio
-
-Estado:
-🔄 En desarrollo avanzado.
-
-IMPORTANTE:
-El PDF institucional NO puede cambiar diseño.
-
-El documento ya debe tratarse como:
-documento oficial institucional.
+Actualizar `SOP_RLS_ACCESS_MATRIX.md` a v2.0:
+- Incorporar visibilidad jerárquica cantonal → distritales
+- Ajuste `orders_select` para supervisor (solo `activa`)
+- Ajuste `planning_select` para supervisor (solo su escuadra)
+- Ajuste `planning_days` y `planning_activities` (hereda)
 
 ---
 
-# Reglas PDF
+### V2.1C — Pendiente ⏳
 
-NO reconstruir desde estado vivo.
-
-Guardar:
-- snapshots
-- nombres
-- rangos
-- recursos
-- composición completa
-
-para preservar:
-estado exacto del momento operativo.
+RLS Test Harness multinivel:
+- Cantonal ve sus distritales
+- Distrital NO ve la cantonal ni otras distritales
+- Supervisor distrital scope correcto
+- Admin scope global
+- Meta: mínimo 14/14 PASS (estándar motor temporal)
 
 ---
 
-# Próximos Objetivos
+### V2.1D — Pendiente ⏳
 
-## Fase 5C
-
-Completar:
-- hojas
-- snapshots
-- PDF final institucional
-- RLS correcta
+Audit logs:
+- Tabla `audit_logs` (ya existe en Supabase con política básica)
+- Triggers para `service_sheets` (cambios de estado)
+- Triggers para `resource_assignments` (asignaciones)
+- Triggers para `users` (cambios de rol o delegación)
 
 ---
 
-## Fase 6
+## Pendientes Técnicos Registrados
 
-Eliminar:
-- Firebase residual
-- services legacy
-- imports directos
+| ID | Descripción | Prioridad | Etapa |
+|----|-------------|-----------|-------|
+| T1 | Extensión `delegations` (`parent_delegation_id`, `delegation_type`) | ALTA | V2.1A |
+| T2 | Función `get_delegation_scope()` | ALTA | V2.1A |
+| T3 | RLS_ACCESS_MATRIX v2.0 | ALTA | V2.1B |
+| T4 | Ajuste `orders_select` supervisor | ALTA | V2.1B |
+| T5 | Ajuste `planning_select` supervisor | ALTA | V2.1B |
+| T6 | RLS Test Harness multinivel | ALTA | V2.1C |
+| T7 | Audit logs completos | MEDIA | V2.1D |
+| T8 | Módulo agente | MEDIA | V2.2A |
+| T9 | Flujo estados hojas (en_tramite, finalizada, cerrada) | MEDIA | V2.2B |
+| T10 | Snapshots `sheet_activities` (accion, consecutivo) | MEDIA | V2.2B |
+| T11 | Dashboards adaptativos por `delegation_type` | BAJA | V2.2C |
+| T12 | jsPDF advertencia `5 units width` | BAJA | V2.3 |
 
 ---
 
-# Estado Arquitectónico Real
+## Reglas Permanentes
 
-El proyecto ya NO es:
-“Frontend conectado a Supabase”.
-
-Ahora es:
-“Backend institucional operacional con reglas reales”.
 ```
+✅ Estilos inline — nunca Tailwind
+✅ userData.id — nunca userData.uid
+✅ delegation_id / squad_id — nomenclatura inglesa
+✅ Soft delete — nunca DELETE físico
+✅ Imports desde core/ — nunca Firebase ni Supabase directo en componentes
+✅ Snapshots en documentos oficiales — nunca relaciones vivas
+✅ PDF institucional — diseño intocable
+✅ Motor temporal — congelado, no reabrir
+✅ FirebaseProvider.js — eliminado definitivamente
+```
+
+---
+
+## Proyecto Supabase
+
+| Campo | Valor |
+|-------|-------|
+| Nombre | sistema-operativo-policial |
+| Project ID | `dxqfloudusvxrufxgclv` |
+| Región | us-east-1 |
+| PostgreSQL | 17.6 |
+
+---
+
+*Última actualización: Mayo 2026 — V2.1A activa*
