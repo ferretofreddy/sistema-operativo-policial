@@ -224,7 +224,7 @@ function App() {
           } />
 
           <Route path="/gestion-personal" element={
-            <ProtectedRoute userData={userData} allowedRoles={["unidad_operativa", "jefatura"]}>
+            <ProtectedRoute userData={userData} allowedRoles={["unidad_operativa", "jefatura", "unidad_operativa_distrital", "jefatura_distrital"]}>
               <GestionPersonal />
             </ProtectedRoute>
           } />

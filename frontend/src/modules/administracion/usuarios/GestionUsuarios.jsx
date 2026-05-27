@@ -17,12 +17,24 @@ import GestionLayout from "../../../shared/layouts/GestionLayout";
 // =========================================
 
 const ROLES_OPCIONES = [
-  { label: "Admin",            value: "admin" },
-  { label: "Unidad Operativa", value: "unidad_operativa" },
-  { label: "Jefatura",         value: "jefatura" },
-  { label: "Supervisor",       value: "supervisor" },
-  { label: "Agente",           value: "agente" },
+  { label: "Admin",                       value: "admin" },
+  { label: "Unidad Operativa",            value: "unidad_operativa" },
+  { label: "Jefatura",                    value: "jefatura" },
+  { label: "Unidad Operativa Distrital",  value: "unidad_operativa_distrital" },
+  { label: "Jefatura Distrital",          value: "jefatura_distrital" },
+  { label: "Supervisor",                  value: "supervisor" },
+  { label: "Agente",                      value: "agente" },
 ];
+
+// Roles que el trigger SQL bloquea de tener squad_id — deshabilitar en UI también
+const ROLES_SIN_ESCUADRA = [
+  "jefatura",
+  "unidad_operativa",
+  "jefatura_distrital",
+  "unidad_operativa_distrital",
+];
+
+const ROLES_USAN_CANTONAL_DIRECTA = ["jefatura", "unidad_operativa", "admin"];
 
 const ESTADOS_OPCIONES = [
   { label: "Activo",   value: "activo" },
@@ -44,7 +56,9 @@ function GestionUsuarios() {
   const [usuarios,     setUsuarios]     = useState([]);
   const [regiones,     setRegiones]     = useState([]);
   const [delegaciones, setDelegaciones] = useState([]);
-  const [escuadras,    setEscuadras]    = useState([]);
+  const [escuadras,      setEscuadras]      = useState([]);
+  const [cantonales,     setCantonales]     = useState([]);
+  const [subdelegaciones,setSubdelegaciones] = useState([]);
   const [rangos,       setRangos]       = useState([]);
   const [condiciones,  setCondiciones]  = useState([]);
 
@@ -81,7 +95,8 @@ function GestionUsuarios() {
     telefono:      "",
     rol:           "",
     estado_usuario:"activo",
-    region_id:     "",   // UI only — filtra delegaciones del form
+    region_id:     "",   // UI only — filtra cantonales del form
+    cantonal_id:   "",   // UI only — filtra subdelegaciones del form
     delegation_id: "",
     squad_id:      "",
     rank_id:       "",
@@ -95,15 +110,17 @@ function GestionUsuarios() {
   useEffect(() => {
     const cargarCatalogos = async () => {
       try {
-        const [regionesData, delegacionesData, rangosData, condicionesData] =
+        const [regionesData, delegacionesData, cantonalesData, rangosData, condicionesData] =
           await Promise.all([
             RegionRepository.getActivas(),
             DelegationRepository.getActivas(),
+            DelegationRepository.getCantonales(),
             RankRepository.getActivos(),
             ConditionRepository.getActivas(),
           ]);
         setRegiones(regionesData);
         setDelegaciones(delegacionesData);
+        setCantonales(cantonalesData);
         setRangos(rangosData);
         setCondiciones(condicionesData);
       } catch (err) {
@@ -159,6 +176,14 @@ function GestionUsuarios() {
     cargar();
   }, [formData.delegation_id]);
 
+  // Subdelegaciones (central + distritales) de la cantonal seleccionada en el form
+  useEffect(() => {
+    if (!formData.cantonal_id) { setSubdelegaciones([]); return; }
+    DelegationRepository.getSubdelegaciones(formData.cantonal_id)
+      .then(setSubdelegaciones)
+      .catch((err) => setError('Error cargando subdelegaciones: ' + err.message));
+  }, [formData.cantonal_id]);
+
   // =========================================
   // FILTROS DERIVADOS
   // =========================================
@@ -168,10 +193,6 @@ function GestionUsuarios() {
     return delegaciones.filter((d) => d.region_id === filtros.region_id);
   }, [delegaciones, filtros.region_id]);
 
-  const delegacionesForm = useMemo(() => {
-    if (!formData.region_id) return [];
-    return delegaciones.filter((d) => d.region_id === formData.region_id);
-  }, [delegaciones, formData.region_id]);
 
   // =========================================
   // USUARIOS FILTRADOS — filtros locales
@@ -220,10 +241,23 @@ function GestionUsuarios() {
   const handleFormChange = (field, value) => {
     const nuevos = { ...formData, [field]: value };
     if (field === "region_id") {
+      nuevos.cantonal_id   = "";
       nuevos.delegation_id = "";
       nuevos.squad_id      = "";
     }
+    if (field === "cantonal_id") {
+      nuevos.delegation_id = ROLES_USAN_CANTONAL_DIRECTA.includes(formData.rol)
+        ? value
+        : '';
+      nuevos.squad_id = '';
+    }
     if (field === "delegation_id") {
+      nuevos.squad_id = "";
+    }
+    if (field === "rol" && ROLES_SIN_ESCUADRA.includes(value)) {
+      nuevos.squad_id = "";
+    }
+    if (field === "rol" && ROLES_SIN_ESCUADRA.includes(value)) {
       nuevos.squad_id = "";
     }
     setFormData(nuevos);
@@ -236,7 +270,7 @@ function GestionUsuarios() {
   const editarUsuario = (usuario) => {
     setEditandoId(usuario.id);
     setError("");
-    // Resolver region_id desde delegation_id para UI (JOIN local)
+    // Resolver region_id y cantonal_id desde la delegación del usuario (JOIN local)
     const deleg = delegaciones.find((d) => d.id === usuario.delegation_id);
     setFormData({
       nombre:        usuario.nombre         || "",
@@ -246,11 +280,14 @@ function GestionUsuarios() {
       telefono:      usuario.telefono       || "",
       rol:           usuario.rol            || "",
       estado_usuario:usuario.estado_usuario || "activo",
-      region_id:     deleg?.region_id       || "",
-      delegation_id: usuario.delegation_id  || "",
-      squad_id:      usuario.squad_id       || "",
-      rank_id:       usuario.rank_id        || "",
-      condition_id:  usuario.condition_id   || "",
+      region_id:     deleg?.region_id                || "",
+      cantonal_id:   deleg?.delegation_type === 'cantonal'
+                       ? deleg.id
+                       : (deleg?.parent_delegation_id || ""),
+      delegation_id: usuario.delegation_id           || "",
+      squad_id:      usuario.squad_id                || "",
+      rank_id:       usuario.rank_id                 || "",
+      condition_id:  usuario.condition_id            || "",
     });
   };
 
@@ -265,7 +302,7 @@ function GestionUsuarios() {
       nombre: "", apellido1: "", apellido2: "",
       cedula: "", telefono: "",
       rol: "", estado_usuario: "activo",
-      region_id: "", delegation_id: "",
+      region_id: "", cantonal_id: "", delegation_id: "",
       squad_id: "", rank_id: "", condition_id: "",
     });
   };
@@ -463,20 +500,36 @@ function GestionUsuarios() {
             ],
           },
           {
-            name: "delegation_id",
-            label: "Delegación",
+            name: "cantonal_id",
+            label: "Delegación Cantonal",
             type: "select",
             disabled: !formData.region_id,
             options: [
-              { label: "Seleccione delegación", value: "" },
-              ...delegacionesForm.map((d) => ({ label: `${d.codigo} - ${d.nombre}`, value: d.id })),
+              { label: "Seleccione cantonal", value: "" },
+              ...cantonales
+                .filter(c => c.region_id === formData.region_id)
+                .map(c => ({ label: `${c.codigo} - ${c.nombre}`, value: c.id })),
+            ],
+          },
+          {
+            name: "delegation_id",
+            label: "Unidad / Delegación Distrital",
+            type: "select",
+            hidden: ROLES_USAN_CANTONAL_DIRECTA.includes(formData.rol),
+            disabled: !formData.cantonal_id,
+            options: [
+              { label: "Seleccione unidad o distrital", value: "" },
+              ...subdelegaciones.map(d => ({
+                label: `${d.delegation_type === 'central' ? '🏛️' : '📍'} ${d.nombre} (${d.codigo})`,
+                value: d.id,
+              })),
             ],
           },
           {
             name: "squad_id",
             label: "Escuadra",
             type: "select",
-            disabled: !formData.delegation_id,
+            disabled: !formData.delegation_id || ROLES_SIN_ESCUADRA.includes(formData.rol),
             options: [
               { label: "Sin escuadra", value: "" },
               ...escuadras.map((e) => ({ label: e.nombre, value: e.id })),

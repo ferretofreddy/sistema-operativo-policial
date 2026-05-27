@@ -18,10 +18,13 @@ import {
 const ROLES_REQUIEREN_TERRITORIAL = [
   "unidad_operativa",
   "jefatura",
+  "unidad_operativa_distrital",
+  "jefatura_distrital",
   "supervisor",
   "agente",
 ];
 const ROLES_REQUIEREN_ESCUADRA = ["supervisor", "agente"];
+const ROLES_USAN_CANTONAL_DIRECTA = ["jefatura", "unidad_operativa", "admin"];
 
 // =========================================
 // FORM VACÍO
@@ -45,8 +48,9 @@ const EMPTY_FORM = {
   // Relaciones (camelCase interno del form)
   rangoId:         "",
   condicionId:     "",
-  // Territorial (UI only — region no existe en tabla users)
+  // Territorial (UI only — region y cantonalId no se guardan en tabla users)
   regionId:        "",
+  cantonalId:      "",
   delegacionId:    "",
   escuadraId:      "",
 };
@@ -63,7 +67,8 @@ function CrearUsuario() {
   // Catálogos
   const [usuarios,     setUsuarios]     = useState([]);
   const [regiones,     setRegiones]     = useState([]);
-  const [delegaciones, setDelegaciones] = useState([]);
+  const [cantonales,      setCantonales]      = useState([]);
+  const [subdelegaciones, setSubdelegaciones] = useState([]);
   const [escuadras,    setEscuadras]    = useState([]);
   const [rangos,       setRangos]       = useState([]);
   const [condiciones,  setCondiciones]  = useState([]);
@@ -84,13 +89,13 @@ function CrearUsuario() {
         ] = await Promise.all([
           UserRepository.getAll({}, { includeInactive: true }),
           RegionRepository.getActivas(),
-          DelegationRepository.getActivas(),
+          DelegationRepository.getCantonales(),
           RankRepository.getActivos(),
           ConditionRepository.getActivas(),
         ]);
         setUsuarios(usuariosData);
         setRegiones(regionesData);
-        setDelegaciones(delegacionesData);
+        setCantonales(delegacionesData);
         setRangos(rangosData);
         setCondiciones(condicionesData);
       } catch (error) {
@@ -120,14 +125,17 @@ function CrearUsuario() {
     cargarEscuadras();
   }, [formData.delegacionId]);
 
+  // Subdelegaciones (central + distritales) de la cantonal seleccionada
+  useEffect(() => {
+    if (!formData.cantonalId) { setSubdelegaciones([]); return; }
+    DelegationRepository.getSubdelegaciones(formData.cantonalId)
+      .then(setSubdelegaciones)
+      .catch((err) => setErrors(['Error cargando subdelegaciones: ' + err.message]));
+  }, [formData.cantonalId]);
+
   // =========================================
   // FILTROS DERIVADOS
   // =========================================
-
-  // delegaciones de la región seleccionada — region_id existe en delegations
-  const delegacionesFiltradas = delegaciones.filter(
-    (d) => d.region_id === formData.regionId,
-  );
 
   // escuadras ya filtradas por delegation_id via SquadRepository.getByDelegation
   const escuadrasFiltradas = escuadras.filter(
@@ -144,10 +152,17 @@ function CrearUsuario() {
   const handleChange = (field, value) => {
     let updated = { ...formData, [field]: value };
 
-    // Reset campos dependientes — inline, sin resetDependentFields
+    // Reset campos dependientes
     if (field === "regionId") {
+      updated.cantonalId   = "";
       updated.delegacionId = "";
       updated.escuadraId   = "";
+    }
+    if (field === "cantonalId") {
+      updated.delegacionId = ROLES_USAN_CANTONAL_DIRECTA.includes(formData.rol)
+        ? value   // jefatura/UO/admin → la cantonal ES la delegación
+        : '';     // supervisor/agente/distritales → esperan subdelegación
+      updated.escuadraId = "";
     }
     if (field === "delegacionId") {
       updated.escuadraId = "";
@@ -302,8 +317,10 @@ function CrearUsuario() {
           style={inputStyle}
         >
           <option value="admin">Admin</option>
-          <option value="unidad_operativa">Unidad Operativa</option>
-          <option value="jefatura">Jefatura</option>
+          <option value="unidad_operativa">Unidad Operativa Cantonal</option>
+          <option value="jefatura">Jefatura Cantonal</option>
+          <option value="unidad_operativa_distrital">Unidad Operativa Distrital</option>
+          <option value="jefatura_distrital">Jefatura Distrital</option>
           <option value="supervisor">Supervisor</option>
           <option value="agente">Agente</option>
         </select>
@@ -420,7 +437,7 @@ function CrearUsuario() {
             <label style={labelStyle}>Región</label>
             <select
               value={formData.regionId}
-              onChange={(e) => handleChange("regionId", e.target.value)}
+              onChange={(e) => handleChange('regionId', e.target.value)}
               style={inputStyle}
             >
               <option value="">Seleccione región</option>
@@ -429,25 +446,52 @@ function CrearUsuario() {
               ))}
             </select>
 
-            <label style={labelStyle}>Delegación</label>
+            <label style={labelStyle}>Delegación Cantonal</label>
             <select
-              value={formData.delegacionId}
-              onChange={(e) => handleChange("delegacionId", e.target.value)}
+              value={formData.cantonalId}
+              onChange={(e) => handleChange('cantonalId', e.target.value)}
               style={inputStyle}
               disabled={!formData.regionId}
             >
-              <option value="">Seleccione delegación</option>
-              {delegacionesFiltradas.map((d) => (
-                <option key={d.id} value={d.id}>{d.nombre}</option>
-              ))}
+              <option value="">Seleccione delegación cantonal</option>
+              {cantonales
+                .filter(c => c.region_id === formData.regionId)
+                .map((c) => (
+                  <option key={c.id} value={c.id}>{c.nombre} ({c.codigo})</option>
+                ))
+              }
             </select>
+
+            {!ROLES_USAN_CANTONAL_DIRECTA.includes(formData.rol) && (
+              <>
+                <label style={labelStyle}>
+                  Unidad / Delegación Distrital
+                  <span style={{ fontSize: '11px', color: '#94a3b8', marginLeft: '6px' }}>
+                    (donde se asigna el funcionario)
+                  </span>
+                </label>
+                <select
+                  value={formData.delegacionId}
+                  onChange={(e) => handleChange('delegacionId', e.target.value)}
+                  style={inputStyle}
+                  disabled={!formData.cantonalId}
+                >
+                  <option value="">Seleccione unidad o distrital</option>
+                  {subdelegaciones.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.delegation_type === 'central' ? '🏛️' : '📍'} {d.nombre} ({d.codigo})
+                    </option>
+                  ))}
+                </select>
+              </>
+            )}
 
             {requiereEscuadra && (
               <>
                 <label style={labelStyle}>Escuadra</label>
                 <select
                   value={formData.escuadraId}
-                  onChange={(e) => handleChange("escuadraId", e.target.value)}
+                  onChange={(e) => handleChange('escuadraId', e.target.value)}
                   style={inputStyle}
                   disabled={!formData.delegacionId}
                 >

@@ -46,6 +46,26 @@ class DelegationRepositoryClass extends BaseRepository {
     return this.getAll({ estado: "activo" });
   }
 
+  /** Solo cantonales activas — para navegación en formularios de asignación. */
+  async getCantonales() {
+    return this.getAll({ delegation_type: 'cantonal' });
+  }
+
+  /** Subdelegaciones (central + distritales) asignables de una cantonal. */
+  async getSubdelegaciones(cantonalId) {
+    const { supabase } = await import('../providers/supabase/SupabaseProvider');
+    const { data, error } = await supabase
+      .from('delegations')
+      .select('*')
+      .eq('parent_delegation_id', cantonalId)
+      .in('delegation_type', ['central', 'distrital'])
+      .eq('estado', 'activo')
+      .order('delegation_type', { ascending: true })
+      .order('nombre', { ascending: true });
+    if (error) throw error;
+    return data ?? [];
+  }
+
   /** Crear delegación. */
   async crear(data) {
     return getProvider().insert(COLLECTION, {

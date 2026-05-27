@@ -16,10 +16,19 @@ import {
 import { AuthContext } from "../../../context/AuthContext";
 
 const ROLES_OPCIONES = [
-  { label: "Unidad Operativa", value: "unidad_operativa" },
-  { label: "Jefatura", value: "jefatura" },
-  { label: "Supervisor", value: "supervisor" },
-  { label: "Agente", value: "agente" },
+  { label: "Unidad Operativa Cantonal",  value: "unidad_operativa" },
+  { label: "Jefatura Cantonal",          value: "jefatura" },
+  { label: "Unidad Operativa Distrital", value: "unidad_operativa_distrital" },
+  { label: "Jefatura Distrital",         value: "jefatura_distrital" },
+  { label: "Supervisor",                 value: "supervisor" },
+  { label: "Agente",                     value: "agente" },
+];
+
+const ROLES_SIN_ESCUADRA = [
+  "jefatura",
+  "unidad_operativa",
+  "jefatura_distrital",
+  "unidad_operativa_distrital",
 ];
 
 const ESTADOS_OPCIONES = [
@@ -289,6 +298,9 @@ function GestionPersonal() {
     setLoading(true);
     setError("");
     try {
+      const squadIdFinal = ROLES_SIN_ESCUADRA.includes(formData.rol)
+        ? null
+        : (formData.squad_id || null);
       await UserRepository.update(editandoId, {
         nombre: formData.nombre.trim().toUpperCase(),
         apellido1: formData.apellido1.trim().toUpperCase(),
@@ -296,7 +308,7 @@ function GestionPersonal() {
         telefono: formData.telefono.trim(),
         rol: formData.rol,
         estado_usuario: formData.estado_usuario,
-        squad_id: formData.squad_id || null,
+        squad_id: squadIdFinal,
         rank_id: formData.rank_id || null,
         condition_id: formData.condition_id || null,
       });
@@ -729,6 +741,7 @@ function GestionPersonal() {
                     value: e.id,
                   })),
                   blank: "Sin escuadra",
+                  disabled: ROLES_SIN_ESCUADRA.includes(formData.rol),
                 },
               ].map((f) => (
                 <div key={f.n} style={fieldStyle}>
@@ -738,6 +751,7 @@ function GestionPersonal() {
                     onChange={(e) =>
                       setFormData((p) => ({ ...p, [f.n]: e.target.value }))
                     }
+                    disabled={!!f.disabled}
                     style={inputStyle}
                   >
                     {f.blank && <option value="">{f.blank}</option>}
