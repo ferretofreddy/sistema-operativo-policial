@@ -25,9 +25,11 @@ function DashboardJefatura() {
     { label: "📈 Reportes",        onClick: () => navigate("/jefatura/reportes") },
     { label: "📋 Hojas Servicio",  onClick: () => navigate("/supervisor/hojas-hoy") },
     { label: "🗓️ Planificación",   onClick: () => navigate("/unidad_operativa/planificacion/crear") },
-    { label: "👥 Personal",        onClick: () => navigate("/gestion-personal") },
-    { label: "🚓 Recursos",        onClick: () => navigate("/supervisor/gestion-recursos") },
-    { label: "⚙️ Configuración",   onClick: () => navigate("/admin") },
+    { label: "👥 Personal",          onClick: () => navigate("/gestion-personal") },
+    { label: "🏛️ Escuadras",        onClick: () => navigate("/admin/escuadras") },
+    { label: "👥 Gestión Escuadra",  onClick: () => navigate("/admin/gestion-escuadras") },
+    { label: "🚓 Recursos",          onClick: () => navigate("/supervisor/gestion-recursos") },
+    { label: "⚙️ Configuración",     onClick: () => navigate("/admin") },
     { label: "🚪 Cerrar Sesión",   onClick: handleLogout },
   ];
 
@@ -76,20 +78,29 @@ function DashboardJefatura() {
             { label: "Administrar Recursos", onClick: () => navigate("/supervisor/gestion-recursos") },
           ]}
         />
+        <ModuleCard
+          title="🏛️ Escuadras"
+          description="Administración de escuadras de la delegación"
+          color="#4f46e5"
+          actions={[
+            { label: "Crear / Editar Escuadras", onClick: () => navigate("/admin/escuadras") },
+            { label: "Gestión Operativa",        onClick: () => navigate("/admin/gestion-escuadras") },
+          ]}
+        />
       </div>
     </div>
   );
 
   if (isMobile) {
     return (
-      <MobileLayout title="Jefatura" menuItems={menuItems} user={userData} onLogout={handleLogout}>
+      <MobileLayout title="Jefatura Cantonal" menuItems={menuItems} user={userData} onLogout={handleLogout}>
         <DashboardContent />
       </MobileLayout>
     );
   }
 
   return (
-    <DesktopLayout title="Jefatura" menuItems={menuItems} user={userData} onLogout={handleLogout}>
+    <DesktopLayout title="Jefatura Cantonal" menuItems={menuItems} user={userData} onLogout={handleLogout}>
       <DashboardContent />
     </DesktopLayout>
   );

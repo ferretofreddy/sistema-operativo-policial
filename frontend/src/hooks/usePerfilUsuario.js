@@ -53,6 +53,20 @@ export function usePerfilUsuario(userData) {
           ? await RegionRepository.getById(delegacion.region_id).catch(() => null)
           : null;
 
+        // Resolver cantonal padre si el usuario está en central o distrital
+        let cantonalNombre      = null;
+        let subdelegacionNombre = null;
+
+        const tipo = delegacion?.delegation_type;
+        if (tipo === 'central' || tipo === 'distrital') {
+          subdelegacionNombre = delegacion?.nombre ?? null;
+          if (delegacion?.parent_delegation_id) {
+            const cantonal = await DelegationRepository
+              .getById(delegacion.parent_delegation_id).catch(() => null);
+            cantonalNombre = cantonal?.nombre ?? null;
+          }
+        }
+
         // Paso 3 — recurso activo (solo para agente, via resource_assignments)
         // No existe recurso_id en users — la asignación está en resource_assignments.
         // Se usa supabase directo porque fetchCollection ordena por "creado" por defecto
@@ -91,9 +105,12 @@ export function usePerfilUsuario(userData) {
             .join(" ") || "—",
 
           regionNombre:     region?.nombre       ?? "—",
-          delegacionNombre: delegacion?.nombre   ?? "—",
+          delegacionNombre: (tipo === 'central' || tipo === 'distrital')
+            ? (cantonalNombre ?? delegacion?.nombre ?? "—")
+            : (delegacion?.nombre ?? "—"),
           delegacionTipo:   delegacion?.delegation_type ?? 'cantonal',
           esDistrital:      delegacion?.delegation_type === 'distrital',
+          subdelegacionNombre,
 
           // null → rol sin escuadra (jefatura, unidad_operativa, admin)
           escuadraNombre: userData.squad_id

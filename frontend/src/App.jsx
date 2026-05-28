@@ -13,6 +13,8 @@ const DashboardSupervisor = lazy(() => import("./modules/supervisor/DashboardSup
 const DashboardAdmin = lazy(() => import("./modules/admin/DashboardAdmin"));
 const DashboardUnidadOperativa = lazy(() => import("./modules/unidad_operativa/DashboardUnidadOperativa"));
 const DashboardJefatura = lazy(() => import("./modules/jefatura/DashboardJefatura"));
+const DashboardJefaturaDistrital = lazy(() => import("./modules/jefatura_distrital/DashboardJefaturaDistrital"));
+const DashboardUnidadOperativaDistrital = lazy(() => import("./modules/unidad_operativa_distrital/DashboardUnidadOperativaDistrital"));
 
 // 🔹 Módulos Supervisor
 const CrearHojaServicio = lazy(() => import("./modules/supervisor/hoja_servicio/CrearHojaServicio"));
@@ -181,7 +183,7 @@ function App() {
             </ProtectedRoute>
           } />
           <Route path="/admin/escuadras" element={
-            <ProtectedRoute userData={userData} allowedRoles={["unidad_operativa", "admin"]}>
+            <ProtectedRoute userData={userData} allowedRoles={["admin","jefatura","unidad_operativa","jefatura_distrital","unidad_operativa_distrital"]}>
               <CrearEscuadra />
             </ProtectedRoute>
           } />
@@ -196,7 +198,7 @@ function App() {
             </ProtectedRoute>
           } />
           <Route path="/admin/gestion-escuadras" element={
-            <ProtectedRoute userData={userData} allowedRoles={["admin", "unidad_operativa", "supervisor"]}>
+            <ProtectedRoute userData={userData} allowedRoles={["admin","jefatura","unidad_operativa","jefatura_distrital","unidad_operativa_distrital","supervisor"]}>
               <GestionEscuadra />
             </ProtectedRoute>
           } />
@@ -220,6 +222,20 @@ function App() {
           <Route path="/jefatura" element={
             <ProtectedRoute userData={userData} allowedRoles="jefatura">
               <DashboardJefatura />
+            </ProtectedRoute>
+          } />
+
+          {/* 🌟 JEFATURA DISTRITAL */}
+          <Route path="/jefatura_distrital" element={
+            <ProtectedRoute userData={userData} allowedRoles="jefatura_distrital">
+              <DashboardJefaturaDistrital />
+            </ProtectedRoute>
+          } />
+
+          {/* 🏢 UNIDAD OPERATIVA DISTRITAL */}
+          <Route path="/unidad_operativa_distrital" element={
+            <ProtectedRoute userData={userData} allowedRoles="unidad_operativa_distrital">
+              <DashboardUnidadOperativaDistrital />
             </ProtectedRoute>
           } />
 

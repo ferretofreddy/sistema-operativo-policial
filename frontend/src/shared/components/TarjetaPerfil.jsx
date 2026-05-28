@@ -57,6 +57,14 @@ export function TarjetaPerfil({
           <Dato label="Región"     value={perfil.regionNombre} />
           <Dato label="Delegación" value={perfil.delegacionNombre} />
 
+          {/* Mostrar subdelegación cuando el usuario está en central o distrital */}
+          {perfil.subdelegacionNombre && (
+            <Dato
+              label={perfil.delegacionTipo === 'central' ? 'Unidad Central' : 'Distrital'}
+              value={perfil.subdelegacionNombre}
+            />
+          )}
+
           {mostrarEscuadra && (
             <Dato
               label="Escuadra"
@@ -94,20 +102,24 @@ function Dato({ label, value, alerta = false }) {
 // Constantes de roles
 // ─────────────────────────────────────────
 const ROL_LABELS = {
-  admin:            "Administrador",
-  jefatura:         "Jefatura",
-  unidad_operativa: "Unidad Operativa",
-  supervisor:       "Supervisor",
-  agente:           "Agente",
+  admin:                       "Administrador",
+  jefatura:                    "Jefatura Cantonal",
+  unidad_operativa:            "Unidad Operativa Cantonal",
+  jefatura_distrital:          "Jefatura Distrital",
+  unidad_operativa_distrital:  "Unidad Operativa Distrital",
+  supervisor:                  "Supervisor",
+  agente:                      "Agente",
 };
 
 const ROL_COLORS = {
-  admin:            "#7c3aed",
-  jefatura:         "#1e40af",
-  unidad_operativa: "#0369a1",
-  supervisor:       "#1e293b",
-  agente:           "#065f46",
-  default:          "#475569",
+  admin:                       "#7c3aed",
+  jefatura:                    "#1e40af",
+  unidad_operativa:            "#0369a1",
+  jefatura_distrital:          "#0f766e",
+  unidad_operativa_distrital:  "#0d9488",
+  supervisor:                  "#1e293b",
+  agente:                      "#065f46",
+  default:                     "#475569",
 };
 
 // ─────────────────────────────────────────

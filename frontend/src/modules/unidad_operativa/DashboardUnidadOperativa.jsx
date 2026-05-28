@@ -23,10 +23,11 @@ function DashboardUnidadOperativa() {
   const menuItems = [
     { label: "📋 Crear Orden",    onClick: () => navigate("/unidad_operativa/ordenes/crear"),       active: true },
     { label: "🗓️ Planificación",  onClick: () => navigate("/unidad_operativa/planificacion/crear") },
-    { label: "📊 Hojas Servicio", onClick: () => navigate("/supervisor/hojas-hoy") },
-    { label: "👥 Escuadras",      onClick: () => navigate("/admin/gestion-escuadras") },
-    { label: "🚓 Recursos",       onClick: () => navigate("/supervisor/gestion-recursos") },
-    { label: "👤 Supervisores",   onClick: () => navigate("/gestion-personal") },
+    { label: "📊 Hojas Servicio",   onClick: () => navigate("/supervisor/hojas-hoy") },
+    { label: "🏛️ Crear Escuadras",  onClick: () => navigate("/admin/escuadras") },
+    { label: "👥 Gestión Escuadra", onClick: () => navigate("/admin/gestion-escuadras") },
+    { label: "🚓 Recursos",         onClick: () => navigate("/supervisor/gestion-recursos") },
+    { label: "👤 Gestión Personal", onClick: () => navigate("/gestion-personal") },
     { label: "🚪 Cerrar Sesión",  onClick: handleLogout },
   ];
 
@@ -72,9 +73,10 @@ function DashboardUnidadOperativa() {
           description="Gestión de escuadras y hojas de servicio"
           color="#7c3aed"
           actions={[
-            { label: "Gestionar Escuadras", onClick: () => navigate("/admin/gestion-escuadras") },
-            { label: "Hojas de Hoy",        onClick: () => navigate("/supervisor/hojas-hoy") },
-            { label: "Crear Hoja",          onClick: () => navigate("/supervisor/hoja-servicio") },
+            { label: "Crear / Editar Escuadras", onClick: () => navigate("/admin/escuadras") },
+            { label: "Gestión Operativa",        onClick: () => navigate("/admin/gestion-escuadras") },
+            { label: "Hojas de Hoy",             onClick: () => navigate("/supervisor/hojas-hoy") },
+            { label: "Crear Hoja",               onClick: () => navigate("/supervisor/hoja-servicio") },
           ]}
         />
       </div>
@@ -83,14 +85,14 @@ function DashboardUnidadOperativa() {
 
   if (isMobile) {
     return (
-      <MobileLayout title="Unidad Operativa" menuItems={menuItems} user={userData} onLogout={handleLogout}>
+      <MobileLayout title="Unidad Operativa Cantonal" menuItems={menuItems} user={userData} onLogout={handleLogout}>
         <DashboardContent />
       </MobileLayout>
     );
   }
 
   return (
-    <DesktopLayout title="Unidad Operativa" menuItems={menuItems} user={userData} onLogout={handleLogout}>
+    <DesktopLayout title="Unidad Operativa Cantonal" menuItems={menuItems} user={userData} onLogout={handleLogout}>
       <DashboardContent />
     </DesktopLayout>
   );
