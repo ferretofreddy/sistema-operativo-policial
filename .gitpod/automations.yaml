@@ -5,3 +5,10 @@ services:
     commands:
       start: cd /workspaces/sistema-operativo-policial/frontend && npm run dev
       ready: curl -s http://localhost:5173 > /dev/null
+
+  keepalive:
+    name: Keepalive
+    description: Pings the Vite dev server every 30s to prevent environment inactivity shutdown
+    commands:
+      start: /workspaces/sistema-operativo-policial/scripts/keepalive.sh
+      ready: sleep 1

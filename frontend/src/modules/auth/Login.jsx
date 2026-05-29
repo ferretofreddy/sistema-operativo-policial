@@ -1,9 +1,9 @@
 // frontend/src/modules/auth/Login.jsx
 import { useState, useContext, useEffect } from "react";
-import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth } from "../../services/firebase";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../../context/AuthContext";
+import { AuthService } from "../../core/adapters/authAdapter";
+import logoSrc from "../../assets/logo.png";
 
 // =========================================
 // CONSTANTES
@@ -30,10 +30,6 @@ function Login() {
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  // =========================================
-  // REDIRECT SI YA AUTENTICADO
-  // =========================================
-
   useEffect(() => {
     if (!loading && user && userData?.rol) {
       const route = ROLE_ROUTES[userData.rol] ?? "/";
@@ -41,53 +37,26 @@ function Login() {
     }
   }, [user, userData, loading, navigate]);
 
-  // =========================================
-  // SUBMIT
-  // =========================================
-
   const handleLogin = async () => {
     setError("");
-
     if (!email.trim() || !password) {
       setError("Ingrese correo y contraseña");
       return;
     }
-
     try {
       setSubmitting(true);
-
-      // BUG FIX: await ANTES de navigate
-      // Antes: navigate("/") se llamaba inmediatamente, sin esperar auth
-      // Ahora: esperamos la respuesta de Firebase Auth
-      // La navegación al dashboard ocurre en el useEffect cuando
-      // AuthContext actualiza user + userData
-      await signInWithEmailAndPassword(auth, email.trim(), password);
-
-      // No llamamos navigate() aquí.
-      // El useEffect de arriba se dispara cuando AuthContext
-      // actualiza user y userData, y redirige al rol correcto.
-
+      await AuthService.login(email.trim(), password);
     } catch (err) {
-      console.error("[Login] Error:", err.code, err.message);
-      setError(getErrorMessage(err.code));
+      console.error("[Login] Error:", err.message);
+      setError(err.message || "Error al iniciar sesión. Intente nuevamente.");
     } finally {
       setSubmitting(false);
     }
   };
 
-  // =========================================
-  // ENTER KEY
-  // =========================================
-
   const handleKeyDown = (e) => {
-    if (e.key === "Enter" && !submitting) {
-      handleLogin();
-    }
+    if (e.key === "Enter" && !submitting) handleLogin();
   };
-
-  // =========================================
-  // LOADING INICIAL (AuthContext cargando sesión)
-  // =========================================
 
   if (loading) {
     return (
@@ -97,15 +66,11 @@ function Login() {
     );
   }
 
-  // =========================================
-  // RENDER
-  // =========================================
-
   return (
     <div style={pageStyle}>
       <div style={cardStyle}>
         <div style={headerStyle}>
-          <h1 style={titleStyle}>Sistema Operativo</h1>
+          <img src={logoSrc} alt="SOP.CR" style={logoStyle} />
           <p style={subtitleStyle}>Ingrese sus credenciales institucionales</p>
         </div>
 
@@ -117,7 +82,7 @@ function Login() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="usuario@institución.go.cr"
+              placeholder="usuario@msp.go.cr"
               disabled={submitting}
               style={inputStyle}
               autoComplete="email"
@@ -162,29 +127,6 @@ function Login() {
 }
 
 // =========================================
-// HELPER — MENSAJES DE ERROR
-// =========================================
-
-function getErrorMessage(code) {
-  switch (code) {
-    case "auth/invalid-credential":
-    case "auth/user-not-found":
-    case "auth/wrong-password":
-      return "Credenciales incorrectas. Verifique correo y contraseña.";
-    case "auth/invalid-email":
-      return "Formato de correo inválido.";
-    case "auth/user-disabled":
-      return "Esta cuenta ha sido deshabilitada. Contacte al administrador.";
-    case "auth/too-many-requests":
-      return "Demasiados intentos fallidos. Intente más tarde.";
-    case "auth/network-request-failed":
-      return "Error de conexión. Verifique su red.";
-    default:
-      return "Error al iniciar sesión. Intente nuevamente.";
-  }
-}
-
-// =========================================
 // ESTILOS
 // =========================================
 
@@ -199,95 +141,89 @@ const pageStyle = {
 };
 
 const cardStyle = {
-  background: "white",
+  background: "#010d25",
   borderRadius: "16px",
-  boxShadow: "0 4px 24px rgba(0,0,0,0.08)",
-  padding: "40px",
+  boxShadow: "0 8px 40px rgba(1,13,37,0.5)",
+  padding: "36px 32px",
   width: "100%",
-  maxWidth: "400px",
+  maxWidth: "420px",
 };
 
-const headerStyle = {
-  marginBottom: "32px",
-  textAlign: "center",
-};
+const headerStyle = { marginBottom: "28px", textAlign: "center" };
 
-const titleStyle = {
-  margin: "0 0 8px 0",
-  fontSize: "22px",
-  fontWeight: "600",
-  color: "#1e293b",
+const logoStyle = {
+  width: "100%",
+  maxWidth: "320px",
+  height: "auto",
+  display: "block",
+  margin: "0 auto 20px auto",
 };
 
 const subtitleStyle = {
   margin: 0,
-  fontSize: "14px",
-  color: "#64748b",
+  fontSize: "13px",
+  color: "#c6c5c5",
+  letterSpacing: "0.05em",
+  textTransform: "uppercase",
 };
 
-const formStyle = {
-  display: "flex",
-  flexDirection: "column",
-  gap: "20px",
-};
-
-const fieldStyle = {
-  display: "flex",
-  flexDirection: "column",
-  gap: "6px",
-};
+const formStyle = { display: "flex", flexDirection: "column", gap: "20px" };
+const fieldStyle = { display: "flex", flexDirection: "column", gap: "6px" };
 
 const labelStyle = {
-  fontSize: "14px",
-  fontWeight: "500",
-  color: "#334155",
+  fontSize: "12px",
+  fontWeight: "600",
+  color: "#404555",
+  letterSpacing: "0.06em",
+  textTransform: "uppercase",
 };
 
 const inputStyle = {
   width: "100%",
   padding: "11px 14px",
   borderRadius: "8px",
-  border: "1px solid #cbd5e1",
+  border: "1px solid #0b348a",
+  background: "#010d25",
   fontSize: "14px",
-  color: "#1e293b",
+  color: "#c6c5c5",
   outline: "none",
   boxSizing: "border-box",
-  transition: "border-color 0.15s",
 };
 
 const errorStyle = {
-  background: "#fef2f2",
-  border: "1px solid #fecaca",
+  background: "rgba(114,11,22,0.3)",
+  border: "1px solid #720b16",
   borderRadius: "8px",
   padding: "10px 14px",
   fontSize: "13px",
-  color: "#dc2626",
+  color: "#ea070b",
 };
 
 const buttonStyle = {
   width: "100%",
-  padding: "12px",
+  padding: "13px",
   border: "none",
   borderRadius: "8px",
-  background: "#1e293b",
+  background: "linear-gradient(135deg, #ea070b 0%, #720b16 100%)",
   color: "white",
   fontSize: "15px",
-  fontWeight: "500",
+  fontWeight: "600",
   cursor: "pointer",
-  transition: "background 0.15s",
   marginTop: "4px",
+  letterSpacing: "0.05em",
+  textTransform: "uppercase",
 };
 
 const buttonDisabledStyle = {
-  background: "#94a3b8",
+  background: "#320e20",
   cursor: "not-allowed",
 };
 
 const spinnerStyle = {
   width: "32px",
   height: "32px",
-  border: "3px solid #e2e8f0",
-  borderTop: "3px solid #1e293b",
+  border: "3px solid #0b348a",
+  borderTop: "3px solid #ea070b",
   borderRadius: "50%",
   animation: "spin 0.8s linear infinite",
 };

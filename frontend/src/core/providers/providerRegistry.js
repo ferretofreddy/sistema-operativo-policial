@@ -12,15 +12,15 @@
 //
 // EN AUTHadapter.js: cambiar ACTIVE_PROVIDER = "supabase"
 
-import { FirebaseProvider }  from "./firebase/FirebaseProvider";
-// import { SupabaseProvider } from "./supabase/SupabaseProvider";
+// import { FirebaseProvider }  from "./firebase/FirebaseProvider";
+import { SupabaseProvider } from "./supabase/SupabaseProvider";
 
 let _providerInstance = null;
 
 export function getProvider() {
   if (!_providerInstance) {
-    _providerInstance = new FirebaseProvider();
-    // _providerInstance = new SupabaseProvider();
+    // _providerInstance = new FirebaseProvider();
+    _providerInstance = new SupabaseProvider();
   }
   return _providerInstance;
 }

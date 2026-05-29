@@ -4,3 +4,6 @@ build
 .firebase
 .vscode
 .DS_Store
+
+# Process core dumps
+core

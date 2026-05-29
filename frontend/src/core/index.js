@@ -1,12 +1,11 @@
 // src/core/index.js
+// Barrel file — punto único de importación del core.
 //
-// Barrel file — punto de entrada limpio para toda la capa core.
+// USO CORRECTO en componentes:
+//   import { UserRepository, RegionRepository } from "../../core";
+//   import { formatDate, toDate } from "../../core";
 //
-// CORRECTO:   import { UserRepository, AuthService, formatDate } from '@/core'
-// INCORRECTO: import { UserRepository } from '../../core/repositories/UserRepository'
-//
-// Alias en vite.config.js:
-//   resolve: { alias: { '@/core': path.resolve(__dirname, 'src/core') } }
+// NUNCA importar Supabase o Firebase directamente en componentes.
 
 // =========================================
 // REPOSITORIES
@@ -16,29 +15,22 @@ export { UserRepository }         from "./repositories/UserRepository";
 export { OrderRepository }        from "./repositories/OrderRepository";
 export { PlanningRepository }     from "./repositories/PlanningRepository";
 export { ServiceSheetRepository } from "./repositories/ServiceSheetRepository";
-export { TerritorialRepository }  from "./repositories/TerritorialRepository";
-export { CatalogRepository }      from "./repositories/CatalogRepository";
+export { ResourceRepository }     from "./repositories/ResourceRepository";
+export { RegionRepository }       from "./repositories/RegionRepository";
+export { DelegationRepository }   from "./repositories/DelegationRepository";
+export { SquadRepository }        from "./repositories/SquadRepository";
+export { RankRepository }         from "./repositories/RankRepository";
+export { ConditionRepository }    from "./repositories/ConditionRepository";
+export { ResourceTypeRepository } from "./repositories/ResourceTypeRepository";
 
 // =========================================
-// PROVIDERS
+// ADAPTERS
 // =========================================
 
-export {
-  getProvider,
-  setProviderForTesting,
-  resetProvider,
-} from "./providers/providerRegistry";
-
-// =========================================
-// ADAPTERS — Auth
-// =========================================
-
+// Auth
 export { AuthService } from "./adapters/authAdapter";
 
-// =========================================
-// ADAPTERS — Fechas
-// =========================================
-
+// Fechas — funciones individuales (no hay objeto DateAdapter)
 export {
   toDate,
   formatDate,
@@ -51,49 +43,15 @@ export {
   todayString,
 } from "./adapters/dateAdapter";
 
-// =========================================
-// ADAPTERS — Territorio
-// =========================================
+// Storage — exportar cuando se necesite en componentes
+// (estrategia actual: descarga local en cliente, sin Firebase Storage)
+export * from "./adapters/storageAdapter";
 
-export {
-  getTerritoryScope,
-  scopeToFilters,
-  getUserQueryFilters,
-  canAccessEntity,
-  resetDependentFields,
-  getTerritoryDefaults,
-  getTerritoryUIConfig,
-} from "./adapters/territoryAdapter";
-
-// =========================================
-// ADAPTERS — Storage / Archivos
-// =========================================
-
-export {
-  downloadBlob,
-  downloadBuffer,
-  getServiceSheetFilename,
-  getPlanningFilename,
-  MIME_TYPES,
-} from "./adapters/storageAdapter";
+// Territory — exportar cuando se confirmen los nombres exactos de export
+export * from "./adapters/territoryAdapter";
 
 // =========================================
 // VALIDATORS
 // =========================================
 
-export {
-  validateCrearUsuario,
-  validateEditarUsuario,
-} from "./validators/usuarioValidator";
-
-export {
-  validateRegion,
-  validateDelegacion,
-  validateEscuadra,
-} from "./validators/territorialValidator";
-
-export {
-  validateOrden,
-  validateHojaServicio,
-  validateActividad,
-} from "./validators/operativoValidator";
+export { validateCrearUsuario } from "./validators/usuarioValidator";

@@ -1,23 +1,15 @@
 // frontend/src/modules/administracion/usuarios/GestionUsuarios.jsx
-import { useContext, useEffect, useMemo, useState } from "react";
-import { Timestamp } from "firebase/firestore";
-import { sendPasswordResetEmail } from "firebase/auth";
-import { auth } from "../../../services/firebase";
+import { useContext, useEffect, useMemo, useState, useCallback } from "react";
 import {
-  getUsuariosByTerritory,
-  updateUsuario,
-} from "../../../services/userService";
-import {
-  getRegiones,
-  getDelegaciones,
-} from "../../../services/territorialService";
-import {
-  getRangosUsuario,
-  getCondicionesUsuario,
-} from "../../../services/catalogosService";
-import { getEscuadrasByTerritory } from "../../../services/escuadraService";
+  UserRepository,
+  RegionRepository,
+  DelegationRepository,
+  SquadRepository,
+  RankRepository,
+  ConditionRepository,
+  AuthService,
+} from "../../../core";
 import { AuthContext } from "../../../context/AuthContext";
-import { useRoles } from "../../../hooks/useRoles";
 import GestionLayout from "../../../shared/layouts/GestionLayout";
 
 // =========================================
@@ -25,15 +17,27 @@ import GestionLayout from "../../../shared/layouts/GestionLayout";
 // =========================================
 
 const ROLES_OPCIONES = [
-  { label: "Admin", value: "admin" },
-  { label: "Unidad Operativa", value: "unidad_operativa" },
-  { label: "Jefatura", value: "jefatura" },
-  { label: "Supervisor", value: "supervisor" },
-  { label: "Agente", value: "agente" },
+  { label: "Admin",                       value: "admin" },
+  { label: "Unidad Operativa",            value: "unidad_operativa" },
+  { label: "Jefatura",                    value: "jefatura" },
+  { label: "Unidad Operativa Distrital",  value: "unidad_operativa_distrital" },
+  { label: "Jefatura Distrital",          value: "jefatura_distrital" },
+  { label: "Supervisor",                  value: "supervisor" },
+  { label: "Agente",                      value: "agente" },
 ];
 
+// Roles que el trigger SQL bloquea de tener squad_id — deshabilitar en UI también
+const ROLES_SIN_ESCUADRA = [
+  "jefatura",
+  "unidad_operativa",
+  "jefatura_distrital",
+  "unidad_operativa_distrital",
+];
+
+const ROLES_USAN_CANTONAL_DIRECTA = ["jefatura", "unidad_operativa", "admin"];
+
 const ESTADOS_OPCIONES = [
-  { label: "Activo", value: "activo" },
+  { label: "Activo",   value: "activo" },
   { label: "Inactivo", value: "inactivo" },
 ];
 
@@ -42,29 +46,28 @@ const ESTADOS_OPCIONES = [
 // =========================================
 
 function GestionUsuarios() {
-  // =========================================
-  // AUTH + ROLES
-  // =========================================
-
   const { userData } = useContext(AuthContext);
-  const { filters: territoryFilters, isAdmin } = useRoles(userData);
+  const esAdmin = userData?.rol === "admin";
 
   // =========================================
   // DATA
   // =========================================
 
-  const [usuarios, setUsuarios] = useState([]);
-  const [regiones, setRegiones] = useState([]);
+  const [usuarios,     setUsuarios]     = useState([]);
+  const [regiones,     setRegiones]     = useState([]);
   const [delegaciones, setDelegaciones] = useState([]);
-  const [escuadras, setEscuadras] = useState([]);
-  const [rangos, setRangos] = useState([]);
-  const [condiciones, setCondiciones] = useState([]);
+  const [escuadras,      setEscuadras]      = useState([]);
+  const [cantonales,     setCantonales]     = useState([]);
+  const [subdelegaciones,setSubdelegaciones] = useState([]);
+  const [rangos,       setRangos]       = useState([]);
+  const [condiciones,  setCondiciones]  = useState([]);
 
   // =========================================
   // UI
   // =========================================
 
-  const [loading, setLoading] = useState(false);
+  const [loading,    setLoading]    = useState(false);
+  const [error,      setError]      = useState("");
   const [editandoId, setEditandoId] = useState(null);
 
   // =========================================
@@ -72,30 +75,32 @@ function GestionUsuarios() {
   // =========================================
 
   const [filtros, setFiltros] = useState({
-    region_id: "",
-    delegacion_id: "",
-    rol: "",
-    estado_usuario: "",
-    busqueda: "",
+    region_id:     "",
+    delegation_id: "",
+    rol:           "",
+    estado_usuario:"",
+    busqueda:      "",
   });
 
   // =========================================
   // FORM EDICIÓN
+  // region_id es solo para UI — no existe en tabla users de PostgreSQL
   // =========================================
 
   const [formData, setFormData] = useState({
-    nombre: "",
-    apellido1: "",
-    apellido2: "",
-    cedula: "",
-    telefono: "",
-    rol: "",
-    estado_usuario: "activo",
-    region_id: "",
-    delegacion_id: "",
-    escuadra_id: "",
-    rango_id: "",
-    condicion_id: "",
+    nombre:        "",
+    apellido1:     "",
+    apellido2:     "",
+    cedula:        "",
+    telefono:      "",
+    rol:           "",
+    estado_usuario:"activo",
+    region_id:     "",   // UI only — filtra cantonales del form
+    cantonal_id:   "",   // UI only — filtra subdelegaciones del form
+    delegation_id: "",
+    squad_id:      "",
+    rank_id:       "",
+    condition_id:  "",
   });
 
   // =========================================
@@ -105,89 +110,79 @@ function GestionUsuarios() {
   useEffect(() => {
     const cargarCatalogos = async () => {
       try {
-        const [regionesData, delegacionesData, rangosData, condicionesData] =
+        const [regionesData, delegacionesData, cantonalesData, rangosData, condicionesData] =
           await Promise.all([
-            getRegiones(),
-            getDelegaciones(),
-            getRangosUsuario(),
-            getCondicionesUsuario(),
+            RegionRepository.getActivas(),
+            DelegationRepository.getActivas(),
+            DelegationRepository.getCantonales(),
+            RankRepository.getActivos(),
+            ConditionRepository.getActivas(),
           ]);
-
         setRegiones(regionesData);
         setDelegaciones(delegacionesData);
+        setCantonales(cantonalesData);
         setRangos(rangosData);
         setCondiciones(condicionesData);
-      } catch (error) {
-        console.error("[GestionUsuarios] Error cargando catálogos:", error);
+      } catch (err) {
+        setError("Error al cargar catálogos: " + err.message);
       }
     };
-
     cargarCatalogos();
   }, []);
 
   // =========================================
   // CARGAR USUARIOS
+  // admin: todos | unidad_operativa: solo su delegation_id
   // =========================================
 
-  const cargarUsuarios = async (filtrosExtras = {}) => {
-    if (!userData?.uid) return;
-
+  const cargarUsuarios = useCallback(async () => {
+    if (!userData) return;
+    setLoading(true);
+    setError("");
     try {
-      setLoading(true);
-
-      const filters = {
-        ...territoryFilters,
-        ...(filtros.region_id && { region_id: filtros.region_id }),
-        ...(filtros.delegacion_id && { delegacion_id: filtros.delegacion_id }),
-        ...(filtros.rol && { rol: filtros.rol }),
-        ...(filtros.estado_usuario && { estado_usuario: filtros.estado_usuario }),
-        ...filtrosExtras,
-      };
-
-      const data = await getUsuariosByTerritory(filters, {
-        includeInactive: true,
-      });
-
+      const filtrosQuery = esAdmin
+        ? {}
+        : { delegation_id: userData.delegation_id };
+      const data = await UserRepository.getAll(filtrosQuery, { includeInactive: true });
       setUsuarios(data);
-    } catch (error) {
-      console.error("[GestionUsuarios] Error cargando usuarios:", error);
+    } catch (err) {
+      setError("Error al cargar usuarios: " + err.message);
     } finally {
       setLoading(false);
     }
-  };
+  }, [userData, esAdmin]);
 
   useEffect(() => {
-    if (userData?.uid) {
-      cargarUsuarios();
+    cargarUsuarios();
+  }, [cargarUsuarios]);
+
+  // =========================================
+  // CARGAR ESCUADRAS SEGÚN DELEGACIÓN EN FORM
+  // =========================================
+
+  useEffect(() => {
+    if (!formData.delegation_id) {
+      setEscuadras([]);
+      return;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userData, territoryFilters, filtros.region_id, filtros.delegacion_id, filtros.rol, filtros.estado_usuario]);
-
-  // =========================================
-  // CARGAR ESCUADRAS SEGÚN SELECCIÓN EN FORM
-  // =========================================
-
-  useEffect(() => {
     const cargar = async () => {
-      if (!formData.region_id || !formData.delegacion_id) {
-        setEscuadras([]);
-        return;
-      }
-
       try {
-        const data = await getEscuadrasByTerritory({
-          region_id: formData.region_id,
-          delegacion_id: formData.delegacion_id,
-          estado: "activo",
-        });
+        const data = await SquadRepository.getByDelegation(formData.delegation_id);
         setEscuadras(data);
-      } catch (error) {
-        console.error("[GestionUsuarios] Error cargando escuadras:", error);
+      } catch (err) {
+        setError("Error al cargar escuadras: " + err.message);
       }
     };
-
     cargar();
-  }, [formData.region_id, formData.delegacion_id]);
+  }, [formData.delegation_id]);
+
+  // Subdelegaciones (central + distritales) de la cantonal seleccionada en el form
+  useEffect(() => {
+    if (!formData.cantonal_id) { setSubdelegaciones([]); return; }
+    DelegationRepository.getSubdelegaciones(formData.cantonal_id)
+      .then(setSubdelegaciones)
+      .catch((err) => setError('Error cargando subdelegaciones: ' + err.message));
+  }, [formData.cantonal_id]);
 
   // =========================================
   // FILTROS DERIVADOS
@@ -198,30 +193,36 @@ function GestionUsuarios() {
     return delegaciones.filter((d) => d.region_id === filtros.region_id);
   }, [delegaciones, filtros.region_id]);
 
-  const delegacionesForm = useMemo(() => {
-    if (!formData.region_id) return [];
-    return delegaciones.filter((d) => d.region_id === formData.region_id);
-  }, [delegaciones, formData.region_id]);
-
-  const requiereTerritorial = ["unidad_operativa", "jefatura", "supervisor", "agente"].includes(formData.rol);
-  const requiereEscuadra = ["supervisor", "agente"].includes(formData.rol);
 
   // =========================================
-  // USUARIOS FILTRADOS (búsqueda local)
+  // USUARIOS FILTRADOS — filtros locales
+  // Región se resuelve por JOIN local delegation → region
   // =========================================
 
   const usuariosFiltrados = useMemo(() => {
-    if (!filtros.busqueda.trim()) return usuarios;
-
-    const texto = filtros.busqueda.toLowerCase().trim();
-
     return usuarios.filter((u) => {
-      const nombre = `${u.nombre} ${u.apellido1} ${u.apellido2}`.toLowerCase();
-      const cedula = u.cedula?.toLowerCase() ?? "";
-      const email = u.email?.toLowerCase() ?? "";
-      return nombre.includes(texto) || cedula.includes(texto) || email.includes(texto);
+      // Filtro por región — JOIN local
+      let filtroRegion = true;
+      if (filtros.region_id) {
+        const delegsDeRegion = delegaciones
+          .filter((d) => d.region_id === filtros.region_id)
+          .map((d) => d.id);
+        filtroRegion = delegsDeRegion.includes(u.delegation_id);
+      }
+
+      const filtroDelegacion = !filtros.delegation_id || u.delegation_id === filtros.delegation_id;
+      const filtroRol        = !filtros.rol            || u.rol            === filtros.rol;
+      const filtroEstado     = !filtros.estado_usuario  || u.estado_usuario === filtros.estado_usuario;
+
+      const texto          = filtros.busqueda.toLowerCase().trim();
+      const filtroBusqueda = !texto ||
+        `${u.nombre ?? ""} ${u.apellido1 ?? ""} ${u.apellido2 ?? ""}`.toLowerCase().includes(texto) ||
+        u.cedula?.toLowerCase().includes(texto) ||
+        u.email?.toLowerCase().includes(texto);
+
+      return filtroRegion && filtroDelegacion && filtroRol && filtroEstado && filtroBusqueda;
     });
-  }, [usuarios, filtros.busqueda]);
+  }, [usuarios, filtros, delegaciones]);
 
   // =========================================
   // HANDLERS FILTROS
@@ -229,7 +230,7 @@ function GestionUsuarios() {
 
   const handleFiltroChange = (field, value) => {
     const nuevos = { ...filtros, [field]: value };
-    if (field === "region_id") nuevos.delegacion_id = "";
+    if (field === "region_id") nuevos.delegation_id = "";
     setFiltros(nuevos);
   };
 
@@ -240,11 +241,24 @@ function GestionUsuarios() {
   const handleFormChange = (field, value) => {
     const nuevos = { ...formData, [field]: value };
     if (field === "region_id") {
-      nuevos.delegacion_id = "";
-      nuevos.escuadra_id = "";
+      nuevos.cantonal_id   = "";
+      nuevos.delegation_id = "";
+      nuevos.squad_id      = "";
     }
-    if (field === "delegacion_id") {
-      nuevos.escuadra_id = "";
+    if (field === "cantonal_id") {
+      nuevos.delegation_id = ROLES_USAN_CANTONAL_DIRECTA.includes(formData.rol)
+        ? value
+        : '';
+      nuevos.squad_id = '';
+    }
+    if (field === "delegation_id") {
+      nuevos.squad_id = "";
+    }
+    if (field === "rol" && ROLES_SIN_ESCUADRA.includes(value)) {
+      nuevos.squad_id = "";
+    }
+    if (field === "rol" && ROLES_SIN_ESCUADRA.includes(value)) {
+      nuevos.squad_id = "";
     }
     setFormData(nuevos);
   };
@@ -255,19 +269,25 @@ function GestionUsuarios() {
 
   const editarUsuario = (usuario) => {
     setEditandoId(usuario.id);
+    setError("");
+    // Resolver region_id y cantonal_id desde la delegación del usuario (JOIN local)
+    const deleg = delegaciones.find((d) => d.id === usuario.delegation_id);
     setFormData({
-      nombre: usuario.nombre || "",
-      apellido1: usuario.apellido1 || "",
-      apellido2: usuario.apellido2 || "",
-      cedula: usuario.cedula || "",
-      telefono: usuario.telefono || "",
-      rol: usuario.rol || "",
-      estado_usuario: usuario.estado_usuario || "activo",
-      region_id: usuario.region_id || "",
-      delegacion_id: usuario.delegacion_id || "",
-      escuadra_id: usuario.escuadra_id || "",
-      rango_id: usuario.rango_id || "",
-      condicion_id: usuario.condicion_id || "",
+      nombre:        usuario.nombre         || "",
+      apellido1:     usuario.apellido1      || "",
+      apellido2:     usuario.apellido2      || "",
+      cedula:        usuario.cedula         || "",
+      telefono:      usuario.telefono       || "",
+      rol:           usuario.rol            || "",
+      estado_usuario:usuario.estado_usuario || "activo",
+      region_id:     deleg?.region_id                || "",
+      cantonal_id:   deleg?.delegation_type === 'cantonal'
+                       ? deleg.id
+                       : (deleg?.parent_delegation_id || ""),
+      delegation_id: usuario.delegation_id           || "",
+      squad_id:      usuario.squad_id                || "",
+      rank_id:       usuario.rank_id                 || "",
+      condition_id:  usuario.condition_id            || "",
     });
   };
 
@@ -277,96 +297,56 @@ function GestionUsuarios() {
 
   const limpiarFormulario = () => {
     setEditandoId(null);
+    setError("");
     setFormData({
-      nombre: "",
-      apellido1: "",
-      apellido2: "",
-      cedula: "",
-      telefono: "",
-      rol: "",
-      estado_usuario: "activo",
-      region_id: "",
-      delegacion_id: "",
-      escuadra_id: "",
-      rango_id: "",
-      condicion_id: "",
+      nombre: "", apellido1: "", apellido2: "",
+      cedula: "", telefono: "",
+      rol: "", estado_usuario: "activo",
+      region_id: "", cantonal_id: "", delegation_id: "",
+      squad_id: "", rank_id: "", condition_id: "",
     });
   };
 
   // =========================================
-  // GUARDAR USUARIO
+  // GUARDAR USUARIO (solo edición — crear en CrearUsuario)
+  // Envía solo IDs, sin campos _nombre desnormalizados
   // =========================================
 
   const guardarUsuario = async () => {
     if (!editandoId) return;
 
+    if (!formData.nombre.trim() || !formData.apellido1.trim()) {
+      setError("Nombre y primer apellido son obligatorios.");
+      return;
+    }
+    if (!formData.cedula.trim()) {
+      setError("La cédula es obligatoria.");
+      return;
+    }
+    if (!formData.rol) {
+      setError("Seleccione un rol.");
+      return;
+    }
+    setLoading(true);
+    setError("");
     try {
-      setLoading(true);
-
-      // Validaciones básicas
-      if (!formData.nombre.trim() || !formData.apellido1.trim()) {
-        alert("Nombre y primer apellido son obligatorios");
-        return;
-      }
-      if (!formData.cedula.trim()) {
-        alert("La cédula es obligatoria");
-        return;
-      }
-      if (!formData.rol) {
-        alert("Seleccione un rol");
-        return;
-      }
-      if (requiereTerritorial && (!formData.region_id || !formData.delegacion_id)) {
-        alert("Seleccione región y delegación para este rol");
-        return;
-      }
-      if (requiereEscuadra && !formData.escuadra_id) {
-        alert("Seleccione escuadra para este rol");
-        return;
-      }
-
-      // Enriquecer con nombres relacionales
-      const region = regiones.find((r) => r.id === formData.region_id);
-      const delegacion = delegaciones.find((d) => d.id === formData.delegacion_id);
-      const escuadra = escuadras.find((e) => e.id === formData.escuadra_id);
-      const rango = rangos.find((r) => r.id === formData.rango_id);
-      const condicion = condiciones.find((c) => c.id === formData.condicion_id);
-
-      const datos = {
-        nombre: formData.nombre.trim().toUpperCase(),
-        apellido1: formData.apellido1.trim().toUpperCase(),
-        apellido2: formData.apellido2.trim().toUpperCase(),
-        cedula: formData.cedula.trim(),
-        telefono: formData.telefono.trim(),
-        rol: formData.rol,
-        estado_usuario: formData.estado_usuario,
-
-        region_id: region?.id || "",
-        region_nombre: region?.nombre || "",
-
-        delegacion_id: delegacion?.id || "",
-        delegacion_nombre: delegacion?.nombre || "",
-
-        escuadra_id: escuadra?.id || "",
-        escuadra_nombre: escuadra?.nombre || "",
-
-        rango_id: rango?.id || "",
-        rango_nombre: rango?.nombre || "",
-        rango_siglas: rango?.siglas || "",
-        rango_orden: rango?.orden_jerarquico || 0,
-
-        condicion_id: condicion?.id || "",
-        condicion_nombre: condicion?.nombre || "",
-        condicion_bloquea_operaciones: condicion?.bloquea_operaciones || false,
-      };
-
-      await updateUsuario(editandoId, datos);
-      alert("Usuario actualizado correctamente");
+      await UserRepository.update(editandoId, {
+        nombre:        formData.nombre.trim().toUpperCase(),
+        apellido1:     formData.apellido1.trim().toUpperCase(),
+        apellido2:     formData.apellido2.trim().toUpperCase(),
+        cedula:        formData.cedula.trim(),
+        telefono:      formData.telefono.trim(),
+        rol:           formData.rol,
+        estado_usuario:formData.estado_usuario,
+        delegation_id: formData.delegation_id || null,
+        squad_id:      formData.squad_id      || null,
+        rank_id:       formData.rank_id       || null,
+        condition_id:  formData.condition_id  || null,
+      });
       limpiarFormulario();
       await cargarUsuarios();
-    } catch (error) {
-      console.error("[GestionUsuarios] Error guardando usuario:", error);
-      alert("Error actualizando usuario");
+    } catch (err) {
+      setError("Error al actualizar usuario: " + err.message);
     } finally {
       setLoading(false);
     }
@@ -378,17 +358,14 @@ function GestionUsuarios() {
 
   const resetPassword = async (usuario) => {
     if (!usuario.email) {
-      alert("Este usuario no tiene email registrado");
+      setError("Este usuario no tiene email registrado.");
       return;
     }
     if (!confirm(`¿Enviar email de recuperación a ${usuario.email}?`)) return;
-
     try {
-      await sendPasswordResetEmail(auth, usuario.email);
-      alert(`Email enviado a ${usuario.email}`);
-    } catch (error) {
-      console.error("[GestionUsuarios] Error reset password:", error);
-      alert("Error enviando email de recuperación");
+      await AuthService.sendPasswordReset(usuario.email);
+    } catch (err) {
+      setError("Error enviando email de recuperación: " + err.message);
     }
   };
 
@@ -398,17 +375,13 @@ function GestionUsuarios() {
 
   const cambiarEstado = async (usuario) => {
     const nuevoEstado = usuario.estado_usuario === "activo" ? "inactivo" : "activo";
-    if (!confirm(`¿${nuevoEstado === "inactivo" ? "Inactivar" : "Activar"} a ${usuario.nombre} ${usuario.apellido1}?`)) return;
-
+    const accion = nuevoEstado === "inactivo" ? "Inactivar" : "Activar";
+    if (!confirm(`¿${accion} a ${usuario.nombre} ${usuario.apellido1}?`)) return;
     try {
-      await updateUsuario(usuario.id, {
-        estado_usuario: nuevoEstado,
-        actualizado: Timestamp.now(),
-      });
+      await UserRepository.update(usuario.id, { estado_usuario: nuevoEstado });
       await cargarUsuarios();
-    } catch (error) {
-      console.error("[GestionUsuarios] Error cambiando estado:", error);
-      alert("Error actualizando estado");
+    } catch (err) {
+      setError("Error actualizando estado: " + err.message);
     }
   };
 
@@ -417,193 +390,179 @@ function GestionUsuarios() {
   // =========================================
 
   return (
-    <GestionLayout
-      titulo="Gestión de Usuarios"
-      subtitulo="Administración del personal institucional"
+    <>
+      {error && <div style={errorBannerStyle}>{error}</div>}
+      <GestionLayout
+        titulo="Gestión de Usuarios"
+        subtitulo="Administración del personal institucional"
 
-      // FILTROS
-      filtros={[
-        {
-          name: "region_id",
-          label: "Región",
-          type: "select",
-          hidden: !isAdmin,
-          options: [
-            { label: "Todas", value: "" },
-            ...regiones.map((r) => ({ label: `${r.codigo} - ${r.nombre}`, value: r.id })),
-          ],
-        },
-        {
-          name: "delegacion_id",
-          label: "Delegación",
-          type: "select",
-          hidden: !isAdmin,
-          disabled: !filtros.region_id,
-          options: [
-            { label: "Todas", value: "" },
-            ...delegacionesFiltroTabla.map((d) => ({ label: `${d.codigo} - ${d.nombre}`, value: d.id })),
-          ],
-        },
-        {
-          name: "rol",
-          label: "Rol",
-          type: "select",
-          options: [
-            { label: "Todos", value: "" },
-            ...ROLES_OPCIONES,
-          ],
-        },
-        {
-          name: "estado_usuario",
-          label: "Estado",
-          type: "select",
-          options: [
-            { label: "Todos", value: "" },
-            ...ESTADOS_OPCIONES,
-          ],
-        },
-        {
-          name: "busqueda",
-          label: "Buscar",
-          placeholder: "Nombre, cédula o email",
-        },
-      ]}
-      filtrosData={filtros}
-      onFiltroChange={handleFiltroChange}
+        filtros={[
+          {
+            name: "region_id",
+            label: "Región",
+            type: "select",
+            hidden: !esAdmin,
+            options: [
+              { label: "Todas", value: "" },
+              ...regiones.map((r) => ({ label: `${r.codigo} - ${r.nombre}`, value: r.id })),
+            ],
+          },
+          {
+            name: "delegation_id",
+            label: "Delegación",
+            type: "select",
+            hidden: !esAdmin,
+            disabled: !filtros.region_id,
+            options: [
+              { label: "Todas", value: "" },
+              ...delegacionesFiltroTabla.map((d) => ({ label: `${d.codigo} - ${d.nombre}`, value: d.id })),
+            ],
+          },
+          {
+            name: "rol",
+            label: "Rol",
+            type: "select",
+            options: [{ label: "Todos", value: "" }, ...ROLES_OPCIONES],
+          },
+          {
+            name: "estado_usuario",
+            label: "Estado",
+            type: "select",
+            options: [{ label: "Todos", value: "" }, ...ESTADOS_OPCIONES],
+          },
+          { name: "busqueda", label: "Buscar", placeholder: "Nombre, cédula o email" },
+        ]}
+        filtrosData={filtros}
+        onFiltroChange={handleFiltroChange}
 
-      // TABLA
-      columnas={["Nombre", "Cédula", "Rol", "Delegación", "Estado", "Acciones extra"]}
-      items={usuariosFiltrados}
-      renderCelda={(item, columna) => {
-        switch (columna) {
-          case "Nombre":
-            return `${item.nombre} ${item.apellido1} ${item.apellido2 || ""}`.trim();
-          case "Cédula":
-            return item.cedula || "—";
-          case "Rol":
-            return item.rol || "—";
-          case "Delegación":
-            return item.delegacion_nombre || "—";
-          case "Estado":
-            return (
-              <span
-                style={{
-                  background: item.estado_usuario === "activo" ? "#dcfce7" : "#fee2e2",
-                  color: item.estado_usuario === "activo" ? "#166534" : "#991b1b",
-                  padding: "4px 10px",
-                  borderRadius: "20px",
-                  fontSize: "12px",
-                  fontWeight: "bold",
-                  textTransform: "uppercase",
-                }}
-              >
-                {item.estado_usuario}
-              </span>
-            );
-          case "Acciones extra":
-            return (
-              <button
-                onClick={() => resetPassword(item)}
-                style={resetButtonStyle}
-                title="Enviar email de recuperación"
-              >
-                Reset pwd
-              </button>
-            );
-          default:
-            return "";
-        }
-      }}
+        columnas={["Nombre", "Cédula", "Rol", "Delegación", "Estado", "Acciones extra"]}
+        items={usuariosFiltrados}
+        renderCelda={(item, columna) => {
+          switch (columna) {
+            case "Nombre":
+              return `${item.nombre ?? ""} ${item.apellido1 ?? ""} ${item.apellido2 ?? ""}`.trim();
+            case "Cédula":
+              return item.cedula || "—";
+            case "Rol":
+              return item.rol || "—";
+            case "Delegación":
+              return delegaciones.find((d) => d.id === item.delegation_id)?.nombre ?? "—";
+            case "Estado":
+              return (
+                <span style={item.estado_usuario === "activo" ? badgeActiveStyle : badgeInactiveStyle}>
+                  {item.estado_usuario}
+                </span>
+              );
+            case "Acciones extra":
+              return (
+                <button
+                  onClick={() => resetPassword(item)}
+                  style={resetButtonStyle}
+                  title="Enviar email de recuperación"
+                >
+                  Reset pwd
+                </button>
+              );
+            default:
+              return "";
+          }
+        }}
 
-      onEditar={editarUsuario}
-      onCambiarEstado={cambiarEstado}
+        onEditar={editarUsuario}
+        onCambiarEstado={cambiarEstado}
 
-      // FORM EDICIÓN
-      formTitle={editandoId ? "Editar Usuario" : "Seleccione un usuario"}
-      formFields={[
-        { name: "nombre", label: "Nombre", placeholder: "NOMBRE" },
-        { name: "apellido1", label: "Primer Apellido", placeholder: "APELLIDO 1" },
-        { name: "apellido2", label: "Segundo Apellido", placeholder: "APELLIDO 2" },
-        { name: "cedula", label: "Cédula", placeholder: "000000000" },
-        { name: "telefono", label: "Teléfono", placeholder: "8888-8888" },
-        {
-          name: "rol",
-          label: "Rol",
-          type: "select",
-          options: [{ label: "Seleccione rol", value: "" }, ...ROLES_OPCIONES],
-        },
-        {
-          name: "estado_usuario",
-          label: "Estado",
-          type: "select",
-          options: ESTADOS_OPCIONES,
-        },
-        {
-          name: "rango_id",
-          label: "Rango",
-          type: "select",
-          options: [
-            { label: "Seleccione rango", value: "" },
-            ...rangos.map((r) => ({ label: `${r.siglas} - ${r.nombre}`, value: r.id })),
-          ],
-        },
-        {
-          name: "condicion_id",
-          label: "Condición",
-          type: "select",
-          options: [
-            { label: "Seleccione condición", value: "" },
-            ...condiciones.map((c) => ({ label: c.nombre, value: c.id })),
-          ],
-        },
-        ...(requiereTerritorial
-          ? [
-              {
-                name: "region_id",
-                label: "Región",
-                type: "select",
-                hidden: !isAdmin,
-                options: [
-                  { label: "Seleccione región", value: "" },
-                  ...regiones.map((r) => ({ label: `${r.codigo} - ${r.nombre}`, value: r.id })),
-                ],
-              },
-              {
-                name: "delegacion_id",
-                label: "Delegación",
-                type: "select",
-                hidden: !isAdmin,
-                disabled: !formData.region_id,
-                options: [
-                  { label: "Seleccione delegación", value: "" },
-                  ...delegacionesForm.map((d) => ({ label: `${d.codigo} - ${d.nombre}`, value: d.id })),
-                ],
-              },
-            ]
-          : []),
-        ...(requiereEscuadra
-          ? [
-              {
-                name: "escuadra_id",
-                label: "Escuadra",
-                type: "select",
-                disabled: !formData.delegacion_id,
-                options: [
-                  { label: "Seleccione escuadra", value: "" },
-                  ...escuadras.map((e) => ({ label: e.nombre, value: e.id })),
-                ],
-              },
-            ]
-          : []),
-      ]}
-      formData={formData}
-      onFormChange={handleFormChange}
-      onSubmit={guardarUsuario}
-      onCancel={limpiarFormulario}
-      editando={!!editandoId}
-      loading={loading}
-      panelWidth={440}
-    />
+        formTitle={editandoId ? "Editar Usuario" : "Seleccione un usuario"}
+        formFields={[
+          { name: "nombre",    label: "Nombre",          placeholder: "NOMBRE" },
+          { name: "apellido1", label: "Primer Apellido",  placeholder: "APELLIDO 1" },
+          { name: "apellido2", label: "Segundo Apellido", placeholder: "APELLIDO 2" },
+          { name: "cedula",    label: "Cédula",           placeholder: "000000000" },
+          { name: "telefono",  label: "Teléfono",         placeholder: "8888-8888" },
+          {
+            name: "rol",
+            label: "Rol",
+            type: "select",
+            options: [{ label: "Seleccione rol", value: "" }, ...ROLES_OPCIONES],
+          },
+          {
+            name: "estado_usuario",
+            label: "Estado",
+            type: "select",
+            options: ESTADOS_OPCIONES,
+          },
+          {
+            name: "region_id",
+            label: "Región",
+            type: "select",
+            options: [
+              { label: "Seleccione región", value: "" },
+              ...regiones.map((r) => ({ label: `${r.codigo} - ${r.nombre}`, value: r.id })),
+            ],
+          },
+          {
+            name: "cantonal_id",
+            label: "Delegación Cantonal",
+            type: "select",
+            disabled: !formData.region_id,
+            options: [
+              { label: "Seleccione cantonal", value: "" },
+              ...cantonales
+                .filter(c => c.region_id === formData.region_id)
+                .map(c => ({ label: `${c.codigo} - ${c.nombre}`, value: c.id })),
+            ],
+          },
+          {
+            name: "delegation_id",
+            label: "Unidad / Delegación Distrital",
+            type: "select",
+            hidden: ROLES_USAN_CANTONAL_DIRECTA.includes(formData.rol),
+            disabled: !formData.cantonal_id,
+            options: [
+              { label: "Seleccione unidad o distrital", value: "" },
+              ...subdelegaciones.map(d => ({
+                label: `${d.delegation_type === 'central' ? '🏛️' : '📍'} ${d.nombre} (${d.codigo})`,
+                value: d.id,
+              })),
+            ],
+          },
+          {
+            name: "squad_id",
+            label: "Escuadra",
+            type: "select",
+            disabled: !formData.delegation_id || ROLES_SIN_ESCUADRA.includes(formData.rol),
+            options: [
+              { label: "Sin escuadra", value: "" },
+              ...escuadras.map((e) => ({ label: e.nombre, value: e.id })),
+            ],
+          },
+          {
+            name: "rank_id",
+            label: "Rango",
+            type: "select",
+            options: [
+              { label: "Seleccione rango", value: "" },
+              ...rangos.map((r) => ({ label: `${r.siglas} - ${r.nombre}`, value: r.id })),
+            ],
+          },
+          {
+            name: "condition_id",
+            label: "Condición",
+            type: "select",
+            options: [
+              { label: "Seleccione condición", value: "" },
+              ...condiciones.map((c) => ({ label: c.nombre, value: c.id })),
+            ],
+          },
+        ]}
+        formData={formData}
+        onFormChange={handleFormChange}
+        onSubmit={guardarUsuario}
+        onCancel={limpiarFormulario}
+        editando={!!editandoId}
+        loading={loading}
+        panelWidth={440}
+      />
+    </>
   );
 }
 
@@ -611,15 +570,9 @@ function GestionUsuarios() {
 // ESTILOS
 // =========================================
 
-const resetButtonStyle = {
-  padding: "5px 10px",
-  border: "1px solid #e2e8f0",
-  borderRadius: "6px",
-  background: "white",
-  color: "#475569",
-  fontSize: "12px",
-  cursor: "pointer",
-  whiteSpace: "nowrap",
-};
+const errorBannerStyle   = { background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "8px", padding: "10px 16px", fontSize: "13px", color: "#dc2626", margin: "16px 20px 0" };
+const badgeActiveStyle   = { background: "#dcfce7", color: "#166534", padding: "4px 10px", borderRadius: "20px", fontSize: "12px", fontWeight: "bold", textTransform: "uppercase" };
+const badgeInactiveStyle = { background: "#fee2e2", color: "#991b1b", padding: "4px 10px", borderRadius: "20px", fontSize: "12px", fontWeight: "bold", textTransform: "uppercase" };
+const resetButtonStyle   = { padding: "5px 10px", border: "1px solid #e2e8f0", borderRadius: "6px", background: "white", color: "#475569", fontSize: "12px", cursor: "pointer", whiteSpace: "nowrap" };
 
 export default GestionUsuarios;

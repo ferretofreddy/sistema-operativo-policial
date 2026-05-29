@@ -1,357 +1,195 @@
-import { useEffect, useState } from "react";
-
-import {
-  collection,
-  addDoc,
-  getDocs,
-  updateDoc,
-  doc,
-  Timestamp,
-} from "firebase/firestore";
-
-import { db } from "../../../services/firebase";
-
-import CatalogoSimpleLayout from "../../../shared/layouts/CatalogoSimpleLayout";
+// frontend/src/modules/administracion/configuracion/GestionRangosUsuario.jsx
+import { useState, useEffect, useCallback } from "react";
+import { RankRepository } from "../../../core";
 
 function GestionRangosUsuario() {
-  // =========================================
-  // DATA
-  // =========================================
+  const [rangos,    setRangos]    = useState([]);
+  const [loading,   setLoading]   = useState(true);
+  const [error,     setError]     = useState("");
+  const [guardando, setGuardando] = useState(false);
 
-  const [rangos, setRangos] = useState([]);
+  // Formulario — create y edit comparten el mismo estado
+  const [editandoId,      setEditandoId]      = useState(null); // null = crear, uuid = editar
+  const [nombre,          setNombre]          = useState("");
+  const [siglas,          setSiglas]          = useState("");
+  const [ordenJerarquico, setOrdenJerarquico] = useState("");
+  const [descripcion,     setDescripcion]     = useState("");
 
-  // =========================================
-  // FORM
-  // =========================================
-
-  const [formData, setFormData] = useState({
-    nombre: "",
-
-    siglas: "",
-
-    orden_jerarquico: "",
-
-    estado: "activo",
-  });
-
-  // =========================================
-  // EDITAR
-  // =========================================
-
-  const [editandoId, setEditandoId] = useState(null);
-
-  // =========================================
-  // LOADING
-  // =========================================
-
-  const [loading, setLoading] = useState(false);
-
-  // =========================================
-  // CARGAR
-  // =========================================
-
-  const cargarRangos = async () => {
+  const cargar = useCallback(async () => {
+    setLoading(true);
+    setError("");
     try {
-      const snapshot = await getDocs(collection(db, "rangos_usuario"));
-
-      const lista = snapshot.docs
-        .map((d) => ({
-          id: d.id,
-          ...d.data(),
-        }))
-        .sort((a, b) => (a.orden_jerarquico || 0) - (b.orden_jerarquico || 0));
-
-      setRangos(lista);
-    } catch (error) {
-      console.error(error);
-    }
-  };
-
-  useEffect(() => {
-    cargarRangos();
-  }, []);
-
-  // =========================================
-  // CHANGE
-  // =========================================
-
-  const handleChange = (field, value) => {
-    setFormData({
-      ...formData,
-
-      [field]: value,
-    });
-  };
-
-  // =========================================
-  // LIMPIAR
-  // =========================================
-
-  const limpiarFormulario = () => {
-    setFormData({
-      nombre: "",
-
-      siglas: "",
-
-      orden_jerarquico: "",
-
-      estado: "activo",
-    });
-
-    setEditandoId(null);
-  };
-
-  // =========================================
-  // GUARDAR
-  // =========================================
-
-  const guardarRango = async () => {
-    try {
-      setLoading(true);
-
-      const nombre = formData.nombre.trim().toUpperCase();
-
-      const siglas = formData.siglas.trim().toUpperCase();
-
-      const orden = Number(formData.orden_jerarquico);
-
-      // =========================================
-      // VALIDAR
-      // =========================================
-
-      if (!nombre) {
-        alert("Ingrese el nombre");
-
-        return;
-      }
-
-      if (!siglas) {
-        alert("Ingrese las siglas");
-
-        return;
-      }
-
-      if (!orden) {
-        alert("Ingrese el orden jerárquico");
-
-        return;
-      }
-
-      // =========================================
-      // DUPLICADOS
-      // =========================================
-
-      const nombreExiste = rangos.find(
-        (r) => r.nombre === nombre && r.id !== editandoId,
-      );
-
-      if (nombreExiste) {
-        alert("Este rango ya existe");
-
-        return;
-      }
-
-      const siglasExiste = rangos.find(
-        (r) => r.siglas === siglas && r.id !== editandoId,
-      );
-
-      if (siglasExiste) {
-        alert("Estas siglas ya existen");
-
-        return;
-      }
-
-      const ordenExiste = rangos.find(
-        (r) => Number(r.orden_jerarquico) === orden && r.id !== editandoId,
-      );
-
-      if (ordenExiste) {
-        alert("Ese orden ya existe");
-
-        return;
-      }
-
-      const datos = {
-        nombre,
-
-        siglas,
-
-        orden_jerarquico: orden,
-
-        estado: formData.estado,
-
-        actualizado: Timestamp.now(),
-      };
-
-      // =========================================
-      // CREAR
-      // =========================================
-
-      if (!editandoId) {
-        await addDoc(
-          collection(db, "rangos_usuario"),
-
-          {
-            ...datos,
-
-            creado: Timestamp.now(),
-          },
-        );
-
-        alert("Rango creado");
-      } else {
-        // =========================================
-        // ACTUALIZAR
-        // =========================================
-
-        await updateDoc(
-          doc(db, "rangos_usuario", editandoId),
-
-          datos,
-        );
-
-        alert("Rango actualizado");
-      }
-
-      limpiarFormulario();
-
-      await cargarRangos();
-    } catch (error) {
-      console.error(error);
-
-      alert("Error guardando rango");
+      const data = await RankRepository.getTodos();
+      setRangos(data);
+    } catch (err) {
+      setError("Error al cargar rangos: " + err.message);
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  useEffect(() => { cargar(); }, [cargar]);
+
+  const limpiarFormulario = () => {
+    setEditandoId(null);
+    setNombre(""); setSiglas(""); setOrdenJerarquico(""); setDescripcion("");
+    setError("");
   };
 
-  // =========================================
-  // EDITAR
-  // =========================================
-
-  const editarRango = (rango) => {
+  const handleEditar = (rango) => {
     setEditandoId(rango.id);
-
-    setFormData({
-      nombre: rango.nombre || "",
-
-      siglas: rango.siglas || "",
-
-      orden_jerarquico: rango.orden_jerarquico || "",
-
-      estado: rango.estado || "activo",
-    });
+    setNombre(rango.nombre);
+    setSiglas(rango.siglas);
+    setOrdenJerarquico(String(rango.orden_jerarquico));
+    setDescripcion(rango.descripcion ?? "");
+    setError("");
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  // =========================================
-  // ESTADO
-  // =========================================
+  const handleGuardar = async () => {
+    if (!nombre.trim() || !siglas.trim() || !ordenJerarquico) {
+      setError("Nombre, siglas y orden jerárquico son obligatorios.");
+      return;
+    }
+    const orden = parseInt(ordenJerarquico, 10);
+    if (isNaN(orden) || orden < 1) {
+      setError("El orden jerárquico debe ser un número positivo.");
+      return;
+    }
+    setGuardando(true);
+    setError("");
+    try {
+      const data = {
+        nombre:           nombre.trim().toUpperCase(),
+        siglas:           siglas.trim().toUpperCase(),
+        orden_jerarquico: orden,
+        descripcion:      descripcion.trim() || null,
+      };
+      if (editandoId) {
+        await RankRepository.update(editandoId, data);
+      } else {
+        await RankRepository.crear({ ...data, estado: "activo" });
+      }
+      limpiarFormulario();
+      await cargar();
+    } catch (err) {
+      setError("Error al guardar: " + err.message);
+    } finally {
+      setGuardando(false);
+    }
+  };
 
-  const cambiarEstado = async (rango) => {
+  const handleToggleEstado = async (rango) => {
+    const accion = rango.estado === "activo" ? "desactivar" : "activar";
+    if (!confirm(`¿Desea ${accion} el rango "${rango.nombre}"?`)) return;
     try {
       const nuevoEstado = rango.estado === "activo" ? "inactivo" : "activo";
-
-      await updateDoc(
-        doc(db, "rangos_usuario", rango.id),
-
-        {
-          estado: nuevoEstado,
-
-          actualizado: Timestamp.now(),
-        },
-      );
-
-      await cargarRangos();
-    } catch (error) {
-      console.error(error);
-
-      alert("Error actualizando estado");
+      await RankRepository.update(rango.id, { estado: nuevoEstado });
+      await cargar();
+    } catch (err) {
+      setError(`Error al ${accion}: ` + err.message);
     }
   };
 
   return (
-    <CatalogoSimpleLayout
-      // =========================================
-      // HEADER
-      // =========================================
+    <div style={pageStyle}>
+      <div style={headerStyle}>
+        <h1 style={{ margin: 0 }}>Rangos Institucionales</h1>
+        <p style={{ margin: "5px 0 0 0", color: "#64748b" }}>Jerarquía de la Fuerza Pública</p>
+      </div>
 
-      titulo="
-      Gestión Rangos Usuario
-      "
-      subtitulo="
-      Administración de rangos jerárquicos institucionales
-      "
-      // =========================================
-      // FORM
-      // =========================================
+      <div style={cardStyle}>
+        <h3 style={{ margin: "0 0 20px 0" }}>
+          {editandoId ? "✏️ Editar Rango" : "Agregar Rango"}
+        </h3>
+        <div style={gridStyle}>
+          <div style={fieldStyle}>
+            <label style={labelStyle}>Nombre *</label>
+            <input value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Ej: Inspector General" style={inputStyle} />
+          </div>
+          <div style={fieldStyle}>
+            <label style={labelStyle}>Siglas *</label>
+            <input value={siglas} onChange={(e) => setSiglas(e.target.value)} placeholder="Ej: IG" style={inputStyle} />
+          </div>
+          <div style={fieldStyle}>
+            <label style={labelStyle}>Orden Jerárquico *</label>
+            <input type="number" min="1" value={ordenJerarquico} onChange={(e) => setOrdenJerarquico(e.target.value)} placeholder="Ej: 5" style={inputStyle} />
+          </div>
+          <div style={fieldStyle}>
+            <label style={labelStyle}>Descripción</label>
+            <input value={descripcion} onChange={(e) => setDescripcion(e.target.value)} placeholder="Opcional" style={inputStyle} />
+          </div>
+        </div>
+        {error && <div style={errorStyle}>{error}</div>}
+        <div style={{ display: "flex", gap: "10px" }}>
+          <button onClick={handleGuardar} disabled={guardando} style={btnStyle}>
+            {guardando ? "Guardando..." : editandoId ? "Actualizar" : "Agregar Rango"}
+          </button>
+          {editandoId && (
+            <button onClick={limpiarFormulario} style={btnCancelStyle}>
+              Cancelar
+            </button>
+          )}
+        </div>
+      </div>
 
-      formTitle={editandoId ? "Editar Rango" : "Nuevo Rango"}
-      formData={formData}
-      onChange={handleChange}
-      onSubmit={guardarRango}
-      onCancel={limpiarFormulario}
-      editando={!!editandoId}
-      loading={loading}
-      fields={[
-        {
-          name: "nombre",
-
-          label: "Nombre",
-
-          placeholder: "Ej: Oficial",
-        },
-
-        {
-          name: "siglas",
-
-          label: "Siglas",
-
-          placeholder: "Ej: OF",
-        },
-
-        {
-          name: "orden_jerarquico",
-
-          label: "Orden Jerárquico",
-
-          type: "number",
-
-          placeholder: "Ej: 1",
-        },
-
-        {
-          name: "estado",
-
-          label: "Estado",
-
-          type: "select",
-
-          options: [
-            {
-              label: "Activo",
-
-              value: "activo",
-            },
-
-            {
-              label: "Inactivo",
-
-              value: "inactivo",
-            },
-          ],
-        },
-      ]}
-      // =========================================
-      // LISTA
-      // =========================================
-
-      items={rangos}
-      renderItemTitle={(r) => `${r.siglas} - ${r.nombre}`}
-      renderItemSubtitle={(r) => `Orden jerárquico: ${r.orden_jerarquico}`}
-      onEdit={editarRango}
-      onToggleEstado={cambiarEstado}
-    />
+      {loading ? (
+        <p style={msgStyle}>Cargando rangos...</p>
+      ) : (
+        <div style={tableWrap}>
+          <table style={tableStyle}>
+            <thead>
+              <tr>{["Orden","Nombre","Siglas","Descripción","Estado","Acciones"].map(h => <th key={h} style={thStyle}>{h}</th>)}</tr>
+            </thead>
+            <tbody>
+              {rangos.map(r => (
+                <tr key={r.id} style={r.estado === "inactivo" ? { opacity: 0.5 } : {}}>
+                  <td style={tdStyle}>{r.orden_jerarquico}</td>
+                  <td style={tdStyle}>{r.nombre}</td>
+                  <td style={tdStyle}>{r.siglas}</td>
+                  <td style={tdStyle}>{r.descripcion || "—"}</td>
+                  <td style={tdStyle}>
+                    <span style={r.estado === "activo" ? badgeActiveStyle : badgeInactiveStyle}>
+                      {r.estado}
+                    </span>
+                  </td>
+                  <td style={tdStyle}>
+                    <div style={{ display: "flex", gap: "6px" }}>
+                      <button onClick={() => handleEditar(r)} style={btnEditStyle}>Editar</button>
+                      <button onClick={() => handleToggleEstado(r)} style={r.estado === "activo" ? btnSmallStyle : btnActivarStyle}>
+                        {r.estado === "activo" ? "Desactivar" : "Activar"}
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
   );
 }
+
+const pageStyle          = { padding: "20px", fontFamily: "system-ui, sans-serif" };
+const headerStyle        = { marginBottom: "24px" };
+const cardStyle          = { background: "white", padding: "24px", borderRadius: "12px", boxShadow: "0 2px 6px rgba(0,0,0,0.08)", marginBottom: "24px" };
+const gridStyle          = { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px", marginBottom: "16px" };
+const fieldStyle         = { display: "flex", flexDirection: "column", gap: "6px" };
+const labelStyle         = { fontSize: "13px", fontWeight: "500", color: "#374151" };
+const inputStyle         = { padding: "9px 12px", border: "1px solid #d1d5db", borderRadius: "8px", fontSize: "14px", outline: "none" };
+const errorStyle         = { background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "8px", padding: "10px 14px", fontSize: "13px", color: "#dc2626", marginBottom: "12px" };
+const btnStyle           = { padding: "10px 20px", background: "#1e293b", color: "white", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "500" };
+const btnCancelStyle     = { padding: "10px 20px", background: "#e2e8f0", color: "#1e293b", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "500" };
+const btnEditStyle       = { padding: "5px 10px", background: "#3b82f6", color: "white", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "12px" };
+const btnSmallStyle      = { padding: "5px 10px", background: "#ef4444", color: "white", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "12px" };
+const btnActivarStyle    = { padding: "5px 10px", background: "#22c55e", color: "white", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "12px" };
+const msgStyle           = { textAlign: "center", color: "#64748b", padding: "20px" };
+const tableWrap          = { background: "white", borderRadius: "12px", boxShadow: "0 2px 6px rgba(0,0,0,0.08)", overflow: "hidden" };
+const tableStyle         = { width: "100%", borderCollapse: "collapse" };
+const thStyle            = { padding: "12px 16px", textAlign: "left", background: "#f8fafc", fontSize: "12px", fontWeight: "600", color: "#64748b", textTransform: "uppercase", borderBottom: "1px solid #e2e8f0" };
+const tdStyle            = { padding: "12px 16px", borderBottom: "1px solid #f1f5f9", fontSize: "14px", color: "#1e293b" };
+const badgeActiveStyle   = { background: "#dcfce7", color: "#166534", padding: "2px 8px", borderRadius: "12px", fontSize: "12px", fontWeight: "500" };
+const badgeInactiveStyle = { background: "#fee2e2", color: "#991b1b", padding: "2px 8px", borderRadius: "12px", fontSize: "12px", fontWeight: "500" };
 
 export default GestionRangosUsuario;

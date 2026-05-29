@@ -1,157 +1,180 @@
 // frontend/src/modules/unidad_operativa/ordenes/ListaOrdenes.jsx
-import { useEffect, useState, useContext, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
-import { AuthContext } from "../../../context/AuthContext";
-import { OrderRepository, getUserQueryFilters } from "../../../core";
-import DesktopLayout from "../../../shared/layouts/DesktopLayout";
+//
+// Lista de ORECPO con estados calculados dinámicamente por fecha.
+// Estado: programada / vigente / vencida (no guardado en BD)
+// Accesible por: unidad_operativa, jefatura (CRUD), supervisor (solo lectura)
 
-const ESTADO_PRIORIDAD = { activa: 1, programada: 2, finalizada: 3 };
-const ESTADO_COLOR     = { activa: "#16a34a", programada: "#f59e0b", finalizada: "#dc2626" };
+import { useEffect, useState, useContext, useMemo, useCallback } from "react";
+import { useNavigate }     from "react-router-dom";
+import { AuthContext }     from "../../../context/AuthContext";
+import { OrderRepository, DelegationRepository } from "../../../core";
+import { calcularEstadoOrden } from "../../../core/repositories/OrderRepository";
+import DesktopLayout       from "../../../shared/layouts/DesktopLayout";
+
+const ESTADO_CONFIG = {
+  programada: { color: "#f59e0b", bg: "#fef9c3", label: "Programada" },
+  vigente:    { color: "#16a34a", bg: "#dcfce7", label: "Vigente"    },
+  vencida:    { color: "#dc2626", bg: "#fee2e2", label: "Vencida"    },
+};
 
 function ListaOrdenes() {
-  const navigate    = useNavigate();
+  const navigate     = useNavigate();
   const { userData } = useContext(AuthContext);
 
-  const [ordenes, setOrdenes] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [filtro,  setFiltro]  = useState("todas");
-  const [busqueda, setBusqueda] = useState("");
+  const esSupervisor = userData?.rol === "supervisor";
+  const esAdmin      = userData?.rol === "admin";
 
-  // =========================================
-  // CARGAR
-  // =========================================
+  const [ordenes,      setOrdenes]      = useState([]);
+  const [delegaciones, setDelegaciones] = useState([]);
+  const [loading,      setLoading]      = useState(true);
+  const [error,        setError]        = useState("");
+  const [filtroEstado, setFiltroEstado] = useState("todas");
+  const [busqueda,     setBusqueda]     = useState("");
 
-  useEffect(() => {
-    if (!userData?.uid) return;
+  // ── CARGAR ───────────────────────────────────────────────────────────────
+  const cargar = useCallback(async () => {
+    if (!userData) return;
+    setLoading(true);
+    setError("");
+    try {
+      const [delegsData, ordenesData] = await Promise.all([
+        DelegationRepository.getActivas(),
+        OrderRepository.getAll(
+          esAdmin ? {} : { delegation_id: userData.delegation_id }
+        ),
+      ]);
+      setDelegaciones(delegsData);
+      setOrdenes(ordenesData);
+    } catch (err) {
+      setError("Error al cargar órdenes: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [userData, esAdmin]);
 
-    const cargar = async () => {
-      try {
-        setLoading(true);
-        const filters = getUserQueryFilters(userData);
-        const data    = await OrderRepository.getAll(filters);
+  useEffect(() => { cargar(); }, [cargar]);
 
-        // Ordenar por prioridad de estado
-        const ordenadas = [...data].sort(
-          (a, b) => (ESTADO_PRIORIDAD[a.estado] ?? 9) - (ESTADO_PRIORIDAD[b.estado] ?? 9),
-        );
-        setOrdenes(ordenadas);
-      } catch (error) {
-        console.error("[ListaOrdenes]", error.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    cargar();
-  }, [userData]);
-
-  // =========================================
-  // FILTRADO LOCAL
-  // =========================================
-
+  // ── FILTRADO LOCAL ───────────────────────────────────────────────────────
   const ordenesFiltradas = useMemo(() => {
     return ordenes.filter((o) => {
-      const coincideEstado  = filtro === "todas" || o.estado === filtro;
-      const texto           = `${o.consecutivo ?? ""} ${o.nombre ?? ""} ${o.codigo ?? ""}`.toLowerCase();
-      const coincideBusqueda = texto.includes(busqueda.toLowerCase());
+      const estado           = o.estado_calculado ?? calcularEstadoOrden(o.fecha_inicio, o.fecha_fin);
+      const coincideEstado   = filtroEstado === "todas" || estado === filtroEstado;
+      const texto            = `${o.consecutivo ?? ""} ${o.nombre ?? ""} ${o.codigo ?? ""}`.toLowerCase();
+      const coincideBusqueda = texto.includes(busqueda.toLowerCase().trim());
       return coincideEstado && coincideBusqueda;
     });
-  }, [ordenes, filtro, busqueda]);
+  }, [ordenes, filtroEstado, busqueda]);
 
-  // =========================================
-  // RENDER
-  // =========================================
+  // JOIN local — nombre de delegación
+  const getNombreDeleg = (id) => delegaciones.find(d => d.id === id)?.nombre ?? "—";
 
+  // ── RENDER ───────────────────────────────────────────────────────────────
   const menuItems = [
-    { label: "➕ Nueva Orden", onClick: () => navigate("/unidad_operativa/ordenes/crear") },
-    { label: "🏠 Dashboard",   onClick: () => navigate("/unidad_operativa") },
+    ...(!esSupervisor ? [{ label: "➕ Nueva Orden", onClick: () => navigate("/unidad_operativa/ordenes/crear") }] : []),
+    { label: "🏠 Dashboard", onClick: () => navigate(esSupervisor ? "/supervisor" : "/unidad_operativa") },
   ];
 
   return (
     <DesktopLayout title="Órdenes" menuItems={menuItems} user={userData}>
-      <div style={containerStyle}>
-        <Section title="Órdenes de Ejecución" subtitle="Gestión operativa institucional">
-          <input
-            placeholder="Buscar orden..."
-            value={busqueda}
-            onChange={(e) => setBusqueda(e.target.value)}
-            style={searchStyle}
-          />
-          <div style={filtersStyle}>
-            {["todas", "activa", "programada", "finalizada"].map((estado) => (
-              <button
-                key={estado}
-                onClick={() => setFiltro(estado)}
-                style={{ ...filterBtn, ...(filtro === estado ? filterBtnActive : {}) }}
-              >
-                {estado}
+      <div style={pageStyle}>
+
+        <div style={cardStyle}>
+          <div style={headerRowStyle}>
+            <div>
+              <h1 style={titleStyle}>Órdenes de Ejecución</h1>
+              <p style={subStyle}>Órdenes Policiales Operativas (ORECPO) de la delegación</p>
+            </div>
+            {!esSupervisor && (
+              <button onClick={() => navigate("/unidad_operativa/ordenes/crear")} style={btnPrimaryStyle}>
+                + Nueva Orden
               </button>
-            ))}
+            )}
+          </div>
+          <hr style={dividerStyle} />
+
+          {error && <div style={errorStyle}>{error}</div>}
+
+          {/* Filtros */}
+          <div style={filtersRowStyle}>
+            <input
+              placeholder="Buscar por consecutivo, nombre o código..."
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+              style={searchStyle}
+            />
+            <div style={tabsStyle}>
+              {["todas", "vigente", "programada", "vencida"].map((e) => (
+                <button key={e} onClick={() => setFiltroEstado(e)}
+                  style={{ ...tabBtn, ...(filtroEstado === e ? tabBtnActive : {}) }}>
+                  {e === "todas" ? "Todas" : ESTADO_CONFIG[e]?.label}
+                </button>
+              ))}
+            </div>
           </div>
 
-          {loading && <p style={msgStyle}>Cargando órdenes...</p>}
-          {!loading && ordenesFiltradas.length === 0 && (
-            <p style={msgStyle}>No existen órdenes registradas.</p>
+          {/* Lista */}
+          {loading ? (
+            <p style={msgStyle}>Cargando órdenes...</p>
+          ) : ordenesFiltradas.length === 0 ? (
+            <p style={msgStyle}>No hay órdenes registradas.</p>
+          ) : (
+            <div style={gridStyle}>
+              {ordenesFiltradas.map((orden) => {
+                const estado = orden.estado_calculado ?? calcularEstadoOrden(orden.fecha_inicio, orden.fecha_fin);
+                const config = ESTADO_CONFIG[estado] ?? { color: "#64748b", bg: "#f1f5f9", label: estado };
+                return (
+                  <div key={orden.id}
+                    onClick={() => navigate(`/unidad_operativa/orden/${orden.id}`)}
+                    style={ordenCardStyle}>
+                    <div style={ordenHeaderStyle}>
+                      <strong style={{ fontSize: "15px", color: "#1e293b" }}>{orden.consecutivo}</strong>
+                      <span style={{ ...estadoBadgeStyle, background: config.bg, color: config.color }}>
+                        {config.label}
+                      </span>
+                    </div>
+                    <p style={{ margin: "6px 0 12px 0", fontSize: "14px", color: "#475569" }}>{orden.nombre}</p>
+                    {orden.codigo && (
+                      <p style={infoRowStyle}><span style={infoLabelStyle}>Código:</span> {orden.codigo}</p>
+                    )}
+                    <p style={infoRowStyle}>
+                      <span style={infoLabelStyle}>Periodo:</span>{" "}
+                      {orden.fecha_inicio} — {orden.fecha_fin}
+                    </p>
+                    <p style={{ ...infoRowStyle, marginTop: "10px", paddingTop: "10px", borderTop: "1px solid #f1f5f9" }}>
+                      <span style={infoLabelStyle}>Delegación:</span>{" "}
+                      {getNombreDeleg(orden.delegation_id)}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
           )}
-
-          <div style={cardsGridStyle}>
-            {ordenesFiltradas.map((orden) => (
-              <div
-                key={orden.id}
-                onClick={() => navigate(`/unidad_operativa/orden/${orden.id}`)}
-                style={cardStyle}
-              >
-                <h3 style={cardTitleStyle}>{orden.consecutivo}</h3>
-                <p style={cardNameStyle}>{orden.nombre}</p>
-                <InfoRow label="Código"  value={orden.codigo || "N/A"} />
-                <InfoRow label="Periodo" value={`${orden.fecha_inicio} — ${orden.fecha_fin}`} />
-                <div style={statusRowStyle}>
-                  <span style={statusLabelStyle}>Estado:</span>
-                  <span style={{ ...statusValueStyle, color: ESTADO_COLOR[orden.estado] ?? "#1e293b" }}>
-                    {orden.estado}
-                  </span>
-                </div>
-                <p style={cardFooterStyle}>{orden.delegacion_nombre}</p>
-              </div>
-            ))}
-          </div>
-        </Section>
+        </div>
       </div>
     </DesktopLayout>
   );
 }
 
-const Section = ({ title, subtitle, children }) => (
-  <div style={sectionStyle}>
-    <h1 style={sectionTitleStyle}>{title}</h1>
-    {subtitle && <p style={sectionSubtitleStyle}>{subtitle}</p>}
-    <hr style={dividerStyle} />
-    {children}
-  </div>
-);
-
-const InfoRow = ({ label, value }) => (
-  <p style={infoRowStyle}><strong>{label}:</strong> {value}</p>
-);
-
-const containerStyle       = { padding: "20px" };
-const sectionStyle         = { background: "white", padding: "20px", borderRadius: "10px", boxShadow: "0 2px 5px rgba(0,0,0,0.1)" };
-const sectionTitleStyle    = { margin: "0 0 4px 0", fontSize: "20px", fontWeight: "600", color: "#1e293b" };
-const sectionSubtitleStyle = { margin: "0 0 15px 0", fontSize: "14px", color: "#64748b" };
-const dividerStyle         = { border: "none", borderTop: "1px solid #e2e8f0", margin: "15px 0" };
-const searchStyle          = { width: "100%", maxWidth: "400px", padding: "10px", marginBottom: "15px", borderRadius: "8px", border: "1px solid #ccc", fontSize: "14px" };
-const filtersStyle         = { display: "flex", flexWrap: "wrap", gap: "10px", marginBottom: "20px" };
-const filterBtn            = { padding: "10px 15px", border: "none", borderRadius: "8px", cursor: "pointer", background: "#cbd5e1", color: "#1e293b", fontWeight: "500" };
-const filterBtnActive      = { background: "#1e293b", color: "white" };
-const msgStyle             = { textAlign: "center", color: "#64748b", padding: "20px" };
-const cardsGridStyle       = { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "15px" };
-const cardStyle            = { background: "#f8fafc", borderRadius: "10px", padding: "20px", cursor: "pointer", border: "1px solid #e2e8f0" };
-const cardTitleStyle       = { margin: "0 0 4px 0", fontSize: "16px", fontWeight: "600", color: "#1e293b" };
-const cardNameStyle        = { margin: "0 0 12px 0", fontSize: "14px", color: "#64748b" };
-const cardFooterStyle      = { margin: "12px 0 0 0", fontSize: "13px", color: "#64748b", borderTop: "1px solid #e2e8f0", paddingTop: "12px" };
-const infoRowStyle         = { margin: "4px 0", fontSize: "14px", color: "#334155" };
-const statusRowStyle       = { display: "flex", alignItems: "center", gap: "8px", margin: "8px 0" };
-const statusLabelStyle     = { fontSize: "14px", fontWeight: "500", color: "#64748b" };
-const statusValueStyle     = { fontSize: "14px", fontWeight: "600" };
+// ── ESTILOS ──────────────────────────────────────────────────────────────────
+const pageStyle       = { padding: "20px" };
+const cardStyle       = { background: "white", padding: "24px", borderRadius: "12px", boxShadow: "0 2px 6px rgba(0,0,0,0.08)" };
+const headerRowStyle  = { display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "12px" };
+const titleStyle      = { margin: "0 0 4px 0", fontSize: "20px", fontWeight: "600", color: "#1e293b" };
+const subStyle        = { margin: 0, fontSize: "13px", color: "#64748b" };
+const dividerStyle    = { border: "none", borderTop: "1px solid #e2e8f0", margin: "16px 0" };
+const errorStyle      = { background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "8px", padding: "10px 14px", fontSize: "13px", color: "#dc2626", marginBottom: "16px" };
+const filtersRowStyle = { display: "flex", flexWrap: "wrap", gap: "12px", alignItems: "center", marginBottom: "20px" };
+const searchStyle     = { flex: 1, minWidth: "200px", maxWidth: "400px", padding: "9px 12px", borderRadius: "8px", border: "1px solid #d1d5db", fontSize: "14px", outline: "none" };
+const tabsStyle       = { display: "flex", gap: "8px", flexWrap: "wrap" };
+const tabBtn          = { padding: "8px 16px", border: "1px solid #e2e8f0", borderRadius: "8px", cursor: "pointer", background: "white", color: "#64748b", fontSize: "13px", fontWeight: "500" };
+const tabBtnActive    = { background: "#1e293b", color: "white", border: "1px solid #1e293b" };
+const msgStyle        = { textAlign: "center", color: "#94a3b8", padding: "30px" };
+const gridStyle       = { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "16px" };
+const ordenCardStyle  = { background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "10px", padding: "20px", cursor: "pointer", transition: "box-shadow 0.15s" };
+const ordenHeaderStyle = { display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px", marginBottom: "4px" };
+const estadoBadgeStyle = { padding: "3px 10px", borderRadius: "12px", fontSize: "12px", fontWeight: "600", whiteSpace: "nowrap" };
+const infoRowStyle    = { margin: "4px 0", fontSize: "13px", color: "#334155" };
+const infoLabelStyle  = { fontWeight: "500", color: "#64748b" };
+const btnPrimaryStyle = { padding: "10px 20px", border: "none", borderRadius: "8px", background: "#1e293b", color: "white", cursor: "pointer", fontWeight: "500", fontSize: "14px", whiteSpace: "nowrap" };
 
 export default ListaOrdenes;
