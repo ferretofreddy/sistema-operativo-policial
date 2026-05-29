@@ -28,7 +28,8 @@ function DashboardJefatura() {
     { label: "👥 Personal",          onClick: () => navigate("/gestion-personal") },
     { label: "🏛️ Escuadras",        onClick: () => navigate("/admin/escuadras") },
     { label: "👥 Gestión Escuadra",  onClick: () => navigate("/admin/gestion-escuadras") },
-    { label: "🚓 Recursos",          onClick: () => navigate("/supervisor/gestion-recursos") },
+    { label: "🚓 Gestión Recursos",  onClick: () => navigate("/supervisor/gestion-recursos") },
+    { label: "➕ Crear Recurso",      onClick: () => navigate("/supervisor/recursos") },
     { label: "⚙️ Configuración",     onClick: () => navigate("/admin") },
     { label: "🚪 Cerrar Sesión",   onClick: handleLogout },
   ];
@@ -75,7 +76,8 @@ function DashboardJefatura() {
           color="#0369a1"
           actions={[
             { label: "Gestionar Personal",   onClick: () => navigate("/admin/gestion-usuarios") },
-            { label: "Administrar Recursos", onClick: () => navigate("/supervisor/gestion-recursos") },
+            { label: "Crear Recurso",        onClick: () => navigate("/supervisor/recursos") },
+            { label: "Gestión Recursos",     onClick: () => navigate("/supervisor/gestion-recursos") },
           ]}
         />
         <ModuleCard

@@ -1,13 +1,13 @@
 // frontend/src/modules/supervisor/recursos/CrearRecurso.jsx
-// V2.1B — Filtros territoriales inteligentes por rol
-// Mismo patrón que CrearEscuadra.jsx
+// V2.1B – CRUD de recursos operativos con filtros territoriales por rol
 //
-// admin:                   Región + Cantonal + Subdelegación
-// jefatura / UO cantonal:  Solo Subdelegación (cantonal implícita)
-// jefatura_dist / UO_dist: Sin filtros (su delegación es fija)
-// supervisor:              Solo lectura (soloLectura = true)
+// admin:                   Región → Cantonal → Subdelegación (completo)
+// jefatura / UO cantonal:  Solo subdelegación (todas las de su cantonal)
+// jefatura_dist / UO_dist: Badge fijo → su delegación directa
+// supervisor / agente:     Sin acceso → ruta protegida en App.jsx
 
 import { useContext, useEffect, useMemo, useState, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../../../context/AuthContext";
 import {
   ResourceRepository,
@@ -19,14 +19,13 @@ import { supabase } from "../../../core/providers/supabase/SupabaseProvider";
 import GestionLayout from "../../../shared/layouts/GestionLayout";
 
 function CrearRecurso() {
+  const navigate = useNavigate();
   const { userData } = useContext(AuthContext);
   const rol = userData?.rol ?? "";
 
-  const esAdmin      = rol === "admin";
-  const esCantonal   = ["jefatura", "unidad_operativa"].includes(rol);
-  const esDistrital  = ["jefatura_distrital", "unidad_operativa_distrital"].includes(rol);
-  const esSupervisor = rol === "supervisor";
-  const soloLectura  = esSupervisor;
+  const esAdmin     = rol === "admin";
+  const esCantonal  = ["jefatura","unidad_operativa"].includes(rol);
+  const esDistrital = ["jefatura_distrital","unidad_operativa_distrital"].includes(rol);
 
   // ── Catálogos ──────────────────────────────────────────
   const [regiones,        setRegiones]       = useState([]);
@@ -57,41 +56,32 @@ function CrearRecurso() {
   // ── Carga inicial según rol ────────────────────────────
   useEffect(() => {
     if (!userData) return;
+    ResourceTypeRepository.getActivos()
+      .then(t => setTiposRecurso(t ?? []))
+      .catch(() => {});
+
     if (esAdmin) {
       cargarCatalogosAdmin();
     } else if (esCantonal) {
       cargarSubdelegacionesDe(userData.delegation_id);
-      cargarTipos();
-    } else if (esDistrital || esSupervisor) {
+    } else if (esDistrital) {
       resolverSubdelegDistrital();
-      cargarTipos();
     }
   }, [userData]);
 
   async function cargarCatalogosAdmin() {
     setLoading(true);
     try {
-      const [regs, cants, tipos] = await Promise.all([
+      const [regs, cants] = await Promise.all([
         RegionRepository.getActivas(),
         DelegationRepository.getCantonales(),
-        ResourceTypeRepository.getActivos(),
       ]);
       setRegiones(regs ?? []);
       setCantonales(cants ?? []);
-      setTiposRecurso(tipos ?? []);
     } catch (err) {
       setError("Error cargando catálogos: " + err.message);
     } finally {
       setLoading(false);
-    }
-  }
-
-  async function cargarTipos() {
-    try {
-      const tipos = await ResourceTypeRepository.getActivos();
-      setTiposRecurso(tipos ?? []);
-    } catch (err) {
-      setError("Error cargando tipos: " + err.message);
     }
   }
 
@@ -105,30 +95,39 @@ function CrearRecurso() {
   }
 
   async function resolverSubdelegDistrital() {
+    setLoading(true);
     try {
       const { data, error: err } = await supabase
         .from("delegations")
-        .select("id, nombre, parent_delegation_id, delegation_type")
+        .select("id, nombre, codigo, parent_delegation_id, delegation_type")
         .eq("id", userData.delegation_id).single();
       if (err) throw err;
+
       if (data?.parent_delegation_id) {
         const subs = await DelegationRepository.getSubdelegaciones(data.parent_delegation_id);
         setSubdelegaciones(subs ?? []);
       } else {
         setSubdelegaciones([data]);
       }
+
       setFiltroSubdeleg(userData.delegation_id);
       setFormData(prev => ({ ...prev, delegation_id: userData.delegation_id }));
       await cargarRecursosDe(userData.delegation_id);
     } catch (err) {
       setError("Error resolviendo delegación: " + err.message);
+    } finally {
+      setLoading(false);
     }
   }
 
   // ── Admin: subdelegaciones al cambiar cantonal ─────────
   useEffect(() => {
     if (!esAdmin || !filtroCantonal) {
-      if (esAdmin) { setSubdelegaciones([]); setFiltroSubdeleg(""); setRecursos([]); }
+      if (esAdmin) {
+        setSubdelegaciones([]);
+        setFiltroSubdeleg("");
+        setRecursos([]);
+      }
       return;
     }
     DelegationRepository.getSubdelegaciones(filtroCantonal)
@@ -136,11 +135,12 @@ function CrearRecurso() {
       .catch(err => setError("Error: " + err.message));
   }, [filtroCantonal]);
 
-  // ── Recursos al cambiar subdelegación ──────────────────
+  // ── Recursos al cambiar subdelegación ─────────────────
   useEffect(() => {
-    if (filtroSubdeleg) {
-      cargarRecursosDe(filtroSubdeleg);
-      if (!editandoId) setFormData(prev => ({ ...prev, delegation_id: filtroSubdeleg }));
+    if (!filtroSubdeleg) return;
+    cargarRecursosDe(filtroSubdeleg);
+    if (!editandoId) {
+      setFormData(prev => ({ ...prev, delegation_id: filtroSubdeleg }));
     }
   }, [filtroSubdeleg]);
 
@@ -148,10 +148,8 @@ function CrearRecurso() {
     if (!delegId) { setRecursos([]); return; }
     try {
       const { data, error: err } = await supabase
-        .from("resources")
-        .select("*")
-        .eq("delegation_id", delegId)
-        .order("nombre_recurso");
+        .from("resources").select("*")
+        .eq("delegation_id", delegId).order("nombre_recurso");
       if (err) throw err;
       setRecursos(data ?? []);
     } catch (err) {
@@ -160,18 +158,21 @@ function CrearRecurso() {
   }
 
   const cargarRecursos = useCallback(async () => {
-    const delegId = filtroSubdeleg || (esDistrital || esSupervisor ? userData?.delegation_id : "");
+    const delegId = filtroSubdeleg || (esDistrital ? userData?.delegation_id : "");
     if (delegId) await cargarRecursosDe(delegId);
-  }, [filtroSubdeleg, esDistrital, esSupervisor, userData?.delegation_id]);
+  }, [filtroSubdeleg, esDistrital, userData?.delegation_id]);
 
-  // ── Helpers ────────────────────────────────────────────
-  const delegActiva = filtroSubdeleg || ((esDistrital || esSupervisor) ? userData?.delegation_id : "");
+  // ── Derivados ──────────────────────────────────────────
+  const delegActiva = filtroSubdeleg || (esDistrital ? userData?.delegation_id : "");
 
   function tipoIcono(tipo) { return tipo === "central" ? "🏛️" : "📍"; }
-  function nombreSubdeleg(id) { return subdelegaciones.find(d => d.id === id)?.nombre ?? "—"; }
-  function getNombreTipo(id)  { return tiposRecurso.find(t => t.id === id)?.nombre ?? "—"; }
+  function nombreSubdeleg(id) {
+    return subdelegaciones.find(d => d.id === id)?.nombre ?? "—";
+  }
+  function getNombreTipo(id) {
+    return tiposRecurso.find(t => t.id === id)?.nombre ?? "—";
+  }
 
-  // nombre_recurso automático
   const nombreRecurso = useMemo(() => {
     const tipo  = tiposRecurso.find(t => t.id === formData.resource_type_id);
     const deleg = subdelegaciones.find(d => d.id === formData.delegation_id);
@@ -179,12 +180,7 @@ function CrearRecurso() {
     return `${tipo.siglas}-${deleg.codigo}-${formData.unidad}`.toUpperCase().trim();
   }, [tiposRecurso, subdelegaciones, formData.resource_type_id, formData.delegation_id, formData.unidad]);
 
-  const recursosFiltrados = useMemo(() => {
-    const txt = "";
-    return recursos;
-  }, [recursos]);
-
-  // ── Handlers formulario ────────────────────────────────
+  // ── Handlers ───────────────────────────────────────────
   const handleFormChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
@@ -211,7 +207,9 @@ function CrearRecurso() {
     const indicativo = formData.indicativo.trim().toUpperCase();
 
     const unidadExiste = recursos.find(r =>
-      r.unidad === unidad && r.delegation_id === formData.delegation_id && r.id !== editandoId
+      r.unidad === unidad &&
+      r.delegation_id === formData.delegation_id &&
+      r.id !== editandoId
     );
     if (unidadExiste) { setError("Esa unidad ya existe en esta delegación."); return; }
 
@@ -278,9 +276,10 @@ function CrearRecurso() {
     <>
       {error && <div style={errorBannerStyle}>{error}</div>}
 
-      {/* Filtros territoriales — fuera del GestionLayout */}
+      {/* Filtros territoriales por rol */}
       {(esAdmin || esCantonal) && (
         <div style={filtrosWrapStyle}>
+
           {/* Admin: Región + Cantonal */}
           {esAdmin && (
             <div style={filtroFilaStyle}>
@@ -308,22 +307,20 @@ function CrearRecurso() {
           )}
 
           {/* Admin y Cantonal: subdelegación */}
-          {(esAdmin || esCantonal) && (
-            <div style={filtroItemStyle}>
-              <label style={labelStyle}>Central / Delegación Distrital</label>
-              <select value={filtroSubdeleg}
-                onChange={e => setFiltroSubdeleg(e.target.value)}
-                disabled={esAdmin ? !filtroCantonal : false}
-                style={inputStyle}>
-                <option value="">Seleccione central o distrital...</option>
-                {subdelegaciones.map(d => (
-                  <option key={d.id} value={d.id}>
-                    {tipoIcono(d.delegation_type)} {d.nombre} ({d.codigo})
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
+          <div style={filtroItemStyle}>
+            <label style={labelStyle}>Central / Delegación Distrital</label>
+            <select value={filtroSubdeleg}
+              onChange={e => setFiltroSubdeleg(e.target.value)}
+              disabled={esAdmin ? !filtroCantonal : false}
+              style={inputStyle}>
+              <option value="">Seleccione central o distrital...</option>
+              {subdelegaciones.map(d => (
+                <option key={d.id} value={d.id}>
+                  {tipoIcono(d.delegation_type)} {d.nombre} ({d.codigo})
+                </option>
+              ))}
+            </select>
+          </div>
 
           {!delegActiva && (
             <p style={hintStyle}>Seleccione la delegación para ver sus recursos.</p>
@@ -331,51 +328,52 @@ function CrearRecurso() {
         </div>
       )}
 
-      {/* Badge distrital */}
+      {/* Distrital: badge fijo */}
       {esDistrital && (
-        <div style={{ ...filtrosWrapStyle, ...distritalbadgeStyle }}>
+        <div style={distritalbadgeStyle}>
           {tipoIcono(subdelegaciones.find(d => d.id === userData?.delegation_id)?.delegation_type)}
           {" "}{nombreSubdeleg(userData?.delegation_id)}
           <span style={{ fontSize: "12px", color: "#64748b", marginLeft: "8px" }}>
-            — su delegación asignada
+            → su delegación asignada
           </span>
         </div>
       )}
 
       <GestionLayout
         titulo="Gestión Recursos Operativos"
-        subtitulo="Administración de recursos institucionales"
+        subtitulo="Crear, editar y administrar recursos institucionales"
         filtros={[
           { name: "busqueda", label: "Buscar", placeholder: "Unidad, indicativo o nombre" },
         ]}
         filtrosData={{ busqueda: "" }}
         onFiltroChange={() => {}}
 
-        columnas={["Recurso", "Tipo", "Unidad", "Indicativo", "Estado"]}
-        items={recursosFiltrados}
-        renderCelda={(item, columna) => {
-          switch (columna) {
+        columnas={["Recurso","Tipo","Unidad","Indicativo","Estado"]}
+        items={recursos}
+        renderCelda={(item, col) => {
+          switch (col) {
             case "Recurso":    return item.nombre_recurso || "—";
             case "Tipo":       return getNombreTipo(item.resource_type_id);
             case "Unidad":     return item.unidad;
             case "Indicativo": return item.indicativo;
             case "Estado":     return (
-              <span style={item.estado === "activo" ? badgeActiveStyle : item.estado === "mantenimiento" ? badgeWarnStyle : badgeInactiveStyle}>
-                {item.estado}
-              </span>
+              <span style={
+                item.estado === "activo" ? badgeActiveStyle :
+                item.estado === "mantenimiento" ? badgeWarnStyle : badgeInactiveStyle
+              }>{item.estado}</span>
             );
             default: return "";
           }
         }}
 
-        onEditar={soloLectura ? null : editarRecurso}
-        onCambiarEstado={soloLectura ? null : cambiarEstado}
+        onEditar={editarRecurso}
+        onCambiarEstado={cambiarEstado}
 
-        formTitle={soloLectura ? "" : (editandoId ? "Editar Recurso" : "Nuevo Recurso")}
-        formFields={soloLectura ? [] : [
+        formTitle={editandoId ? "Editar Recurso" : "Nuevo Recurso"}
+        formFields={[
           {
             name: "delegation_id", label: "Central / Distrital", type: "select",
-            disabled: esDistrital || esSupervisor,
+            disabled: esDistrital,
             options: [
               { label: "Seleccione...", value: "" },
               ...subdelegaciones.map(d => ({
@@ -404,25 +402,23 @@ function CrearRecurso() {
         ]}
         formData={formData}
         onFormChange={handleFormChange}
-        onSubmit={soloLectura ? null : guardarRecurso}
-        onCancel={soloLectura ? null : limpiarFormulario}
+        onSubmit={guardarRecurso}
+        onCancel={limpiarFormulario}
         editando={!!editandoId}
         loading={loading}
         panelWidth={430}
 
         extraContent={
-          !soloLectura && (
-            <div style={nombreRecursoBoxStyle}>
-              <strong style={{ fontSize: "12px", color: "#64748b" }}>NOMBRE RECURSO</strong>
-              <div style={{ fontSize: "20px", fontWeight: "700", color: "#1e293b", marginTop: "4px" }}>
-                {nombreRecurso || (
-                  <span style={{ color: "#94a3b8", fontSize: "14px" }}>
-                    Pendiente de completar datos
-                  </span>
-                )}
-              </div>
+          <div style={nombreRecursoBoxStyle}>
+            <strong style={{ fontSize: "12px", color: "#64748b" }}>NOMBRE RECURSO</strong>
+            <div style={{ fontSize: "20px", fontWeight: "700", color: "#1e293b", marginTop: "4px" }}>
+              {nombreRecurso || (
+                <span style={{ color: "#94a3b8", fontSize: "14px" }}>
+                  Pendiente de completar datos
+                </span>
+              )}
             </div>
-          )
+          </div>
         }
       />
     </>
@@ -430,17 +426,17 @@ function CrearRecurso() {
 }
 
 // Estilos
-const errorBannerStyle   = { background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "8px", padding: "10px 16px", fontSize: "13px", color: "#dc2626", margin: "16px 20px 0" };
-const filtrosWrapStyle   = { background: "white", padding: "16px", borderRadius: "12px", boxShadow: "0 2px 6px rgba(0,0,0,0.06)", margin: "16px 20px 0" };
-const filtroFilaStyle    = { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "12px" };
-const filtroItemStyle    = { display: "flex", flexDirection: "column", gap: "4px" };
-const distritalbadgeStyle = { background: "#f0fdf4", border: "1px solid #bbf7d0", fontSize: "14px", color: "#166534", fontWeight: "500" };
-const hintStyle          = { margin: "8px 0 0", fontSize: "13px", color: "#94a3b8", textAlign: "center" };
-const labelStyle         = { fontSize: "13px", fontWeight: "500", color: "#374151" };
-const inputStyle         = { padding: "9px 12px", border: "1px solid #d1d5db", borderRadius: "8px", fontSize: "14px", width: "100%", boxSizing: "border-box", outline: "none" };
-const badgeActiveStyle   = { background: "#dcfce7", color: "#166534", padding: "2px 8px", borderRadius: "12px", fontSize: "12px", fontWeight: "500" };
-const badgeInactiveStyle = { background: "#fee2e2", color: "#991b1b", padding: "2px 8px", borderRadius: "12px", fontSize: "12px", fontWeight: "500" };
-const badgeWarnStyle     = { background: "#fef9c3", color: "#854d0e", padding: "2px 8px", borderRadius: "12px", fontSize: "12px", fontWeight: "500" };
-const nombreRecursoBoxStyle = { marginTop: "16px", padding: "14px", border: "1px solid #e2e8f0", borderRadius: "10px", background: "#f8fafc" };
+const errorBannerStyle    = { background:"#fef2f2", border:"1px solid #fecaca", borderRadius:"8px", padding:"10px 16px", fontSize:"13px", color:"#dc2626", margin:"16px 20px 0" };
+const filtrosWrapStyle    = { background:"white", padding:"16px", borderRadius:"12px", boxShadow:"0 2px 6px rgba(0,0,0,0.06)", margin:"16px 20px 0", display:"flex", flexDirection:"column", gap:"12px" };
+const filtroFilaStyle     = { display:"grid", gridTemplateColumns:"1fr 1fr", gap:"12px" };
+const filtroItemStyle     = { display:"flex", flexDirection:"column", gap:"4px" };
+const distritalbadgeStyle = { background:"#f0fdf4", border:"1px solid #bbf7d0", borderRadius:"12px", padding:"10px 16px", margin:"16px 20px 0", fontSize:"14px", color:"#166534", fontWeight:"500", display:"flex", alignItems:"center" };
+const hintStyle           = { margin:"4px 0 0", fontSize:"13px", color:"#94a3b8", textAlign:"center" };
+const labelStyle          = { fontSize:"13px", fontWeight:"500", color:"#374151" };
+const inputStyle          = { padding:"9px 12px", border:"1px solid #d1d5db", borderRadius:"8px", fontSize:"14px", width:"100%", boxSizing:"border-box", outline:"none" };
+const badgeActiveStyle    = { background:"#dcfce7", color:"#166534", padding:"2px 8px", borderRadius:"12px", fontSize:"12px", fontWeight:"500" };
+const badgeInactiveStyle  = { background:"#fee2e2", color:"#991b1b", padding:"2px 8px", borderRadius:"12px", fontSize:"12px", fontWeight:"500" };
+const badgeWarnStyle      = { background:"#fef9c3", color:"#854d0e", padding:"2px 8px", borderRadius:"12px", fontSize:"12px", fontWeight:"500" };
+const nombreRecursoBoxStyle = { marginTop:"16px", padding:"14px", border:"1px solid #e2e8f0", borderRadius:"10px", background:"#f8fafc" };
 
 export default CrearRecurso;

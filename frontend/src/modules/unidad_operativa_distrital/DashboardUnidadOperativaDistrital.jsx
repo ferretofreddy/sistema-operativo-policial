@@ -26,7 +26,8 @@ function DashboardUnidadOperativaDistrital() {
     { label: "📊 Hojas Servicio",    onClick: () => navigate("/supervisor/hojas-hoy") },
     { label: "🏛️ Crear Escuadras",   onClick: () => navigate("/admin/escuadras") },
     { label: "👥 Gestión Escuadra",  onClick: () => navigate("/admin/gestion-escuadras") },
-    { label: "🚓 Recursos",          onClick: () => navigate("/supervisor/gestion-recursos") },
+    { label: "🚓 Gestión Recursos",  onClick: () => navigate("/supervisor/gestion-recursos") },
+    { label: "➕ Crear Recurso",      onClick: () => navigate("/supervisor/recursos") },
     { label: "👤 Gestión Personal",  onClick: () => navigate("/gestion-personal") },
     { label: "🚪 Cerrar Sesión",     onClick: handleLogout },
   ];
@@ -71,6 +72,7 @@ function DashboardUnidadOperativaDistrital() {
           description="Recursos operativos y personal del distrito"
           color="#0369a1"
           actions={[
+            { label: "Crear Recurso",     onClick: () => navigate("/supervisor/recursos") },
             { label: "Gestión Recursos",  onClick: () => navigate("/supervisor/gestion-recursos") },
             { label: "Hojas de Hoy",      onClick: () => navigate("/supervisor/hojas-hoy") },
             { label: "Gestión Personal",  onClick: () => navigate("/gestion-personal") },

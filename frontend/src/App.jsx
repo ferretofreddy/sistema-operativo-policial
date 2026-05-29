@@ -119,12 +119,18 @@ function App() {
             </ProtectedRoute>
           } />
           <Route path="/supervisor/recursos" element={
-            <ProtectedRoute userData={userData} allowedRoles={["supervisor", "unidad_operativa", "admin"]}>
+            <ProtectedRoute userData={userData} allowedRoles={[
+              "admin","jefatura","unidad_operativa",
+              "jefatura_distrital","unidad_operativa_distrital"
+            ]}>
               <CrearRecurso />
             </ProtectedRoute>
           } />
           <Route path="/supervisor/gestion-recursos" element={
-            <ProtectedRoute userData={userData} allowedRoles={["supervisor", "unidad_operativa", "admin"]}>
+            <ProtectedRoute userData={userData} allowedRoles={[
+              "admin","jefatura","unidad_operativa",
+              "jefatura_distrital","unidad_operativa_distrital","supervisor"
+            ]}>
               <GestionRecurso />
             </ProtectedRoute>
           } />

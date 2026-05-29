@@ -28,7 +28,8 @@ function DashboardJefaturaDistrital() {
     { label: "🏛️ Escuadras",           onClick: () => navigate("/admin/escuadras") },
     { label: "👥 Gestión Escuadra",    onClick: () => navigate("/admin/gestion-escuadras") },
     { label: "👤 Gestión Personal",    onClick: () => navigate("/gestion-personal") },
-    { label: "🚓 Recursos",            onClick: () => navigate("/supervisor/gestion-recursos") },
+    { label: "🚓 Gestión Recursos",    onClick: () => navigate("/supervisor/gestion-recursos") },
+    { label: "➕ Crear Recurso",        onClick: () => navigate("/supervisor/recursos") },
     { label: "🚪 Cerrar Sesión",       onClick: handleLogout },
   ];
 
@@ -80,7 +81,8 @@ function DashboardJefaturaDistrital() {
           color="#0369a1"
           actions={[
             { label: "Gestionar Personal",   onClick: () => navigate("/gestion-personal") },
-            { label: "Administrar Recursos", onClick: () => navigate("/supervisor/gestion-recursos") },
+            { label: "Crear Recurso",        onClick: () => navigate("/supervisor/recursos") },
+            { label: "Gestión Recursos",     onClick: () => navigate("/supervisor/gestion-recursos") },
           ]}
         />
       </div>

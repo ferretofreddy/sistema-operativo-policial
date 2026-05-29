@@ -26,7 +26,8 @@ function DashboardUnidadOperativa() {
     { label: "📊 Hojas Servicio",   onClick: () => navigate("/supervisor/hojas-hoy") },
     { label: "🏛️ Crear Escuadras",  onClick: () => navigate("/admin/escuadras") },
     { label: "👥 Gestión Escuadra", onClick: () => navigate("/admin/gestion-escuadras") },
-    { label: "🚓 Recursos",         onClick: () => navigate("/supervisor/gestion-recursos") },
+    { label: "🚓 Gestión Recursos", onClick: () => navigate("/supervisor/gestion-recursos") },
+    { label: "➕ Crear Recurso",     onClick: () => navigate("/supervisor/recursos") },
     { label: "👤 Gestión Personal", onClick: () => navigate("/gestion-personal") },
     { label: "🚪 Cerrar Sesión",  onClick: handleLogout },
   ];

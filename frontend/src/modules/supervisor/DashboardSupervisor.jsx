@@ -24,10 +24,9 @@ function DashboardSupervisor() {
     { label: "📊 Dashboard",       onClick: () => navigate("/supervisor"),                           active: true },
     { label: "📋 Hojas Servicio",  onClick: () => navigate("/supervisor/hojas-hoy") },
     { label: "➕ Crear Hoja",       onClick: () => navigate("/supervisor/hoja-servicio") },
-    { label: "🚓 Recursos",         onClick: () => navigate("/supervisor/gestion-recursos") },
+    { label: "🚓 Gestión Recursos", onClick: () => navigate("/supervisor/gestion-recursos") },
     { label: "🗓️ Planificación",    onClick: () => navigate("/unidad_operativa/planificacion/crear") },
     { label: "👥 Gestión Escuadra", onClick: () => navigate("/admin/gestion-escuadras") },
-    { label: "🚗 Ver Recursos",     onClick: () => navigate("/supervisor/recursos") },
     { label: "🚪 Cerrar Sesión",    onClick: handleLogout },
   ];
 
@@ -58,7 +57,6 @@ function DashboardSupervisor() {
           actions={[
             { label: "Gestión Recursos", onClick: () => navigate("/supervisor/gestion-recursos") },
             { label: "Gestión Escuadra", onClick: () => navigate("/admin/gestion-escuadras") },
-            { label: "Ver Recursos",     onClick: () => navigate("/supervisor/recursos") },
           ]}
         />
         <ModuleCard
