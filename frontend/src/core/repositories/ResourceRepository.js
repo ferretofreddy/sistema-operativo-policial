@@ -74,12 +74,6 @@ class ResourceRepositoryClass extends BaseRepository {
   // OFICIALES — tabla resource_assignments
   // ──────────────────────────────────────
 
-  /**
-   * Obtener oficiales actualmente asignados a un recurso.
-   * Usa resource_assignments con liberado_en IS NULL (asignación activa).
-   * Hace JOIN con users para obtener datos del oficial.
-   * Usado en CrearHojaServicio para poblar el selector de personal.
-   */
   async getOficialesDelRecurso(resourceId) {
     const { data, error } = await supabase
       .from("resource_assignments")
@@ -100,7 +94,6 @@ class ResourceRepositoryClass extends BaseRepository {
 
     if (error) throw new Error(error.message);
 
-    // Aplanar — retornar array de usuarios directamente
     return (data ?? [])
       .map(row => row.users)
       .filter(Boolean)
