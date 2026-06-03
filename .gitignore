@@ -5,5 +5,5 @@ build
 .vscode
 .DS_Store
 
-# Process core dumps
-core
+# Process core dumps (root-level only, not src/core/)
+/core
