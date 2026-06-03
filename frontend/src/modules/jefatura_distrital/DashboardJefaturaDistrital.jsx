@@ -24,7 +24,7 @@ function DashboardJefaturaDistrital() {
     { label: "📊 Dashboard",          onClick: () => navigate("/jefatura_distrital"),                  active: true },
     { label: "📈 Reportes",            onClick: () => navigate("/jefatura_distrital/reportes") },
     { label: "📋 Hojas Servicio",      onClick: () => navigate("/supervisor/hojas-hoy") },
-    { label: "🗓️ Planificación",       onClick: () => navigate("/unidad_operativa/planificacion/crear") },
+    { label: "🗓️ Planificación",       onClick: () => navigate("/unidad_operativa/planificacion") },
     { label: "🏛️ Escuadras",           onClick: () => navigate("/admin/escuadras") },
     { label: "👥 Gestión Escuadra",    onClick: () => navigate("/admin/gestion-escuadras") },
     { label: "👤 Gestión Personal",    onClick: () => navigate("/gestion-personal") },

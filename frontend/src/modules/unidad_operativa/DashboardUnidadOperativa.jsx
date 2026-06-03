@@ -22,7 +22,8 @@ function DashboardUnidadOperativa() {
 
   const menuItems = [
     { label: "📋 Crear Orden",    onClick: () => navigate("/unidad_operativa/ordenes/crear"),       active: true },
-    { label: "🗓️ Planificación",  onClick: () => navigate("/unidad_operativa/planificacion/crear") },
+    { label: "🗓️ Planificación",  onClick: () => navigate("/unidad_operativa/planificacion") },
+    { label: "🕐 Turnos",          onClick: () => navigate("/unidad_operativa/turnos") },
     { label: "📊 Hojas Servicio",   onClick: () => navigate("/supervisor/hojas-hoy") },
     { label: "🏛️ Crear Escuadras",  onClick: () => navigate("/admin/escuadras") },
     { label: "👥 Gestión Escuadra", onClick: () => navigate("/admin/gestion-escuadras") },
@@ -57,7 +58,8 @@ function DashboardUnidadOperativa() {
           description="Control y planificación de operativos"
           color="#0f766e"
           actions={[
-            { label: "Gestionar Planificación", onClick: () => navigate("/unidad_operativa/planificacion/crear") },
+            { label: "Gestionar Planificación", onClick: () => navigate("/unidad_operativa/planificacion") },
+            { label: "Turnos de Servicio",      onClick: () => navigate("/unidad_operativa/turnos") },
           ]}
         />
         <ModuleCard

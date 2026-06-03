@@ -23,8 +23,9 @@ function DashboardJefatura() {
   const menuItems = [
     { label: "📊 Dashboard",      onClick: () => navigate("/jefatura"),                              active: true },
     { label: "📈 Reportes",        onClick: () => navigate("/jefatura/reportes") },
+    { label: "🕐 Turnos",          onClick: () => navigate("/unidad_operativa/turnos") },
     { label: "📋 Hojas Servicio",  onClick: () => navigate("/supervisor/hojas-hoy") },
-    { label: "🗓️ Planificación",   onClick: () => navigate("/unidad_operativa/planificacion/crear") },
+    { label: "🗓️ Planificación",   onClick: () => navigate("/unidad_operativa/planificacion") },
     { label: "👥 Personal",          onClick: () => navigate("/gestion-personal") },
     { label: "🏛️ Escuadras",        onClick: () => navigate("/admin/escuadras") },
     { label: "👥 Gestión Escuadra",  onClick: () => navigate("/admin/gestion-escuadras") },
@@ -68,6 +69,7 @@ function DashboardJefatura() {
           actions={[
             { label: "Ver Hojas del Día", onClick: () => navigate("/supervisor/hojas-hoy") },
             { label: "Ver Órdenes",       onClick: () => navigate("/unidad_operativa/ordenes") },
+            { label: "Turnos de Servicio", onClick: () => navigate("/unidad_operativa/turnos") },
           ]}
         />
         <ModuleCard

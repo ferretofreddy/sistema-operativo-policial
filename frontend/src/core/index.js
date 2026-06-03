@@ -22,6 +22,7 @@ export { SquadRepository }        from "./repositories/SquadRepository";
 export { RankRepository }         from "./repositories/RankRepository";
 export { ConditionRepository }    from "./repositories/ConditionRepository";
 export { ResourceTypeRepository } from "./repositories/ResourceTypeRepository";
+export { ShiftRepository }        from "./repositories/ShiftRepository";
 
 // =========================================
 // ADAPTERS

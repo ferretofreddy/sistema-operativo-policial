@@ -25,7 +25,7 @@ function DashboardSupervisor() {
     { label: "📋 Hojas Servicio",  onClick: () => navigate("/supervisor/hojas-hoy") },
     { label: "➕ Crear Hoja",       onClick: () => navigate("/supervisor/hoja-servicio") },
     { label: "🚓 Gestión Recursos", onClick: () => navigate("/supervisor/gestion-recursos") },
-    { label: "🗓️ Planificación",    onClick: () => navigate("/unidad_operativa/planificacion/crear") },
+    { label: "🗓️ Planificación",    onClick: () => navigate("/unidad_operativa/planificacion") },
     { label: "👥 Gestión Escuadra", onClick: () => navigate("/admin/gestion-escuadras") },
     { label: "🚪 Cerrar Sesión",    onClick: handleLogout },
   ];
@@ -64,7 +64,7 @@ function DashboardSupervisor() {
           description="Consulta de planificación operativa"
           color="#0f766e"
           actions={[
-            { label: "Mis Planificaciones", onClick: () => navigate("/unidad_operativa/planificacion/crear") },
+            { label: "Mis Planificaciones", onClick: () => navigate("/unidad_operativa/planificacion") },
           ]}
         />
       </div>

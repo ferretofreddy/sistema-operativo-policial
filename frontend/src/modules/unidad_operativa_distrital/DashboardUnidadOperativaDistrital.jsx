@@ -22,7 +22,7 @@ function DashboardUnidadOperativaDistrital() {
 
   const menuItems = [
     { label: "📋 Crear Orden",       onClick: () => navigate("/unidad_operativa/ordenes/crear"),       active: true },
-    { label: "🗓️ Planificación",     onClick: () => navigate("/unidad_operativa/planificacion/crear") },
+    { label: "🗓️ Planificación",     onClick: () => navigate("/unidad_operativa/planificacion") },
     { label: "📊 Hojas Servicio",    onClick: () => navigate("/supervisor/hojas-hoy") },
     { label: "🏛️ Crear Escuadras",   onClick: () => navigate("/admin/escuadras") },
     { label: "👥 Gestión Escuadra",  onClick: () => navigate("/admin/gestion-escuadras") },
@@ -55,7 +55,7 @@ function DashboardUnidadOperativaDistrital() {
           description="Control y planificación de operativos del distrito"
           color="#0f766e"
           actions={[
-            { label: "Gestionar Planificación", onClick: () => navigate("/unidad_operativa/planificacion/crear") },
+            { label: "Gestionar Planificación", onClick: () => navigate("/unidad_operativa/planificacion") },
           ]}
         />
         <ModuleCard

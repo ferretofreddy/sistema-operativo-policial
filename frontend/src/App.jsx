@@ -60,6 +60,12 @@ const CrearPlanificacion = lazy(
 const VerPlanificacion = lazy(
   () => import("./modules/unidad_operativa/planificacion/VerPlanificacion"),
 );
+const AdminTurnos = lazy(
+  () => import("./modules/unidad_operativa/turnos/AdminTurnos"),
+);
+const ListaPlanificaciones = lazy(
+  () => import("./modules/unidad_operativa/planificacion/ListaPlanificaciones"),
+);
 
 // 🔹 Módulos Administración
 const CrearRegion = lazy(
@@ -292,11 +298,35 @@ function App() {
             }
           />
           <Route
+            path="/unidad_operativa/planificacion"
+            element={
+              <ProtectedRoute
+                userData={userData}
+                allowedRoles={[
+                  "admin",
+                  "jefatura",
+                  "unidad_operativa",
+                  "jefatura_distrital",
+                  "unidad_operativa_distrital",
+                  "supervisor",
+                ]}
+              >
+                <ListaPlanificaciones />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/unidad_operativa/planificacion/crear"
             element={
               <ProtectedRoute
                 userData={userData}
-                allowedRoles={["unidad_operativa", "supervisor"]}
+                allowedRoles={[
+                  "admin",
+                  "jefatura",
+                  "unidad_operativa",
+                  "jefatura_distrital",
+                  "unidad_operativa_distrital",
+                ]}
               >
                 <CrearPlanificacion />
               </ProtectedRoute>
@@ -307,9 +337,27 @@ function App() {
             element={
               <ProtectedRoute
                 userData={userData}
-                allowedRoles={["unidad_operativa", "supervisor"]}
+                allowedRoles={[
+                  "admin",
+                  "jefatura",
+                  "unidad_operativa",
+                  "jefatura_distrital",
+                  "unidad_operativa_distrital",
+                  "supervisor",
+                ]}
               >
                 <VerPlanificacion />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/unidad_operativa/turnos"
+            element={
+              <ProtectedRoute
+                userData={userData}
+                allowedRoles={["admin", "jefatura", "unidad_operativa"]}
+              >
+                <AdminTurnos />
               </ProtectedRoute>
             }
           />

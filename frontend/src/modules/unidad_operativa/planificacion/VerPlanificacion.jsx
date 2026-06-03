@@ -14,6 +14,7 @@ import {
   RegionRepository,
   UserRepository,
 } from "../../../core";
+import { supabase } from "../../../core/providers/supabase/SupabaseProvider";
 import DesktopLayout from "../../../shared/layouts/DesktopLayout";
 import {
   parseTurno,
@@ -28,8 +29,11 @@ function VerPlanificacion() {
   const navigate = useNavigate();
   const { userData } = useContext(AuthContext);
 
-  const esSupervisor = userData?.rol === "supervisor";
-  const soloLectura = esSupervisor;
+  const rol          = userData?.rol ?? "";
+  const esSupervisor = rol === "supervisor";
+  // Pueden editar: admin, unidad_operativa, unidad_operativa_distrital
+  const puedeEditar  = ["admin","unidad_operativa","unidad_operativa_distrital"].includes(rol);
+  const soloLectura  = !puedeEditar;
 
   // ── ESTADO ───────────────────────────────────────────────
   const [plan, setPlan] = useState(null);
@@ -99,10 +103,25 @@ function VerPlanificacion() {
         return;
       }
 
-      if (
-        !["admin", "unidad_operativa", "jefatura", "supervisor"].includes(userData.rol) ||
-        (userData.rol !== "admin" && planData.delegation_id !== userData.delegation_id)
-      ) {
+      // Verificar acceso territorial
+      const esAdminRol    = userData.rol === "admin";
+      const esCantonalRol = ["jefatura","unidad_operativa"].includes(userData.rol);
+      const esDistRol     = ["jefatura_distrital","unidad_operativa_distrital"].includes(userData.rol);
+      const esSupRol      = userData.rol === "supervisor";
+
+      let tieneAcceso = false;
+      if (esAdminRol) {
+        tieneAcceso = true;
+      } else if (esCantonalRol) {
+        // Cantonal ve planificaciones de su scope jerárquico — RLS ya lo garantiza
+        tieneAcceso = true;
+      } else if (esDistRol) {
+        tieneAcceso = planData.delegation_id === userData.delegation_id;
+      } else if (esSupRol) {
+        tieneAcceso = planData.squad_id === userData.squad_id;
+      }
+
+      if (!tieneAcceso) {
         setError("No tiene acceso a esta planificación.");
         setLoading(false);
         return;
@@ -126,16 +145,31 @@ function VerPlanificacion() {
       setCreadorData(creadData);
 
       const diasData = await PlanningRepository.getDias(id);
-      const ordenesData =
-        await OrderRepository.getActivasYProgramadasByDelegacion(
-          planData.delegation_id,
-        );
+
+      // Las órdenes siempre son emitidas por la cantonal.
+      // Resolver la cantonal padre de la delegación del plan.
+      const { data: delegPlan } = await supabase
+        .from("delegations")
+        .select("delegation_type, parent_delegation_id")
+        .eq("id", planData.delegation_id)
+        .single();
+
+      const cantonalId = delegPlan?.delegation_type === "cantonal"
+        ? planData.delegation_id
+        : delegPlan?.parent_delegation_id;
+
+      // Cargar TODAS las órdenes de la cantonal (incluye vencidas)
+      // porque una planificación puede referenciar órdenes que luego vencieron
+      const todasOrdenes = cantonalId
+        ? await OrderRepository.getAll({ delegation_id: cantonalId }).catch(() => [])
+        : [];
+
       setDias(diasData);
-      setOrdenes(ordenesData);
+      setOrdenes(todasOrdenes);
 
       await Promise.all([
         cargarActividades(diasData),
-        cargarAcciones(ordenesData),
+        cargarAcciones(todasOrdenes),
       ]);
     } catch (err) {
       setError("Error al cargar planificación: " + err.message);
@@ -348,7 +382,7 @@ function VerPlanificacion() {
   const menuItems = [
     {
       label: "📋 Planificaciones",
-      onClick: () => navigate("/unidad_operativa/planificacion/crear"),
+      onClick: () => navigate("/unidad_operativa/planificacion"),
     },
     {
       label: "🏠 Dashboard",
@@ -773,12 +807,25 @@ function buildExcelData({
 
   const datos = [];
   // Encabezado institucional
+  // Resolver jerarquía territorial correcta
+  const esCentralODistrital = deleg?.delegation_type === "central"
+    || deleg?.delegation_type === "distrital";
+  const cantonalDeleg = esCentralODistrital
+    ? delegaciones.find(d => d.id === deleg?.parent_delegation_id)
+    : null;
+
   datos.push(["MINISTERIO DE SEGURIDAD PÚBLICA"]);
-  datos.push([`DIRECCIÓN REGIONAL ${(region?.nombre ?? "").toUpperCase()}`]);
-  datos.push([`DELEGACIÓN CANTONAL DE ${(deleg?.nombre ?? "").toUpperCase()}`]);
+  datos.push(["FUERZA PÚBLICA DE COSTA RICA"]);
+  datos.push([`DIRECCIÓN REGIONAL: ${(region?.nombre ?? "").toUpperCase()}`]);
+  if (esCentralODistrital) {
+    datos.push([`DELEGACIÓN CANTONAL: ${(cantonalDeleg?.nombre ?? "—").toUpperCase()}`]);
+    datos.push([`DISTRITAL: ${(deleg?.nombre ?? "").toUpperCase()}`]);
+  } else {
+    datos.push([`DELEGACIÓN: ${(deleg?.nombre ?? "").toUpperCase()}`]);
+  }
   datos.push(["PLANIFICACIÓN OPERATIVA"]);
-  datos.push([`PERIODO: ${plan.fecha_inicio} - ${plan.fecha_fin}`]);
-  datos.push([`ESCUADRA: ${(escuadra?.nombre ?? "").toUpperCase()}`]);
+  datos.push([`PERÍODO: ${plan.fecha_inicio} al ${plan.fecha_fin}`]);
+  datos.push([`ESCUADRA: ${(escuadra?.nombre ?? "").toUpperCase()} (${escuadra?.codigo ?? ""})`]);
   datos.push([`SUPERVISOR: ${supNombre}`]);
   datos.push([`ELABORADO POR: ${creadNombre}`]);
   datos.push([]);
