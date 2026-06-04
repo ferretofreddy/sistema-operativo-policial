@@ -25,9 +25,11 @@ export const generarPDFHojaServicio = (hoja) => {
     (r.oficiales ?? []).map(o => ({ ...o, resource_id: r.resource_id }))
   );
 
-  // Órdenes únicas
+  // Órdenes únicas — filtrar "EMERGENCIA" (no es una orden real de ejecución)
   const ordenesUnicas = [...new Set(
-    actividades.map(a => a.orden_consecutivo).filter(Boolean)
+    actividades
+      .map(a => a.orden_consecutivo)
+      .filter(o => o && o !== "EMERGENCIA")
   )];
 
   // Sectores únicos — desde sector de cada actividad
@@ -65,7 +67,12 @@ export const generarPDFHojaServicio = (hoja) => {
       ],
       [
         { content: "ORDEN DE EJECUCIÓN:", styles: { fontStyle: "bold", textColor: [255, 0, 0] } },
-        { content: ordenesUnicas.join(", "), styles: { textColor: [255, 0, 0] } },
+        {
+          content: ordenesUnicas.length > 0
+            ? ordenesUnicas.join(", ")
+            : "SIN ORDEN DE REFERENCIA",
+          styles: { textColor: ordenesUnicas.length > 0 ? [255, 0, 0] : [100, 100, 100] }
+        },
       ],
       [
         { content: "FECHA:", styles: { fontStyle: "bold" } },

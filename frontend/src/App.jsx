@@ -34,6 +34,9 @@ const CrearHojaServicio = lazy(
 const ListaHojasHoy = lazy(
   () => import("./modules/supervisor/hoja_servicio/ListaHojasHoy"),
 );
+const ListaHojasServicio = lazy(
+  () => import("./modules/supervisor/hoja_servicio/ListaHojasServicio"),
+);
 const VerHojaServicio = lazy(
   () => import("./modules/supervisor/hoja_servicio/VerHojaServicio"),
 );
@@ -174,7 +177,24 @@ function App() {
             element={
               <ProtectedRoute
                 userData={userData}
-                allowedRoles={["supervisor", "unidad_operativa", "jefatura"]}
+                allowedRoles={[
+                  "admin","supervisor","jefatura","unidad_operativa",
+                  "jefatura_distrital","unidad_operativa_distrital",
+                ]}
+              >
+                <CrearHojaServicio />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/supervisor/crear-hoja"
+            element={
+              <ProtectedRoute
+                userData={userData}
+                allowedRoles={[
+                  "admin","supervisor","jefatura","unidad_operativa",
+                  "jefatura_distrital","unidad_operativa_distrital",
+                ]}
               >
                 <CrearHojaServicio />
               </ProtectedRoute>
@@ -185,9 +205,12 @@ function App() {
             element={
               <ProtectedRoute
                 userData={userData}
-                allowedRoles={["supervisor", "unidad_operativa", "jefatura"]}
+                allowedRoles={[
+                  "admin","supervisor","jefatura","unidad_operativa",
+                  "jefatura_distrital","unidad_operativa_distrital",
+                ]}
               >
-                <ListaHojasHoy />
+                <ListaHojasServicio />
               </ProtectedRoute>
             }
           />
@@ -196,7 +219,10 @@ function App() {
             element={
               <ProtectedRoute
                 userData={userData}
-                allowedRoles={["supervisor", "unidad_operativa", "jefatura"]}
+                allowedRoles={[
+                  "admin","supervisor","jefatura","unidad_operativa",
+                  "jefatura_distrital","unidad_operativa_distrital",
+                ]}
               >
                 <VerHojaServicio />
               </ProtectedRoute>
