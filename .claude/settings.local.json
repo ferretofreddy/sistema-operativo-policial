@@ -14,7 +14,8 @@
       "Bash(git add *)",
       "Bash(git check-ignore *)",
       "Bash(git commit -m ' *)",
-      "Bash(del \"c:/Users/ferre/Desktop/sistema-operativo/frontend/src/modules/administracion/escuadras/GestionEscuadras.jsx\")"
+      "Bash(del \"c:/Users/ferre/Desktop/sistema-operativo/frontend/src/modules/administracion/escuadras/GestionEscuadras.jsx\")",
+      "Bash(git push *)"
     ]
   }
 }
